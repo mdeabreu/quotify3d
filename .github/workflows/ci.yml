@@ -44,6 +44,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Setup
         uses: ./.github/actions/setup
+      - run: cp .env.example .env
       - run: pnpm test:int
 
 # Disabling for the time being      
