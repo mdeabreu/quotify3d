@@ -17,24 +17,28 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: pnpm lint
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: pnpm exec tsc --noEmit
 
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: pnpm build --experimental-build-mode compile
 
   test-int:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup
       - run: pnpm test:int
 
@@ -42,6 +46,7 @@ jobs:
 #  test-e2e:
 #    runs-on: ubuntu-latest
 #    steps:
+#      - uses: actions/checkout@v5
 #      - uses: ./.github/actions/setup
 #      - run: pnpm exec playwright install --with-deps chromium --no-shell
 #      - run: pnpm test:e2e
