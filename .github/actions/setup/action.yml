@@ -20,3 +20,4 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: pnpm
     - run: pnpm install
+      shell: bash
