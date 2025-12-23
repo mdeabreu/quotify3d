@@ -22,13 +22,14 @@ jobs:
         uses: ./.github/actions/setup
       - run: pnpm lint
 
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup
-        uses: ./.github/actions/setup
-      - run: pnpm exec tsc --noEmit
+# Disable until fixed upstream https://github.com/payloadcms/payload/issues/14646
+#  typecheck:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v5
+#      - name: Setup
+#        uses: ./.github/actions/setup
+#      - run: pnpm exec tsc --noEmit
 
   build:
     runs-on: ubuntu-latest
