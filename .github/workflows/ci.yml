@@ -18,28 +18,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: Setup
+        uses: ./.github/actions/setup
       - run: pnpm lint
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: Setup
+        uses: ./.github/actions/setup
       - run: pnpm exec tsc --noEmit
 
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: Setup
+        uses: ./.github/actions/setup
       - run: pnpm build --experimental-build-mode compile
 
   test-int:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup
+      - name: Setup
+        uses: ./.github/actions/setup
       - run: pnpm test:int
 
 # Disabling for the time being      
@@ -47,6 +51,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - uses: actions/checkout@v5
-#      - uses: ./.github/actions/setup
+#      - name: Setup
+#        uses: ./.github/actions/setup
 #      - run: pnpm exec playwright install --with-deps chromium --no-shell
 #      - run: pnpm test:e2e
