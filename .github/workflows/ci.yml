@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm exec tsc --noEmit
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm build --experimental-build-mode compile
+
+  test-int:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm test:int
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps
+      - run: pnpm test:e2e
