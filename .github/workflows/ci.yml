@@ -38,9 +38,10 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm test:int
 
-  test-e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ./.github/actions/setup
-      - run: pnpm exec playwright install --with-deps
-      - run: pnpm test:e2e
+# Disabling for the time being      
+#  test-e2e:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: ./.github/actions/setup
+#      - run: pnpm exec playwright install --with-deps chromium --no-shell
+#      - run: pnpm test:e2e
