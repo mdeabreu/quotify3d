@@ -12,5 +12,20 @@ export const Filaments: CollectionConfig = {
       type: 'text',
       required: true,
     },
+    {
+      type: 'collapsible',
+      label: 'Configuration',
+      admin: {
+        initCollapsed: true,
+      },
+      fields: [
+        {
+          name: 'config',
+          type: 'json',
+          required: true,
+          defaultValue: {},
+        },
+      ],
+    },
   ],
 }
