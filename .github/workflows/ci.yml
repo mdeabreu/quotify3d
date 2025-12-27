@@ -48,12 +48,12 @@ jobs:
       - run: cp .env.example .env
       - run: pnpm test:int
 
-# Disabling for the time being      
-#  test-e2e:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v5
-#      - name: Setup
-#        uses: ./.github/actions/setup
-#      - run: pnpm exec playwright install --with-deps chromium --no-shell
-#      - run: pnpm test:e2e
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup
+        uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps chromium --no-shell
+      - run: cp .env.example .env
+      - run: pnpm test:e2e
