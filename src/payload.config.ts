@@ -15,8 +15,11 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
+import { Filaments } from '@/collections/Filaments'
+import { Machines } from '@/collections/Machines'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
+import { Processes } from '@/collections/Processes'
 import { Users } from '@/collections/Users'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -24,6 +27,7 @@ import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const printingCollections = [Processes, Machines, Filaments]
 
 export default buildConfig({
   admin: {
@@ -37,7 +41,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Categories, Media],
+  collections: [Users, Pages, Categories, Media, ...printingCollections],
   db: sqliteAdapter({
     client: {
       url: process.env.DATABASE_URL || '',

@@ -75,6 +75,9 @@ export interface Config {
     users: User;
     pages: Page;
     categories: Category;
+    processes: Process;
+    machines: Machine;
+    filaments: Filament;
     media: Media;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -108,6 +111,9 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    processes: ProcessesSelect<false> | ProcessesSelect<true>;
+    machines: MachinesSelect<false> | MachinesSelect<true>;
+    filaments: FilamentsSelect<false> | FilamentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -1019,6 +1025,36 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processes".
+ */
+export interface Process {
+  id: number;
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "machines".
+ */
+export interface Machine {
+  id: number;
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filaments".
+ */
+export interface Filament {
+  id: number;
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1069,6 +1105,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'categories';
         value: number | Category;
+      } | null)
+    | ({
+        relationTo: 'processes';
+        value: number | Process;
+      } | null)
+    | ({
+        relationTo: 'machines';
+        value: number | Machine;
+      } | null)
+    | ({
+        relationTo: 'filaments';
+        value: number | Filament;
       } | null)
     | ({
         relationTo: 'media';
@@ -1363,6 +1411,33 @@ export interface CategoriesSelect<T extends boolean = true> {
   title?: T;
   generateSlug?: T;
   slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processes_select".
+ */
+export interface ProcessesSelect<T extends boolean = true> {
+  name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "machines_select".
+ */
+export interface MachinesSelect<T extends boolean = true> {
+  name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filaments_select".
+ */
+export interface FilamentsSelect<T extends boolean = true> {
+  name?: T;
   updatedAt?: T;
   createdAt?: T;
 }
