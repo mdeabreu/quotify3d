@@ -27,7 +27,7 @@ import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
-const printingCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
+const configCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
 
 export default buildConfig({
   admin: {
@@ -47,7 +47,7 @@ export default buildConfig({
       scriptPath: path.resolve(dirname, 'scripts/import-configs.ts'),
     }
   ],
-  collections: [Users, Pages, Categories, Media, ...printingCollections],
+  collections: [Users, Pages, Categories, Media, ...configCollections],
   db: sqliteAdapter({
     client: {
       url: process.env.DATABASE_URL || '',
