@@ -4,7 +4,8 @@ export const Filaments: CollectionConfig = {
   slug: 'filaments',
   admin: {
     useAsTitle: 'name',
-    group: '3D Printer Configuration',
+    group: 'Configuration',
+    defaultColumns: ['name'],
   },
   fields: [
     {
