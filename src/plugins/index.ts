@@ -1,20 +1,21 @@
+import { ecommercePlugin, USD } from '@payloadcms/plugin-ecommerce'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
-import { Plugin } from 'payload'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
-import { ecommercePlugin } from '@payloadcms/plugin-ecommerce'
+import { Plugin } from 'payload'
 
 import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
+import type { CurrenciesConfig, Currency } from '@payloadcms/plugin-ecommerce/types'
 
-import { Page, Product } from '@/payload-types'
-import { getServerSideURL } from '@/utilities/getURL'
-import { ProductsCollection } from '@/collections/Products'
-import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
+import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { customerOnlyFieldAccess } from '@/access/customerOnlyFieldAccess'
 import { isAdmin } from '@/access/isAdmin'
 import { isDocumentOwner } from '@/access/isDocumentOwner'
+import { ProductsCollection } from '@/collections/Products'
+import { Page, Product } from '@/payload-types'
+import { getServerSideURL } from '@/utilities/getURL'
 
 const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
   return doc?.title ? `${doc.title} | Payload Ecommerce Template` : 'Payload Ecommerce Template'
@@ -24,6 +25,18 @@ const generateURL: GenerateURL<Product | Page> = ({ doc }) => {
   const url = getServerSideURL()
 
   return doc?.slug ? `${url}/${doc.slug}` : url
+}
+
+const CAD: Currency = {
+  code: 'CAD',
+  decimals: 2,
+  label: 'Canadian Dollars',
+  symbol: '$',
+}
+
+export const currenciesConfig: CurrenciesConfig = {
+  defaultCurrency: 'CAD',
+  supportedCurrencies: [USD, CAD]
 }
 
 export const plugins: Plugin[] = [
@@ -73,6 +86,7 @@ export const plugins: Plugin[] = [
       isAdmin,
       isDocumentOwner,
     },
+    currencies: currenciesConfig,
     customers: {
       slug: 'users',
     },
