@@ -41,6 +41,12 @@ export default buildConfig({
     },
     user: Users.slug,
   },
+  bin: [
+    {
+      key: 'import-configs',
+      scriptPath: path.resolve(dirname, 'scripts/import-configs.ts'),
+    }
+  ],
   collections: [Users, Pages, Categories, Media, ...printingCollections],
   db: sqliteAdapter({
     client: {
