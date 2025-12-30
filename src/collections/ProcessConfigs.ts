@@ -1,7 +1,15 @@
 import type { CollectionConfig } from 'payload'
 
-export const Machines: CollectionConfig = {
-  slug: 'machines',
+import { adminOnly } from '@/access/adminOnly'
+
+export const ProcessConfigs: CollectionConfig = {
+  slug: 'process-configs',
+  access: {
+    create: adminOnly,
+    delete: adminOnly,
+    read: adminOnly,
+    update: adminOnly,
+  },
   admin: {
     useAsTitle: 'name',
     group: 'Configuration',

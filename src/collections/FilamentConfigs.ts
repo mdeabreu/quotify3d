@@ -1,7 +1,15 @@
 import type { CollectionConfig } from 'payload'
 
-export const Filaments: CollectionConfig = {
-  slug: 'filaments',
+import { adminOnly } from '@/access/adminOnly'
+
+export const FilamentConfigs: CollectionConfig = {
+  slug: 'filament-configs',
+  access: {
+    create: adminOnly,
+    delete: adminOnly,
+    read: adminOnly,
+    update: adminOnly,
+  },
   admin: {
     useAsTitle: 'name',
     group: 'Configuration',

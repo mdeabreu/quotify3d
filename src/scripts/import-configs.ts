@@ -261,9 +261,9 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
     spin.start()
 
     const typeToCollection: Record<string, CollectionSlug> = {
-        filament: 'filaments',
-        machine: 'machines',
-        process: 'processes',
+        filament: 'filament-configs',
+        machine: 'machine-configs',
+        process: 'process-configs',
     }
 
     const summary: ImportSummary = { created: 0, updated: 0, skipped: 0 }
