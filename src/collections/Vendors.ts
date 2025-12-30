@@ -45,7 +45,7 @@ export const Vendors: CollectionConfig = {
           name: 'filaments',
           type: 'join',
           collection: 'filaments',
-          on: 'colour',
+          on: 'vendor',
           admin: {
             defaultColumns: ['name', 'active'],
           },
