@@ -270,9 +270,6 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
 
     for (const config of configs) {
         spin.message(`Importing ${config.name} (${config.type})`)
-        //DEBUG
-        await sleep(3000)
-        //ENDDEBUG
         const configContents = loadConfig(config.path)
 
         const collection = typeToCollection[config.type]
@@ -372,9 +369,3 @@ export const script = async (config: SanitizedConfig) => {
 
     process.exit(0)
 }
-
-//DEBUG
-function sleep(ms: number) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-//ENDDEBUG
