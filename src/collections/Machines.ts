@@ -4,7 +4,8 @@ export const Machines: CollectionConfig = {
   slug: 'machines',
   admin: {
     useAsTitle: 'name',
-    group: '3D Printer Configuration',
+    group: 'Configuration',
+    defaultColumns: ['name'],
   },
   fields: [
     {
