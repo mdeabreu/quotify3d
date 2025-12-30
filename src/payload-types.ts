@@ -79,6 +79,11 @@ export interface Config {
     'process-configs': ProcessConfig;
     'machine-configs': MachineConfig;
     'filament-configs': FilamentConfig;
+    colours: Colour;
+    materials: Material;
+    processes: Process;
+    filaments: Filament;
+    vendors: Vendor;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -100,6 +105,15 @@ export interface Config {
       cart: 'carts';
       addresses: 'addresses';
     };
+    colours: {
+      filaments: 'filaments';
+    };
+    materials: {
+      filaments: 'filaments';
+    };
+    vendors: {
+      filaments: 'filaments';
+    };
     variantTypes: {
       options: 'variantOptions';
     };
@@ -115,6 +129,11 @@ export interface Config {
     'process-configs': ProcessConfigsSelect<false> | ProcessConfigsSelect<true>;
     'machine-configs': MachineConfigsSelect<false> | MachineConfigsSelect<true>;
     'filament-configs': FilamentConfigsSelect<false> | FilamentConfigsSelect<true>;
+    colours: ColoursSelect<false> | ColoursSelect<true>;
+    materials: MaterialsSelect<false> | MaterialsSelect<true>;
+    processes: ProcessesSelect<false> | ProcessesSelect<true>;
+    filaments: FilamentsSelect<false> | FilamentsSelect<true>;
+    vendors: VendorsSelect<false> | VendorsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -1086,6 +1105,109 @@ export interface FilamentConfig {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "colours".
+ */
+export interface Colour {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  finish: 'regular' | 'matte' | 'silk';
+  type: 'solid' | 'co-extrusion' | 'gradient';
+  swatches?:
+    | {
+        /**
+         * Hex value including #, e.g. #FFAA00
+         */
+        hexcode: string;
+        id?: string | null;
+      }[]
+    | null;
+  filaments?: {
+    docs?: (number | Filament)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filaments".
+ */
+export interface Filament {
+  id: number;
+  name: string;
+  active: boolean;
+  material: number | Material;
+  colour: number | Colour;
+  vendor: number | Vendor;
+  config: number | FilamentConfig;
+  purchases?:
+    | {
+        date: string;
+        pricePerUnit: number;
+        unitsPurchased: number;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "materials".
+ */
+export interface Material {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  pricePerGram: number;
+  filaments?: {
+    docs?: (number | Filament)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors".
+ */
+export interface Vendor {
+  id: number;
+  name: string;
+  /**
+   * Public storefront or vendor URL
+   */
+  url: string;
+  filaments?: {
+    docs?: (number | Filament)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processes".
+ */
+export interface Process {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  config: number | ProcessConfig;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1152,6 +1274,26 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'filament-configs';
         value: number | FilamentConfig;
+      } | null)
+    | ({
+        relationTo: 'colours';
+        value: number | Colour;
+      } | null)
+    | ({
+        relationTo: 'materials';
+        value: number | Material;
+      } | null)
+    | ({
+        relationTo: 'processes';
+        value: number | Process;
+      } | null)
+    | ({
+        relationTo: 'filaments';
+        value: number | Filament;
+      } | null)
+    | ({
+        relationTo: 'vendors';
+        value: number | Vendor;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1491,6 +1633,86 @@ export interface MachineConfigsSelect<T extends boolean = true> {
 export interface FilamentConfigsSelect<T extends boolean = true> {
   name?: T;
   config?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "colours_select".
+ */
+export interface ColoursSelect<T extends boolean = true> {
+  name?: T;
+  description?: T;
+  image?: T;
+  finish?: T;
+  type?: T;
+  swatches?:
+    | T
+    | {
+        hexcode?: T;
+        id?: T;
+      };
+  filaments?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "materials_select".
+ */
+export interface MaterialsSelect<T extends boolean = true> {
+  name?: T;
+  description?: T;
+  image?: T;
+  pricePerGram?: T;
+  filaments?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processes_select".
+ */
+export interface ProcessesSelect<T extends boolean = true> {
+  name?: T;
+  description?: T;
+  image?: T;
+  active?: T;
+  config?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filaments_select".
+ */
+export interface FilamentsSelect<T extends boolean = true> {
+  name?: T;
+  active?: T;
+  material?: T;
+  colour?: T;
+  vendor?: T;
+  config?: T;
+  purchases?:
+    | T
+    | {
+        date?: T;
+        pricePerUnit?: T;
+        unitsPurchased?: T;
+        url?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors_select".
+ */
+export interface VendorsSelect<T extends boolean = true> {
+  name?: T;
+  url?: T;
+  filaments?: T;
   updatedAt?: T;
   createdAt?: T;
 }
