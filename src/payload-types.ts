@@ -76,9 +76,9 @@ export interface Config {
     pages: Page;
     categories: Category;
     media: Media;
-    processes: Process;
-    machines: Machine;
-    filaments: Filament;
+    'process-configs': ProcessConfig;
+    'machine-configs': MachineConfig;
+    'filament-configs': FilamentConfig;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -112,9 +112,9 @@ export interface Config {
     pages: PagesSelect<false> | PagesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    processes: ProcessesSelect<false> | ProcessesSelect<true>;
-    machines: MachinesSelect<false> | MachinesSelect<true>;
-    filaments: FilamentsSelect<false> | FilamentsSelect<true>;
+    'process-configs': ProcessConfigsSelect<false> | ProcessConfigsSelect<true>;
+    'machine-configs': MachineConfigsSelect<false> | MachineConfigsSelect<true>;
+    'filament-configs': FilamentConfigsSelect<false> | FilamentConfigsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -1029,9 +1029,9 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "processes".
+ * via the `definition` "process-configs".
  */
-export interface Process {
+export interface ProcessConfig {
   id: number;
   name: string;
   config:
@@ -1048,9 +1048,9 @@ export interface Process {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "machines".
+ * via the `definition` "machine-configs".
  */
-export interface Machine {
+export interface MachineConfig {
   id: number;
   name: string;
   config:
@@ -1067,9 +1067,9 @@ export interface Machine {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "filaments".
+ * via the `definition` "filament-configs".
  */
-export interface Filament {
+export interface FilamentConfig {
   id: number;
   name: string;
   config:
@@ -1142,16 +1142,16 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
-        relationTo: 'processes';
-        value: number | Process;
+        relationTo: 'process-configs';
+        value: number | ProcessConfig;
       } | null)
     | ({
-        relationTo: 'machines';
-        value: number | Machine;
+        relationTo: 'machine-configs';
+        value: number | MachineConfig;
       } | null)
     | ({
-        relationTo: 'filaments';
-        value: number | Filament;
+        relationTo: 'filament-configs';
+        value: number | FilamentConfig;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1466,9 +1466,9 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "processes_select".
+ * via the `definition` "process-configs_select".
  */
-export interface ProcessesSelect<T extends boolean = true> {
+export interface ProcessConfigsSelect<T extends boolean = true> {
   name?: T;
   config?: T;
   updatedAt?: T;
@@ -1476,9 +1476,9 @@ export interface ProcessesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "machines_select".
+ * via the `definition` "machine-configs_select".
  */
-export interface MachinesSelect<T extends boolean = true> {
+export interface MachineConfigsSelect<T extends boolean = true> {
   name?: T;
   config?: T;
   updatedAt?: T;
@@ -1486,9 +1486,9 @@ export interface MachinesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "filaments_select".
+ * via the `definition` "filament-configs_select".
  */
-export interface FilamentsSelect<T extends boolean = true> {
+export interface FilamentConfigsSelect<T extends boolean = true> {
   name?: T;
   config?: T;
   updatedAt?: T;

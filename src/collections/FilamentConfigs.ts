@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-export const Machines: CollectionConfig = {
-  slug: 'machines',
+export const FilamentConfigs: CollectionConfig = {
+  slug: 'filament-configs',
   admin: {
     useAsTitle: 'name',
     group: 'Configuration',

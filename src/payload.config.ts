@@ -15,11 +15,11 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
-import { Filaments } from '@/collections/Filaments'
-import { Machines } from '@/collections/Machines'
+import { FilamentConfigs } from '@/collections/FilamentConfigs'
+import { MachineConfigs } from '@/collections/MachineConfigs'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
-import { Processes } from '@/collections/Processes'
+import { ProcessConfigs } from '@/collections/ProcessConfigs'
 import { Users } from '@/collections/Users'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
@@ -27,7 +27,7 @@ import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
-const printingCollections = [Processes, Machines, Filaments]
+const printingCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
 
 export default buildConfig({
   admin: {

@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-export const Processes: CollectionConfig = {
-  slug: 'processes',
+export const ProcessConfigs: CollectionConfig = {
+  slug: 'process-configs',
   admin: {
     useAsTitle: 'name',
     group: 'Configuration',
