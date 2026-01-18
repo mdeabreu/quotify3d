@@ -40,6 +40,12 @@ export const Materials: CollectionConfig = {
       },
     },
     {
+      name: 'config',
+      type: 'relationship',
+      relationTo: 'filament-configs',
+      required: true,
+    },
+    {
       type: 'collapsible',
       label: 'Filaments',
       admin: {
