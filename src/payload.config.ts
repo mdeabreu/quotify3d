@@ -21,20 +21,27 @@ import { Filaments } from '@/collections/Filaments'
 import { MachineConfigs } from '@/collections/MachineConfigs'
 import { Materials } from '@/collections/Materials'
 import { Media } from '@/collections/Media'
+import { Models } from '@/collections/Models'
 import { Pages } from '@/collections/Pages'
 import { Proccesses } from '@/collections/Proccesses'
 import { ProcessConfigs } from '@/collections/ProcessConfigs'
+import { Quotes } from '@/collections/Quotes'
 import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
+import { Gcodes } from '@/collections/Gcodes'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { collectSliceContext } from '@/lib/jobs/tasks/collectSliceContext'
+import { parseGcodeTask } from '@/lib/jobs/tasks/parseGcodeTask'
+import { runSlicerTask } from '@/lib/jobs/tasks/runSlicerTask'
+import { sliceGcodeWorkflow } from '@/lib/jobs/workflows/sliceGcode'
 import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const configCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
 const catalogCollections = [Colours, Materials, Proccesses]
-//const productionCollections = [Quotes, Gcodes]
+const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Filaments, Vendors]
 
 export default buildConfig({
@@ -62,7 +69,7 @@ export default buildConfig({
     Media,
     ...configCollections,
     ...catalogCollections,
-//    ...productionCollections,
+    ...productionCollections,
     ...operationsCollections,
   ],
   db: sqliteAdapter({
@@ -110,6 +117,137 @@ export default buildConfig({
   globals: [Header, Footer],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
+  jobs: {
+    jobsCollectionOverrides: ({ defaultJobsCollection }) => {
+      if (!defaultJobsCollection.admin) {
+        defaultJobsCollection.admin = {}
+      }
+      defaultJobsCollection.admin.hidden = false
+      return defaultJobsCollection
+    },
+    autoRun: [
+      {
+        cron: '* * * * *',
+        queue: 'slicing',
+      },
+    ],
+    tasks: [
+      {
+        slug: 'collectSliceContext',
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'filamentConfigPath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'processConfigPath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'machineConfigPath',
+            type: 'text',
+            required: true,
+          },
+        ],
+        handler: collectSliceContext,
+      },
+      {
+        slug: 'runSlicer',
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'filamentConfigPath',
+            type: 'text',
+            required: false,
+          },
+          {
+            name: 'processConfigPath',
+            type: 'text',
+            required: false,
+          },
+          {
+            name: 'machineConfigPath',
+            type: 'text',
+            required: false,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'gcodePaths',
+            type: 'json',
+            required: true,
+          },
+          {
+            name: 'slicerOutput',
+            type: 'text',
+            required: false,
+          },
+        ],
+        handler: runSlicerTask,
+      },
+      {
+        slug: 'parseGcode',
+        inputSchema: [
+          {
+            name: 'gcodePath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'index',
+            type: 'number',
+            required: true,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'filamentUsedGrams',
+            type: 'number',
+            required: false,
+          },
+          {
+            name: 'estimatedDuration',
+            type: 'number',
+            required: false,
+          },
+        ],
+        handler: parseGcodeTask,
+      },
+    ],
+    workflows: [
+      {
+        slug: 'sliceGcode',
+        queue: 'slicing',
+        retries: 5,
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+        ],
+        handler: sliceGcodeWorkflow,
+      },
+    ],
+  },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
