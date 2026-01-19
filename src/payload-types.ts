@@ -1072,6 +1072,7 @@ export interface ProcessConfig {
  */
 export interface MachineConfig {
   id: number;
+  _order?: string | null;
   name: string;
   active: boolean;
   config:
@@ -1634,6 +1635,7 @@ export interface ProcessConfigsSelect<T extends boolean = true> {
  * via the `definition` "machine-configs_select".
  */
 export interface MachineConfigsSelect<T extends boolean = true> {
+  _order?: T;
   name?: T;
   active?: T;
   config?: T;
