@@ -125,11 +125,27 @@ export const parseGcodeTask: TaskHandler<'parseGcode'> = async ({ input, req }) 
     gcode: filteredContents,
   }
 
+  const totalEstimatedWeight = plates.reduce<number>((total, plate) => {
+    if (!plate || typeof plate.estimatedWeight !== 'number') {
+      return total
+    }
+    return total + plate.estimatedWeight
+  }, 0)
+
+  const totalEstimatedDuration = plates.reduce<number>((total, plate) => {
+    if (!plate || typeof plate.estimatedDuration !== 'number') {
+      return total
+    }
+    return total + plate.estimatedDuration
+  }, 0)
+
   await req.payload.update({
     collection: 'gcodes',
     id: gcodeId,
     data: {
       plates,
+      estimatedWeight: totalEstimatedWeight || undefined,
+      estimatedDuration: totalEstimatedDuration || undefined,
     },
     depth: 0,
     context: {

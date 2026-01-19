@@ -20,7 +20,6 @@ export const applyDefaultMachine: CollectionBeforeValidateHook = async ({ data, 
     collection: 'machine-configs',
     depth: 0,
     limit: 1,
-    sort: 'order',
     req,
     where: {
       active: {
