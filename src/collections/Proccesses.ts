@@ -35,6 +35,9 @@ export const Proccesses: CollectionConfig = {
       type: 'checkbox',
       defaultValue: true,
       required: true,
+      admin: {
+        position: 'sidebar',
+      },
     },
     {
       name: 'config',

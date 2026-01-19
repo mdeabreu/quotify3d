@@ -1053,6 +1053,7 @@ export interface Address {
 export interface ProcessConfig {
   id: number;
   name: string;
+  active: boolean;
   config:
     | {
         [k: string]: unknown;
@@ -1071,7 +1072,9 @@ export interface ProcessConfig {
  */
 export interface MachineConfig {
   id: number;
+  _order?: string | null;
   name: string;
+  active: boolean;
   config:
     | {
         [k: string]: unknown;
@@ -1091,6 +1094,7 @@ export interface MachineConfig {
 export interface FilamentConfig {
   id: number;
   name: string;
+  active: boolean;
   config:
     | {
         [k: string]: unknown;
@@ -1138,11 +1142,19 @@ export interface Colour {
 export interface Filament {
   id: number;
   name: string;
+  vendor: number | Vendor;
   active: boolean;
   material: number | Material;
   colour: number | Colour;
-  vendor: number | Vendor;
-  config: number | FilamentConfig;
+  ConfigOverride?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   purchases?:
     | {
         date: string;
@@ -1157,14 +1169,15 @@ export interface Filament {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "materials".
+ * via the `definition` "vendors".
  */
-export interface Material {
+export interface Vendor {
   id: number;
   name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  pricePerGram: number;
+  /**
+   * Public storefront or vendor URL
+   */
+  url: string;
   filaments?: {
     docs?: (number | Filament)[];
     hasNextPage?: boolean;
@@ -1175,15 +1188,15 @@ export interface Material {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vendors".
+ * via the `definition` "materials".
  */
-export interface Vendor {
+export interface Material {
   id: number;
   name: string;
-  /**
-   * Public storefront or vendor URL
-   */
-  url: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  pricePerGram: number;
+  config: number | FilamentConfig;
   filaments?: {
     docs?: (number | Filament)[];
     hasNextPage?: boolean;
@@ -1612,6 +1625,7 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface ProcessConfigsSelect<T extends boolean = true> {
   name?: T;
+  active?: T;
   config?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1621,7 +1635,9 @@ export interface ProcessConfigsSelect<T extends boolean = true> {
  * via the `definition` "machine-configs_select".
  */
 export interface MachineConfigsSelect<T extends boolean = true> {
+  _order?: T;
   name?: T;
+  active?: T;
   config?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1632,6 +1648,7 @@ export interface MachineConfigsSelect<T extends boolean = true> {
  */
 export interface FilamentConfigsSelect<T extends boolean = true> {
   name?: T;
+  active?: T;
   config?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1665,6 +1682,7 @@ export interface MaterialsSelect<T extends boolean = true> {
   description?: T;
   image?: T;
   pricePerGram?: T;
+  config?: T;
   filaments?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1688,11 +1706,11 @@ export interface ProcessesSelect<T extends boolean = true> {
  */
 export interface FilamentsSelect<T extends boolean = true> {
   name?: T;
+  vendor?: T;
   active?: T;
   material?: T;
   colour?: T;
-  vendor?: T;
-  config?: T;
+  ConfigOverride?: T;
   purchases?:
     | T
     | {

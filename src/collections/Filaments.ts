@@ -17,9 +17,20 @@ export const Filaments: CollectionConfig = {
   },
   fields: [
     {
-      name: 'name',
-      type: 'text',
-      required: true,
+      type: 'row',
+      fields: [
+        {
+          name: 'name',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'vendor',
+          type: 'relationship',
+          relationTo: 'vendors',
+          required: true,
+        },
+      ],
     },
     {
       name: 'active',
@@ -48,21 +59,9 @@ export const Filaments: CollectionConfig = {
       ],
     },
     {
-      type: 'row',
-      fields: [
-        {
-          name: 'vendor',
-          type: 'relationship',
-          relationTo: 'vendors',
-          required: true,
-        },
-        {
-          name: 'config',
-          type: 'relationship',
-          relationTo: 'filament-configs',
-          required: true,
-        },
-      ],
+      name: 'ConfigOverride',
+      type: 'json',
+      defaultValue: {},
     },
     {
       type: 'collapsible',

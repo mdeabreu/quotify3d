@@ -22,6 +22,15 @@ export const ProcessConfigs: CollectionConfig = {
       required: true,
     },
     {
+      name: 'active',
+      type: 'checkbox',
+      defaultValue: true,
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
       type: 'collapsible',
       label: 'Configuration',
       admin: {

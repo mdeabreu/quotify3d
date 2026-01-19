@@ -4,6 +4,7 @@ import { adminOnly } from '@/access/adminOnly'
 
 export const MachineConfigs: CollectionConfig = {
   slug: 'machine-configs',
+  orderable: true,
   access: {
     create: adminOnly,
     delete: adminOnly,
@@ -20,6 +21,15 @@ export const MachineConfigs: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'active',
+      type: 'checkbox',
+      defaultValue: true,
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
     },
     {
       type: 'collapsible',
