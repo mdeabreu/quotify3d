@@ -65,7 +65,7 @@ export const collectSliceContext: TaskHandler<'collectSliceContext'> = async ({ 
     req.payload.findByID({ collection: 'machine-configs', id: machineId, depth: 0 }),
   ])
 
-  const filamentConfigId = resolveRelationID(filament.config)
+  const filamentConfigId = resolveRelationID(material.config)
   const processConfigId = resolveRelationID(processDoc.config)
 
   if (!filamentConfigId || !processConfigId) {
@@ -77,17 +77,17 @@ export const collectSliceContext: TaskHandler<'collectSliceContext'> = async ({ 
     req.payload.findByID({ collection: 'process-configs', id: processConfigId, depth: 0 }),
   ])
 
-  const materialConfig = (
-    isObject((material as { config?: unknown }).config)
-      ? (material as { config?: unknown }).config
-      : {}
-  ) as JSONObject
   const filamentConfig = (
     isObject((filamentConfigDoc as { config?: unknown }).config)
       ? (filamentConfigDoc as { config?: unknown }).config
       : {}
   ) as JSONObject
-  const mergedFilament = deepMerge(materialConfig, filamentConfig)
+  const filamentOverride = (
+    isObject((filament as { ConfigOverride?: unknown }).ConfigOverride)
+      ? (filament as { ConfigOverride?: unknown }).ConfigOverride
+      : {}
+  ) as JSONObject
+  const mergedFilament = deepMerge(filamentConfig, filamentOverride)
 
   const processConfig = (
     isObject((processConfigDoc as { config?: unknown }).config)
