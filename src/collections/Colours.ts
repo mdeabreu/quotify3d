@@ -31,6 +31,15 @@ export const Colours: CollectionConfig = {
       relationTo: 'media',
     },
     {
+      name: 'active',
+      type: 'checkbox',
+      defaultValue: true,
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
       name: 'finish',
       type: 'select',
       defaultValue: 'regular',
@@ -94,15 +103,15 @@ export const Colours: CollectionConfig = {
     },
     {
       type: 'collapsible',
-      label: 'Filaments',
+      label: 'Spools',
       admin: {
         initCollapsed: true,
       },
       fields: [
         {
-          name: 'filaments',
+          name: 'spools',
           type: 'join',
-          collection: 'filaments',
+          collection: 'spools',
           on: 'colour',
           admin: {
             defaultColumns: ['name', 'active'],

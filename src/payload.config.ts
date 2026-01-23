@@ -17,25 +17,33 @@ import { fileURLToPath } from 'url'
 import { Categories } from '@/collections/Categories'
 import { Colours } from '@/collections/Colours'
 import { FilamentConfigs } from '@/collections/FilamentConfigs'
-import { Filaments } from '@/collections/Filaments'
+import { Spools } from '@/collections/Spools'
 import { MachineConfigs } from '@/collections/MachineConfigs'
-import { Materials } from '@/collections/Materials'
+import { Machines } from '@/collections/Machines'
+import { Filaments } from '@/collections/Filaments'
 import { Media } from '@/collections/Media'
+import { Models } from '@/collections/Models'
 import { Pages } from '@/collections/Pages'
 import { Proccesses } from '@/collections/Proccesses'
 import { ProcessConfigs } from '@/collections/ProcessConfigs'
+import { Quotes } from '@/collections/Quotes'
 import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
+import { Gcodes } from '@/collections/Gcodes'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
+import { extractSlicerMetricsTask } from '@/jobs/tasks/extractSlicerMetricsTask'
+import { sliceModelTask } from '@/jobs/tasks/sliceModelTask'
+import { sliceGcodeWorkflow } from '@/jobs/workflows/sliceGcode'
 import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const configCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
-const catalogCollections = [Colours, Materials, Proccesses]
-//const productionCollections = [Quotes, Gcodes]
-const operationsCollections = [Filaments, Vendors]
+const catalogCollections = [Colours, Filaments, Machines, Proccesses]
+const productionCollections = [Models, Quotes, Gcodes]
+const operationsCollections = [Spools, Vendors]
 
 export default buildConfig({
   admin: {
@@ -62,7 +70,7 @@ export default buildConfig({
     Media,
     ...configCollections,
     ...catalogCollections,
-//    ...productionCollections,
+    ...productionCollections,
     ...operationsCollections,
   ],
   db: sqliteAdapter({
@@ -110,6 +118,147 @@ export default buildConfig({
   globals: [Header, Footer],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
+  jobs: {
+    jobsCollectionOverrides: ({ defaultJobsCollection }) => {
+      if (!defaultJobsCollection.admin) {
+        defaultJobsCollection.admin = {}
+      }
+      defaultJobsCollection.admin.hidden = false
+      return defaultJobsCollection
+    },
+    autoRun: [
+      {
+        cron: '* * * * *',
+        queue: 'slicing',
+      },
+    ],
+    tasks: [
+      {
+        slug: 'buildSlicerContextTask',
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'filamentConfigPath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'processConfigPath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'machineConfigPath',
+            type: 'text',
+            required: true,
+          },
+        ],
+        handler: buildSlicerContextTask,
+      },
+      {
+        slug: 'sliceModelTask',
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'filamentConfigPath',
+            type: 'text',
+            required: false,
+          },
+          {
+            name: 'processConfigPath',
+            type: 'text',
+            required: false,
+          },
+          {
+            name: 'machineConfigPath',
+            type: 'text',
+            required: false,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'gcodePaths',
+            type: 'json',
+            required: true,
+          },
+          {
+            name: 'slicerOutput',
+            type: 'text',
+            required: false,
+          },
+          {
+            name: 'commandString',
+            type: 'text',
+            required: false,
+          },
+        ],
+        handler: sliceModelTask,
+      },
+      {
+        slug: 'extractSlicerMetricsTask',
+        inputSchema: [
+          {
+            name: 'gcodePath',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+          {
+            name: 'index',
+            type: 'number',
+            required: true,
+          },
+        ],
+        outputSchema: [
+          {
+            name: 'filamentUsedGrams',
+            type: 'number',
+            required: false,
+          },
+          {
+            name: 'estimatedDuration',
+            type: 'number',
+            required: false,
+          },
+          {
+            name: 'gcode',
+            type: 'text',
+            required: false,
+          },
+        ],
+        handler: extractSlicerMetricsTask,
+      },
+    ],
+    workflows: [
+      {
+        slug: 'sliceGcode',
+        queue: 'slicing',
+        retries: 5,
+        inputSchema: [
+          {
+            name: 'gcodeId',
+            type: 'text',
+            required: true,
+          },
+        ],
+        handler: sliceGcodeWorkflow,
+      },
+    ],
+  },
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },

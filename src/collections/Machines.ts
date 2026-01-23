@@ -1,17 +1,21 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminOnly } from '@/access/adminOnly'
+import { amountField } from '@payloadcms/plugin-ecommerce'
 
-export const Materials: CollectionConfig = {
-  slug: 'materials',
+import { adminOnly } from '@/access/adminOnly'
+import { currenciesConfig } from '@/config/currencies'
+
+export const Machines: CollectionConfig = {
+  slug: 'machines',
   access: {
     create: adminOnly,
     delete: adminOnly,
     read: () => true,
     update: adminOnly,
   },
+  orderable: true,
   admin: {
-    defaultColumns: ['name', 'pricePerGram'],
+    defaultColumns: ['name', 'active', 'pricePerHour'],
     group: 'Catalog',
     useAsTitle: 'name',
   },
@@ -31,37 +35,31 @@ export const Materials: CollectionConfig = {
       relationTo: 'media',
     },
     {
-      name: 'pricePerGram',
-      type: 'number',
+      name: 'active',
+      type: 'checkbox',
+      defaultValue: true,
       required: true,
-      min: 0,
       admin: {
         position: 'sidebar',
       },
     },
+    amountField({
+      currenciesConfig,
+      overrides: {
+        name: 'pricePerHour',
+        label: 'Price per hour',
+        required: true,
+        min: 0,
+        admin: {
+          position: 'sidebar',
+        },
+      },
+    }),
     {
       name: 'config',
       type: 'relationship',
-      relationTo: 'filament-configs',
+      relationTo: 'machine-configs',
       required: true,
-    },
-    {
-      type: 'collapsible',
-      label: 'Filaments',
-      admin: {
-        initCollapsed: true,
-      },
-      fields: [
-        {
-          name: 'filaments',
-          type: 'join',
-          collection: 'filaments',
-          on: 'material',
-          admin: {
-            defaultColumns: ['name', 'active'],
-          },
-        },
-      ],
     },
   ],
 }

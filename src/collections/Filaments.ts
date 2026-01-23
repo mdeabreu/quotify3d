@@ -1,6 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
+import { amountField } from '@payloadcms/plugin-ecommerce'
+
 import { adminOnly } from '@/access/adminOnly'
+import { currenciesConfig } from '@/config/currencies'
 
 export const Filaments: CollectionConfig = {
   slug: 'filaments',
@@ -11,26 +14,24 @@ export const Filaments: CollectionConfig = {
     update: adminOnly,
   },
   admin: {
-    defaultColumns: ['name', 'material', 'vendor', 'colour'],
-    group: 'Operations',
+    defaultColumns: ['name', 'active', 'pricePerGram'],
+    group: 'Catalog',
     useAsTitle: 'name',
   },
   fields: [
     {
-      type: 'row',
-      fields: [
-        {
-          name: 'name',
-          type: 'text',
-          required: true,
-        },
-        {
-          name: 'vendor',
-          type: 'relationship',
-          relationTo: 'vendors',
-          required: true,
-        },
-      ],
+      name: 'name',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'description',
+      type: 'textarea',
+    },
+    {
+      name: 'image',
+      type: 'upload',
+      relationTo: 'media',
     },
     {
       name: 'active',
@@ -41,85 +42,39 @@ export const Filaments: CollectionConfig = {
         position: 'sidebar',
       },
     },
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'material',
-          type: 'relationship',
-          relationTo: 'materials',
-          required: true,
+    amountField({
+      currenciesConfig,
+      overrides: {
+        name: 'pricePerGram',
+        label: 'Price per gram',
+        required: true,
+        min: 0,
+        admin: {
+          position: 'sidebar',
         },
-        {
-          name: 'colour',
-          type: 'relationship',
-          relationTo: 'colours',
-          required: true,
-        },
-      ],
-    },
+      },
+    }),
     {
-      name: 'ConfigOverride',
-      type: 'json',
-      defaultValue: {},
+      name: 'config',
+      type: 'relationship',
+      relationTo: 'filament-configs',
+      required: true,
     },
     {
       type: 'collapsible',
-      label: 'Purchasing history',
+      label: 'Spools',
       admin: {
         initCollapsed: true,
       },
       fields: [
         {
-          name: 'purchases',
-          type: 'array',
-          labels: {
-            plural: 'Purchases',
-            singular: 'Purchase',
+          name: 'spools',
+          type: 'join',
+          collection: 'spools',
+          on: 'material',
+          admin: {
+            defaultColumns: ['name', 'active'],
           },
-          fields: [
-            {
-              type: 'row',
-              fields: [
-                {
-                  name: 'date',
-                  type: 'date',
-                  required: true,
-                },
-                {
-                  name: 'pricePerUnit',
-                  type: 'number',
-                  min: 0,
-                  required: true,
-                },
-                {
-                  name: 'unitsPurchased',
-                  type: 'number',
-                  min: 1,
-                  required: true,
-                },
-              ],
-            },
-            {
-              type: 'row',
-              fields: [
-                {
-                  name: 'url',
-                  type: 'text',
-                  required: true,
-                  validate: (value: unknown) => {
-                    if (typeof value !== 'string' || !value) return 'URL is required'
-                    try {
-                      new URL(value)
-                      return true
-                    } catch {
-                      return 'Enter a valid purchase URL'
-                    }
-                  },
-                },
-              ],
-            },
-          ],
         },
       ],
     },
