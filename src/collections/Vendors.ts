@@ -36,15 +36,15 @@ export const Vendors: CollectionConfig = {
     },
     {
       type: 'collapsible',
-      label: 'Filaments',
+      label: 'Spools',
       admin: {
         initCollapsed: true,
       },
       fields: [
         {
-          name: 'filaments',
+          name: 'spools',
           type: 'join',
-          collection: 'filaments',
+          collection: 'spools',
           on: 'vendor',
           admin: {
             defaultColumns: ['name', 'active'],
