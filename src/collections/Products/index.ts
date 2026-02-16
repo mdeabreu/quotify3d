@@ -207,6 +207,14 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
       hasMany: true,
       relationTo: 'categories',
     },
+    {
+      name: 'gcode',
+      type: 'relationship',
+      relationTo: 'gcodes',
+      admin: {
+        position: 'sidebar',
+      },
+    },
     slugField(),
   ],
 })
