@@ -8,6 +8,7 @@ import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { resolveQuoteGcodes } from '@/collections/Quotes/hooks/resolveQuoteGcodes'
 import { resolveQuoteSubtotal } from '@/collections/Quotes/hooks/resolveQuoteSubtotal'
+import { syncGcodeStatusesFromQuote } from '@/collections/Quotes/hooks/syncGcodeStatusesFromQuote'
 import { currenciesConfig } from '@/config/currencies'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 
@@ -101,5 +102,6 @@ export const Quotes: CollectionConfig = {
   hooks: {
     beforeValidate: [applyDefaultMachine],
     beforeChange: [normalizeCustomerOrEmail, resolveQuoteGcodes, resolveQuoteSubtotal],
+    afterChange: [syncGcodeStatusesFromQuote],
   },
 }
