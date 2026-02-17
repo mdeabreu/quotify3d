@@ -1359,6 +1359,10 @@ export interface Quote {
     process: number | Process;
     machine?: (number | null) | Machine;
     gcode?: (number | null) | Gcode;
+    gcodeStatus?:
+      | ('queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed')
+      | null;
+    gcodePrice?: number | null;
     id?: string | null;
   }[];
   /**
@@ -2015,6 +2019,8 @@ export interface QuotesSelect<T extends boolean = true> {
         process?: T;
         machine?: T;
         gcode?: T;
+        gcodeStatus?: T;
+        gcodePrice?: T;
         id?: T;
       };
   notes?: T;
