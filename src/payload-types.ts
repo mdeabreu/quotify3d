@@ -15,7 +15,7 @@ export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded'
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "QuoteStatus".
  */
-export type QuoteStatus = 'new' | 'reviewing' | 'quoted' | 'approved' | 'rejected';
+export type QuoteStatus = 'new' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
 /**
  * Supported timezones in IANA format.
  *
@@ -357,6 +357,7 @@ export interface Product {
     description?: string | null;
   };
   categories?: (number | Category)[] | null;
+  gcode?: (number | null) | Gcode;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -946,6 +947,272 @@ export interface Variant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gcodes".
+ */
+export interface Gcode {
+  id: number;
+  status: 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed';
+  /**
+   * Estimated price based on slicer output.
+   */
+  estimatedPrice?: number | null;
+  model: number | Model;
+  filament: number | Filament;
+  process: number | Process;
+  machine: number | Machine;
+  /**
+   * Optional override for total weight (grams).
+   */
+  weightOverride?: number | null;
+  /**
+   * Optional override for total duration (seconds).
+   */
+  durationOverride?: number | null;
+  /**
+   * Optional override for pricing calculations.
+   */
+  priceOverride?: number | null;
+  /**
+   * Total across plates (grams).
+   */
+  estimatedWeight?: number | null;
+  /**
+   * Total across plates (seconds).
+   */
+  estimatedDuration?: number | null;
+  slicingCommand?: string | null;
+  /**
+   * Stdout/stderr emitted by the slicer.
+   */
+  slicerOutput?: string | null;
+  /**
+   * Set when the slicing workflow fails.
+   */
+  error?: string | null;
+  plates?:
+    | {
+        /**
+         * Per-plate filament estimate (grams).
+         */
+        estimatedWeight?: number | null;
+        /**
+         * Per-plate time estimate (seconds).
+         */
+        estimatedDuration?: number | null;
+        gcode?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "models".
+ */
+export interface Model {
+  id: number;
+  originalFilename?: string | null;
+  customer?: (number | null) | User;
+  /**
+   * Used when the requester is not logged in.
+   */
+  customerEmail?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filaments".
+ */
+export interface Filament {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  pricePerGram: number;
+  config: number | FilamentConfig;
+  spools?: {
+    docs?: (number | Spool)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "filament-configs".
+ */
+export interface FilamentConfig {
+  id: number;
+  name: string;
+  active: boolean;
+  config:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "spools".
+ */
+export interface Spool {
+  id: number;
+  name: string;
+  vendor: number | Vendor;
+  material: number | Filament;
+  colour: number | Colour;
+  purchases?:
+    | {
+        date: string;
+        pricePerUnit: number;
+        unitsPurchased: number;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors".
+ */
+export interface Vendor {
+  id: number;
+  name: string;
+  /**
+   * Public storefront or vendor URL
+   */
+  url: string;
+  spools?: {
+    docs?: (number | Spool)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "colours".
+ */
+export interface Colour {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  finish: 'regular' | 'matte' | 'silk';
+  type: 'solid' | 'co-extrusion' | 'gradient';
+  swatches?:
+    | {
+        /**
+         * Hex value including #, e.g. #FFAA00
+         */
+        hexcode: string;
+        id?: string | null;
+      }[]
+    | null;
+  spools?: {
+    docs?: (number | Spool)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "processes".
+ */
+export interface Process {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  config: number | ProcessConfig;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "process-configs".
+ */
+export interface ProcessConfig {
+  id: number;
+  name: string;
+  active: boolean;
+  config:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "machines".
+ */
+export interface Machine {
+  id: number;
+  _order?: string | null;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  pricePerHour: number;
+  config: number | MachineConfig;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "machine-configs".
+ */
+export interface MachineConfig {
+  id: number;
+  _order?: string | null;
+  name: string;
+  active: boolean;
+  config:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "transactions".
  */
 export interface Transaction {
@@ -1072,211 +1339,6 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "process-configs".
- */
-export interface ProcessConfig {
-  id: number;
-  name: string;
-  active: boolean;
-  config:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "machine-configs".
- */
-export interface MachineConfig {
-  id: number;
-  _order?: string | null;
-  name: string;
-  active: boolean;
-  config:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "filament-configs".
- */
-export interface FilamentConfig {
-  id: number;
-  name: string;
-  active: boolean;
-  config:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "colours".
- */
-export interface Colour {
-  id: number;
-  name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  active: boolean;
-  finish: 'regular' | 'matte' | 'silk';
-  type: 'solid' | 'co-extrusion' | 'gradient';
-  swatches?:
-    | {
-        /**
-         * Hex value including #, e.g. #FFAA00
-         */
-        hexcode: string;
-        id?: string | null;
-      }[]
-    | null;
-  spools?: {
-    docs?: (number | Spool)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "spools".
- */
-export interface Spool {
-  id: number;
-  name: string;
-  vendor: number | Vendor;
-  material: number | Filament;
-  colour: number | Colour;
-  purchases?:
-    | {
-        date: string;
-        pricePerUnit: number;
-        unitsPurchased: number;
-        url: string;
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vendors".
- */
-export interface Vendor {
-  id: number;
-  name: string;
-  /**
-   * Public storefront or vendor URL
-   */
-  url: string;
-  spools?: {
-    docs?: (number | Spool)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "filaments".
- */
-export interface Filament {
-  id: number;
-  name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  active: boolean;
-  pricePerGram: number;
-  config: number | FilamentConfig;
-  spools?: {
-    docs?: (number | Spool)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "machines".
- */
-export interface Machine {
-  id: number;
-  _order?: string | null;
-  name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  active: boolean;
-  pricePerHour: number;
-  config: number | MachineConfig;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "processes".
- */
-export interface Process {
-  id: number;
-  name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  active: boolean;
-  config: number | ProcessConfig;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "models".
- */
-export interface Model {
-  id: number;
-  originalFilename?: string | null;
-  customer?: (number | null) | User;
-  /**
-   * Used when the requester is not logged in.
-   */
-  customerEmail?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "quotes".
  */
 export interface Quote {
@@ -1297,73 +1359,16 @@ export interface Quote {
     process: number | Process;
     machine?: (number | null) | Machine;
     gcode?: (number | null) | Gcode;
+    gcodeStatus?:
+      | ('queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed')
+      | null;
+    gcodePrice?: number | null;
     id?: string | null;
   }[];
   /**
    * Optional requirements, deadlines, or context provided by the requester.
    */
   notes?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "gcodes".
- */
-export interface Gcode {
-  id: number;
-  status: 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed';
-  /**
-   * Estimated price based on slicer output.
-   */
-  estimatedPrice?: number | null;
-  model: number | Model;
-  filament: number | Filament;
-  process: number | Process;
-  machine: number | Machine;
-  /**
-   * Optional override for total weight (grams).
-   */
-  weightOverride?: number | null;
-  /**
-   * Optional override for total duration (seconds).
-   */
-  durationOverride?: number | null;
-  /**
-   * Optional override for pricing calculations.
-   */
-  priceOverride?: number | null;
-  /**
-   * Total across plates (grams).
-   */
-  estimatedWeight?: number | null;
-  /**
-   * Total across plates (seconds).
-   */
-  estimatedDuration?: number | null;
-  slicingCommand?: string | null;
-  /**
-   * Stdout/stderr emitted by the slicer.
-   */
-  slicerOutput?: string | null;
-  /**
-   * Set when the slicing workflow fails.
-   */
-  error?: string | null;
-  plates?:
-    | {
-        /**
-         * Per-plate filament estimate (grams).
-         */
-        estimatedWeight?: number | null;
-        /**
-         * Per-plate time estimate (seconds).
-         */
-        estimatedDuration?: number | null;
-        gcode?: string | null;
-        id?: string | null;
-      }[]
-    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2014,6 +2019,8 @@ export interface QuotesSelect<T extends boolean = true> {
         process?: T;
         machine?: T;
         gcode?: T;
+        gcodeStatus?: T;
+        gcodePrice?: T;
         id?: T;
       };
   notes?: T;
@@ -2332,6 +2339,7 @@ export interface ProductsSelect<T extends boolean = true> {
         description?: T;
       };
   categories?: T;
+  gcode?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;

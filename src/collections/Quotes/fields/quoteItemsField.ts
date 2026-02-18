@@ -1,5 +1,10 @@
 import type { Field } from 'payload'
 
+import { gcodeStatusOptions } from '@/collections/constants/gcodeStatusOptions'
+import { currenciesConfig } from '@/config/currencies'
+import { resolveRelationID } from '@/utilities/resolveRelationID'
+import { amountField } from '@payloadcms/plugin-ecommerce'
+
 export const quoteItemsField = (): Field => ({
   name: 'items',
   type: 'array',
@@ -88,19 +93,93 @@ export const quoteItemsField = (): Field => ({
           name: 'machine',
           type: 'relationship',
           relationTo: 'machines',
-          admin: {
-            width: '50%',
-          },
         },
+      ],
+    },
+    {
+      type: 'row',
+      fields: [
         {
           name: 'gcode',
           type: 'relationship',
           relationTo: 'gcodes',
           admin: {
             readOnly: true,
-            width: '50%',
           },
         },
+        {
+          name: 'gcodeStatus',
+          type: 'select',
+          options: gcodeStatusOptions,
+          virtual: true,
+          admin: {
+            readOnly: true,
+          },
+          hooks: {
+            afterRead: [
+              async ({ req, siblingData }) => {
+                const gcodeID = resolveRelationID((siblingData as { gcode?: unknown })?.gcode)
+                if (typeof gcodeID !== 'number') return null
+
+                try {
+                  const gcode = await req.payload.findByID({
+                    collection: 'gcodes',
+                    id: gcodeID,
+                    depth: 0,
+                    req,
+                    overrideAccess: true,
+                    select: {
+                      status: true,
+                    },
+                  })
+
+                  return typeof gcode.status === 'string' ? gcode.status : null
+                } catch {
+                  return null
+                }
+              },
+            ],
+          },
+        },
+        amountField({
+          currenciesConfig,
+          overrides: {
+            name: 'gcodePrice',
+            label: 'Gcode Price',
+            virtual: true,
+            admin: {
+              readOnly: true,
+            },
+            hooks: {
+              afterRead: [
+                async ({ req, siblingData }) => {
+                  const gcodeID = resolveRelationID((siblingData as { gcode?: unknown })?.gcode)
+                  if (typeof gcodeID !== 'number') return null
+
+                  try {
+                    const gcode = await req.payload.findByID({
+                      collection: 'gcodes',
+                      id: gcodeID,
+                      depth: 0,
+                      req,
+                      overrideAccess: true,
+                      select: {
+                        priceOverride: true,
+                        estimatedPrice: true,
+                      },
+                    })
+
+                    if (typeof gcode.priceOverride === 'number') return gcode.priceOverride
+                    if (typeof gcode.estimatedPrice === 'number') return gcode.estimatedPrice
+                    return null
+                  } catch {
+                    return null
+                  }
+                },
+              ],
+            },
+          },
+        }),
       ],
     },
   ],
