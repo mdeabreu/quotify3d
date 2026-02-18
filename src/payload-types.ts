@@ -15,7 +15,7 @@ export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded'
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "QuoteStatus".
  */
-export type QuoteStatus = 'new' | 'in-review' | 'approved' | 'rejected';
+export type QuoteStatus = 'new' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
 /**
  * Supported timezones in IANA format.
  *

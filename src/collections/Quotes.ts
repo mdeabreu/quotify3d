@@ -52,6 +52,7 @@ export const Quotes: CollectionConfig = {
       interfaceName: 'QuoteStatus',
       options: [
         { label: 'New', value: 'new' },
+        { label: 'Ready for Review', value: 'ready-for-review' },
         { label: 'In Review', value: 'in-review' },
         { label: 'Approved', value: 'approved' },
         { label: 'Rejected', value: 'rejected' },
