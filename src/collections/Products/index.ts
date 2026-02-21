@@ -3,6 +3,7 @@ import { Content } from '@/blocks/Content/config'
 import { MediaBlock } from '@/blocks/MediaBlock/config'
 import { slugField } from 'payload'
 import { generatePreviewPath } from '@/utilities/generatePreviewPath'
+import { getDefaultPriceField } from '@/utilities/currency'
 import { CollectionOverride } from '@payloadcms/plugin-ecommerce/types'
 import {
   MetaDescriptionField,
@@ -20,28 +21,10 @@ import {
 } from '@payloadcms/richtext-lexical'
 import { DefaultDocumentIDType, Where } from 'payload'
 
-export const ProductsCollection: CollectionOverride = ({ defaultCollection }) => ({
-  ...defaultCollection,
-  admin: {
-    ...defaultCollection?.admin,
-    defaultColumns: ['title', 'enableVariants', '_status', 'variants.variants'],
-    livePreview: {
-      url: ({ data, req }) =>
-        generatePreviewPath({
-          slug: data?.slug,
-          collection: 'products',
-          req,
-        }),
-    },
-    preview: (data, { req }) =>
-      generatePreviewPath({
-        slug: data?.slug as string,
-        collection: 'products',
-        req,
-      }),
-    useAsTitle: 'title',
-  },
-  defaultPopulate: {
+const defaultPriceField = getDefaultPriceField()
+
+export const ProductsCollection: CollectionOverride = ({ defaultCollection }) => {
+  const defaultPopulate = {
     ...defaultCollection?.defaultPopulate,
     title: true,
     slug: true,
@@ -49,10 +32,34 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
     variants: true,
     enableVariants: true,
     gallery: true,
-    priceInUSD: true,
     inventory: true,
     meta: true,
-  },
+  } as Record<string, unknown>
+
+  defaultPopulate[defaultPriceField] = true
+
+  return {
+    ...defaultCollection,
+    admin: {
+      ...defaultCollection?.admin,
+      defaultColumns: ['title', 'enableVariants', '_status', 'variants.variants'],
+      livePreview: {
+        url: ({ data, req }) =>
+          generatePreviewPath({
+            slug: data?.slug,
+            collection: 'products',
+            req,
+          }),
+      },
+      preview: (data, { req }) =>
+        generatePreviewPath({
+          slug: data?.slug as string,
+          collection: 'products',
+          req,
+        }),
+      useAsTitle: 'title',
+    },
+    defaultPopulate: defaultPopulate as typeof defaultCollection.defaultPopulate,
   fields: [
     { name: 'title', type: 'text', required: true },
     {
@@ -217,4 +224,5 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
     },
     slugField(),
   ],
-})
+  }
+}
