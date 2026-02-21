@@ -16,10 +16,15 @@ import React, { Suspense, useCallback, useEffect, useState } from 'react'
 
 import { cssVariables } from '@/cssVariables'
 import { CheckoutForm } from '@/components/forms/CheckoutForm'
-import { useAddresses, useCart, usePayments } from '@payloadcms/plugin-ecommerce/client/react'
+import {
+  useAddresses,
+  useCart,
+  useCurrency,
+  usePayments,
+} from '@payloadcms/plugin-ecommerce/client/react'
 import { CheckoutAddresses } from '@/components/checkout/CheckoutAddresses'
 import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
-import { Address } from '@/payload-types'
+import { Address, Product, Variant } from '@/payload-types'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AddressItem } from '@/components/addresses/AddressItem'
 import { FormItem } from '@/components/forms/FormItem'
@@ -42,6 +47,7 @@ export const CheckoutPage: React.FC = () => {
   const [emailEditable, setEmailEditable] = useState(true)
   const [paymentData, setPaymentData] = useState<null | Record<string, unknown>>(null)
   const { initiatePayment } = usePayments()
+  const { currency } = useCurrency()
   const { addresses } = useAddresses()
   const [shippingAddress, setShippingAddress] = useState<Partial<Address>>()
   const [billingAddress, setBillingAddress] = useState<Partial<Address>>()
@@ -356,22 +362,31 @@ export const CheckoutPage: React.FC = () => {
           <h2 className="text-3xl font-medium">Your cart</h2>
           {cart?.items?.map((item, index) => {
             if (typeof item.product === 'object' && item.product) {
-              const {
-                product,
-                product: { id, meta, title, gallery },
-                quantity,
-                variant,
-              } = item
+              const product = item.product as Product
+              const { meta, title, gallery } = product
+              const quantity = item.quantity
+              const variant =
+                item.variant && typeof item.variant === 'object'
+                  ? (item.variant as Variant)
+                  : undefined
 
               if (!quantity) return null
 
               let image = gallery?.[0]?.image || meta?.image
-              let price = product?.priceInUSD
+              const productPriceField = `priceIn${currency.code}` as keyof Product
+              let price =
+                typeof product[productPriceField] === 'number'
+                  ? product[productPriceField]
+                  : null
 
-              const isVariant = Boolean(variant) && typeof variant === 'object'
+              const isVariant = Boolean(variant)
 
               if (isVariant) {
-                price = variant?.priceInUSD
+                const variantPriceField = `priceIn${currency.code}` as keyof Variant
+                price =
+                  typeof variant?.[variantPriceField] === 'number'
+                    ? variant[variantPriceField]
+                    : null
 
                 const imageVariant = product.gallery?.find((item) => {
                   if (!item.variantOption) return false
@@ -405,7 +420,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex grow justify-between items-center">
                     <div className="flex flex-col gap-1">
                       <p className="font-medium text-lg">{title}</p>
-                      {variant && typeof variant === 'object' && (
+                      {variant && (
                         <p className="text-sm font-mono text-primary/50 tracking-widest">
                           {variant.options
                             ?.map((option) => {

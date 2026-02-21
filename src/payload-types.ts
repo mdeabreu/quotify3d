@@ -301,7 +301,7 @@ export interface Order {
   transactions?: (number | Transaction)[] | null;
   status?: OrderStatus;
   amount?: number | null;
-  currency?: ('USD' | 'CAD') | null;
+  currency?: ('CAD' | 'USD') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -343,10 +343,10 @@ export interface Product {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  priceInUSDEnabled?: boolean | null;
-  priceInUSD?: number | null;
   priceInCADEnabled?: boolean | null;
   priceInCAD?: number | null;
+  priceInUSDEnabled?: boolean | null;
+  priceInUSD?: number | null;
   relatedProducts?: (number | Product)[] | null;
   meta?: {
     title?: string | null;
@@ -936,10 +936,10 @@ export interface Variant {
   product: number | Product;
   options: (number | VariantOption)[];
   inventory?: number | null;
-  priceInUSDEnabled?: boolean | null;
-  priceInUSD?: number | null;
   priceInCADEnabled?: boolean | null;
   priceInCAD?: number | null;
+  priceInUSDEnabled?: boolean | null;
+  priceInUSD?: number | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -1249,7 +1249,7 @@ export interface Transaction {
   order?: (number | null) | Order;
   cart?: (number | null) | Cart;
   amount?: number | null;
-  currency?: ('USD' | 'CAD') | null;
+  currency?: ('CAD' | 'USD') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1272,7 +1272,7 @@ export interface Cart {
   purchasedAt?: string | null;
   status?: ('active' | 'purchased' | 'abandoned') | null;
   subtotal?: number | null;
-  currency?: ('USD' | 'CAD') | null;
+  currency?: ('CAD' | 'USD') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1350,7 +1350,7 @@ export interface Quote {
   customerEmail?: string | null;
   status: QuoteStatus;
   subtotal?: number | null;
-  currency?: ('USD' | 'CAD') | null;
+  currency?: ('CAD' | 'USD') | null;
   items: {
     model: number | Model;
     quantity: number;
@@ -2267,10 +2267,10 @@ export interface VariantsSelect<T extends boolean = true> {
   product?: T;
   options?: T;
   inventory?: T;
-  priceInUSDEnabled?: T;
-  priceInUSD?: T;
   priceInCADEnabled?: T;
   priceInCAD?: T;
+  priceInUSDEnabled?: T;
+  priceInUSD?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -2326,10 +2326,10 @@ export interface ProductsSelect<T extends boolean = true> {
   enableVariants?: T;
   variantTypes?: T;
   variants?: T;
-  priceInUSDEnabled?: T;
-  priceInUSD?: T;
   priceInCADEnabled?: T;
   priceInCAD?: T;
+  priceInUSDEnabled?: T;
+  priceInUSD?: T;
   relatedProducts?: T;
   meta?:
     | T

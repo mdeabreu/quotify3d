@@ -10,5 +10,5 @@ const CAD: Currency = {
 
 export const currenciesConfig: CurrenciesConfig = {
   defaultCurrency: 'CAD',
-  supportedCurrencies: [USD, CAD],
+  supportedCurrencies: [CAD, USD],
 }

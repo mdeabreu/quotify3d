@@ -1,36 +1,46 @@
+'use client'
+
 import type { Product, Variant } from '@/payload-types'
 
-import Link from 'next/link'
-import React from 'react'
-import clsx from 'clsx'
 import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
+import { useCurrency } from '@payloadcms/plugin-ecommerce/client/react'
+import clsx from 'clsx'
+import Link from 'next/link'
+import React from 'react'
 
 type Props = {
   product: Partial<Product>
 }
 
 export const ProductGridItem: React.FC<Props> = ({ product }) => {
-  const { gallery, priceInUSD, title } = product
+  const { currency } = useCurrency()
+  const currencyCode = currency.code.toUpperCase()
+  const productPriceField = `priceIn${currencyCode}` as keyof Product
+  const variantPriceField = `priceIn${currencyCode}` as keyof Variant
 
-  let price = priceInUSD
+  const productPrice = product[productPriceField]
+  let price = typeof productPrice === 'number' ? productPrice : undefined
 
   const variants = product.variants?.docs
 
   if (variants && variants.length > 0) {
     const variant = variants[0]
-    if (
-      variant &&
-      typeof variant === 'object' &&
-      variant?.priceInUSD &&
-      typeof variant.priceInUSD === 'number'
-    ) {
-      price = variant.priceInUSD
+
+    if (variant && typeof variant === 'object') {
+      const dynamicVariantPrice = variant[variantPriceField]
+      const variantPrice = typeof dynamicVariantPrice === 'number' ? dynamicVariantPrice : undefined
+
+      if (typeof variantPrice === 'number') {
+        price = variantPrice
+      }
     }
   }
 
   const image =
-    gallery?.[0]?.image && typeof gallery[0]?.image !== 'string' ? gallery[0]?.image : false
+    product.gallery?.[0]?.image && typeof product.gallery[0]?.image !== 'string'
+      ? product.gallery[0]?.image
+      : false
 
   return (
     <Link className="relative inline-block h-full w-full group" href={`/products/${product.slug}`}>
@@ -49,7 +59,7 @@ export const ProductGridItem: React.FC<Props> = ({ product }) => {
       ) : null}
 
       <div className="font-mono text-primary/50 group-hover:text-primary flex justify-between items-center mt-4">
-        <div>{title}</div>
+        <div>{product.title}</div>
 
         {typeof price === 'number' && (
           <div className="">

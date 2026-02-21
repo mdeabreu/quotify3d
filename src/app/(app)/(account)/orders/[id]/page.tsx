@@ -169,6 +169,7 @@ export default async function Order({ params, searchParams }: PageProps) {
                 return (
                   <li key={item.id}>
                     <ProductItem
+                      currencyCode={order.currency ?? undefined}
                       product={item.product}
                       quantity={item.quantity}
                       variant={variant}
