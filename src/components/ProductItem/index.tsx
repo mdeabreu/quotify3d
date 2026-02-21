@@ -55,7 +55,19 @@ export const ProductItem: React.FC<Props> = ({
     }
   }
 
-  const itemPrice = variant?.priceInUSD || product.priceInUSD
+  const normalizedCurrencyCode = currencyCode?.toUpperCase()
+  const productPriceField = normalizedCurrencyCode
+    ? (`priceIn${normalizedCurrencyCode}` as keyof Product)
+    : undefined
+  const variantPriceField = normalizedCurrencyCode
+    ? (`priceIn${normalizedCurrencyCode}` as keyof Variant)
+    : undefined
+  const dynamicVariantPrice = variantPriceField ? variant?.[variantPriceField] : undefined
+  const variantPrice = typeof dynamicVariantPrice === 'number' ? dynamicVariantPrice : undefined
+  const dynamicProductPrice = productPriceField ? product[productPriceField] : undefined
+  const productPrice = typeof dynamicProductPrice === 'number' ? dynamicProductPrice : undefined
+  const itemPrice = variantPrice ?? productPrice
+
   const itemURL = `/products/${product.slug}${variant ? `?variant=${variant.id}` : ''}`
 
   return (
@@ -88,7 +100,7 @@ export const ProductItem: React.FC<Props> = ({
           </div>
         </div>
 
-        {itemPrice && quantity && (
+        {typeof itemPrice === 'number' && quantity && (
           <div className="text-right">
             <p className="font-medium text-lg">Subtotal</p>
             <Price

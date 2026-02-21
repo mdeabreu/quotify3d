@@ -1,3 +1,5 @@
+import { getDefaultPriceField } from '@/utilities/currency'
+
 export type SortFilterItem = {
   reverse: boolean
   slug: null | string
@@ -10,9 +12,11 @@ export const defaultSort: SortFilterItem = {
   title: 'Alphabetic A-Z',
 }
 
+const defaultPriceSortField = getDefaultPriceField()
+
 export const sorting: SortFilterItem[] = [
   defaultSort,
   { slug: '-createdAt', reverse: true, title: 'Latest arrivals' },
-  { slug: 'priceInUSD', reverse: false, title: 'Price: Low to high' }, // asc
-  { slug: '-priceInUSD', reverse: true, title: 'Price: High to low' },
+  { slug: defaultPriceSortField, reverse: false, title: 'Price: Low to high' }, // asc
+  { slug: `-${defaultPriceSortField}`, reverse: true, title: 'Price: High to low' },
 ]

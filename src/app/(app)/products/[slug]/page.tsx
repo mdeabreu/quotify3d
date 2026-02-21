@@ -1,9 +1,10 @@
-import type { Media, Product } from '@/payload-types'
+import type { Media, Product, Variant } from '@/payload-types'
 
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { GridTileImage } from '@/components/Grid/tile'
 import { Gallery } from '@/components/product/Gallery'
 import { ProductDescription } from '@/components/product/ProductDescription'
+import { getDefaultCurrencyCode, getDefaultPriceField } from '@/utilities/currency'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -62,6 +63,9 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
 export default async function ProductPage({ params }: Args) {
   const { slug } = await params
   const product = await queryProductBySlug({ slug })
+  const defaultCurrencyCode = getDefaultCurrencyCode()
+  const productPriceField = getDefaultPriceField() as keyof Product
+  const variantPriceField = getDefaultPriceField() as keyof Variant
 
   if (!product) return notFound()
 
@@ -81,15 +85,19 @@ export default async function ProductPage({ params }: Args) {
       })
     : product.inventory! > 0
 
-  let price = product.priceInUSD
+  const baseProductPrice = product[productPriceField]
+  let price = typeof baseProductPrice === 'number' ? baseProductPrice : undefined
 
   if (product.enableVariants && product?.variants?.docs?.length) {
-    price = product?.variants?.docs?.reduce((acc, variant) => {
-      if (typeof variant === 'object' && variant?.priceInUSD && acc && variant?.priceInUSD > acc) {
-        return variant.priceInUSD
+    for (const variant of product.variants.docs) {
+      if (typeof variant !== 'object') continue
+      const variantPrice = variant[variantPriceField]
+      if (typeof variantPrice !== 'number') continue
+
+      if (typeof price !== 'number' || variantPrice > price) {
+        price = variantPrice
       }
-      return acc
-    }, price)
+    }
   }
 
   const productJsonLd = {
@@ -102,7 +110,7 @@ export default async function ProductPage({ params }: Args) {
       '@type': 'AggregateOffer',
       availability: hasStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       price: price,
-      priceCurrency: 'usd',
+      priceCurrency: defaultCurrencyCode,
     },
   }
 
@@ -157,25 +165,34 @@ export default async function ProductPage({ params }: Args) {
 function RelatedProducts({ products }: { products: Product[] }) {
   if (!products.length) return null
 
+  const productPriceField = getDefaultPriceField() as keyof Product
+
   return (
     <div className="py-8">
       <h2 className="mb-4 text-2xl font-bold">Related Products</h2>
       <ul className="flex w-full gap-4 overflow-x-auto pt-1">
         {products.map((product) => (
-          <li
-            className="aspect-square w-full flex-none min-[475px]:w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5"
-            key={product.id}
-          >
-            <Link className="relative h-full w-full" href={`/products/${product.slug}`}>
-              <GridTileImage
-                label={{
-                  amount: product.priceInUSD!,
-                  title: product.title,
-                }}
-                media={product.meta?.image as Media}
-              />
-            </Link>
-          </li>
+          (() => {
+            const productPrice = product[productPriceField]
+            if (typeof productPrice !== 'number') return null
+
+            return (
+              <li
+                className="aspect-square w-full flex-none min-[475px]:w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5"
+                key={product.id}
+              >
+                <Link className="relative h-full w-full" href={`/products/${product.slug}`}>
+                  <GridTileImage
+                    label={{
+                      amount: productPrice,
+                      title: product.title,
+                    }}
+                    media={product.meta?.image as Media}
+                  />
+                </Link>
+              </li>
+            )
+          })()
         ))}
       </ul>
     </div>
@@ -186,6 +203,8 @@ const queryProductBySlug = async ({ slug }: { slug: string }) => {
   const { isEnabled: draft } = await draftMode()
 
   const payload = await getPayload({ config: configPromise })
+
+  const variantPriceField = getDefaultPriceField()
 
   const result = await payload.find({
     collection: 'products',
@@ -207,7 +226,7 @@ const queryProductBySlug = async ({ slug }: { slug: string }) => {
     populate: {
       variants: {
         title: true,
-        priceInUSD: true,
+        [variantPriceField]: true,
         inventory: true,
         options: true,
       },

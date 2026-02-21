@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
-import { useCart } from '@payloadcms/plugin-ecommerce/client/react'
+import { useCart, useCurrency } from '@payloadcms/plugin-ecommerce/client/react'
 import { ShoppingCart } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -20,10 +20,11 @@ import { DeleteItemButton } from './DeleteItemButton'
 import { EditItemQuantityButton } from './EditItemQuantityButton'
 import { OpenCartButton } from './OpenCart'
 import { Button } from '@/components/ui/button'
-import { Product } from '@/payload-types'
+import { Product, Variant } from '@/payload-types'
 
 export function CartModal() {
   const { cart } = useCart()
+  const { currency } = useCurrency()
   const [isOpen, setIsOpen] = useState(false)
 
   const pathname = usePathname()
@@ -67,32 +68,42 @@ export function CartModal() {
                   if (typeof product !== 'object' || !item || !product || !product.slug)
                     return <React.Fragment key={i} />
 
+                  const productDoc = product as Product
                   const metaImage =
-                    product.meta?.image && typeof product.meta?.image === 'object'
-                      ? product.meta.image
+                    productDoc.meta?.image && typeof productDoc.meta?.image === 'object'
+                      ? productDoc.meta.image
                       : undefined
 
                   const firstGalleryImage =
-                    typeof product.gallery?.[0]?.image === 'object'
-                      ? product.gallery?.[0]?.image
+                    typeof productDoc.gallery?.[0]?.image === 'object'
+                      ? productDoc.gallery?.[0]?.image
                       : undefined
 
                   let image = firstGalleryImage || metaImage
-                  let price = product.priceInUSD
+                  const productPriceField = `priceIn${currency.code}` as keyof Product
+                  let price =
+                    typeof productDoc[productPriceField] === 'number'
+                      ? productDoc[productPriceField]
+                      : null
 
-                  const isVariant = Boolean(variant) && typeof variant === 'object'
+                  const variantDoc =
+                    variant && typeof variant === 'object' ? (variant as Variant) : null
 
-                  if (isVariant) {
-                    price = variant?.priceInUSD
+                  if (variantDoc) {
+                    const variantPriceField = `priceIn${currency.code}` as keyof Variant
+                    price =
+                      typeof variantDoc[variantPriceField] === 'number'
+                        ? variantDoc[variantPriceField]
+                        : null
 
-                    const imageVariant = product.gallery?.find((item) => {
+                    const imageVariant = productDoc.gallery?.find((item) => {
                       if (!item.variantOption) return false
                       const variantOptionID =
                         typeof item.variantOption === 'object'
                           ? item.variantOption.id
                           : item.variantOption
 
-                      const hasMatch = variant?.options?.some((option) => {
+                      const hasMatch = variantDoc.options?.some((option) => {
                         if (typeof option === 'object') return option.id === variantOptionID
                         else return option === variantOptionID
                       })
@@ -113,12 +124,12 @@ export function CartModal() {
                         </div>
                         <Link
                           className="z-30 flex flex-row space-x-4"
-                          href={`/products/${(item.product as Product)?.slug}`}
+                          href={`/products/${productDoc.slug}`}
                         >
                           <div className="relative h-16 w-16 cursor-pointer overflow-hidden rounded-md border border-neutral-300 bg-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                             {image?.url && (
                               <Image
-                                alt={image?.alt || product?.title || ''}
+                                alt={image?.alt || productDoc?.title || ''}
                                 className="h-full w-full object-cover"
                                 height={94}
                                 src={image.url}
@@ -128,17 +139,17 @@ export function CartModal() {
                           </div>
 
                           <div className="flex flex-1 flex-col text-base">
-                            <span className="leading-tight">{product?.title}</span>
-                            {isVariant && variant ? (
+                            <span className="leading-tight">{productDoc?.title}</span>
+                            {variantDoc && (
                               <p className="text-sm text-neutral-500 dark:text-neutral-400 capitalize">
-                                {variant.options
+                                {variantDoc.options
                                   ?.map((option) => {
                                     if (typeof option === 'object') return option.label
                                     return null
                                   })
                                   .join(', ')}
                               </p>
-                            ) : null}
+                            )}
                           </div>
                         </Link>
                         <div className="flex h-16 flex-col justify-between">

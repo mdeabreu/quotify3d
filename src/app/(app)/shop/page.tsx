@@ -1,5 +1,6 @@
 import { Grid } from '@/components/Grid'
 import { ProductGridItem } from '@/components/ProductGridItem'
+import { getDefaultPriceField } from '@/utilities/currency'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import React from 'react'
@@ -18,6 +19,7 @@ type Props = {
 export default async function ShopPage({ searchParams }: Props) {
   const { q: searchValue, sort, category } = await searchParams
   const payload = await getPayload({ config: configPromise })
+  const defaultPriceField = getDefaultPriceField()
 
   const products = await payload.find({
     collection: 'products',
@@ -28,7 +30,7 @@ export default async function ShopPage({ searchParams }: Props) {
       slug: true,
       gallery: true,
       categories: true,
-      priceInUSD: true,
+      [defaultPriceField]: true,
     },
     ...(sort ? { sort } : { sort: 'title' }),
     ...(searchValue || category

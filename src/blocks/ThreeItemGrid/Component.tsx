@@ -1,6 +1,7 @@
-import type { Media, Product, ThreeItemGridBlock as ThreeItemGridBlockProps } from '@/payload-types'
+import type { Media, Product, ThreeItemGridBlock as ThreeItemGridBlockProps, Variant } from '@/payload-types'
 
 import { GridTileImage } from '@/components/Grid/tile'
+import { getDefaultPriceField } from '@/utilities/currency'
 import Link from 'next/link'
 import React from 'react'
 import type { DefaultDocumentIDType } from 'payload'
@@ -8,13 +9,19 @@ import type { DefaultDocumentIDType } from 'payload'
 type Props = { item: Product; priority?: boolean; size: 'full' | 'half' }
 
 export const ThreeItemGridItem: React.FC<Props> = ({ item, size }) => {
-  let price = item.priceInUSD
+  const productPriceField = getDefaultPriceField() as keyof Product
+  const variantPriceField = getDefaultPriceField() as keyof Variant
+  const itemPrice = item[productPriceField]
+  let price = typeof itemPrice === 'number' ? itemPrice : undefined
 
   if (item.enableVariants && item.variants?.docs?.length) {
     const variant = item.variants.docs[0]
 
-    if (variant && typeof variant === 'object' && variant.priceInUSD) {
-      price = variant.priceInUSD
+    if (variant && typeof variant === 'object') {
+      const variantPrice = variant[variantPriceField]
+      if (typeof variantPrice === 'number') {
+        price = variantPrice
+      }
     }
   }
 
@@ -24,11 +31,15 @@ export const ThreeItemGridItem: React.FC<Props> = ({ item, size }) => {
     >
       <Link className="relative block aspect-square h-full w-full" href={`/products/${item.slug}`}>
         <GridTileImage
-          label={{
-            amount: price!,
-            position: size === 'full' ? 'center' : 'bottom',
-            title: item.title,
-          }}
+          label={
+            typeof price === 'number'
+              ? {
+                  amount: price,
+                  position: size === 'full' ? 'center' : 'bottom',
+                  title: item.title,
+                }
+              : undefined
+          }
           media={item.meta?.image as Media}
         />
       </Link>
