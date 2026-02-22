@@ -6,6 +6,7 @@ import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
 import { publicAccess } from '@/access/publicAccess'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
+import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { resolveQuoteGcodes } from '@/collections/Quotes/hooks/resolveQuoteGcodes'
 import { resolveQuoteSubtotal } from '@/collections/Quotes/hooks/resolveQuoteSubtotal'
 import { syncGcodeStatusesFromQuote } from '@/collections/Quotes/hooks/syncGcodeStatusesFromQuote'
@@ -103,6 +104,6 @@ export const Quotes: CollectionConfig = {
   hooks: {
     beforeValidate: [applyDefaultMachine],
     beforeChange: [normalizeCustomerOrEmail, resolveQuoteGcodes, resolveQuoteSubtotal],
-    afterChange: [syncGcodeStatusesFromQuote],
+    afterChange: [syncGcodeStatusesFromQuote, createProductsOnApproval],
   },
 }
