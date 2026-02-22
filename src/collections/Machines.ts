@@ -49,6 +49,7 @@ export const Machines: CollectionConfig = {
         name: 'pricePerHour',
         label: 'Price per hour',
         required: true,
+        defaultValue: 0,
         min: 0,
         admin: {
           position: 'sidebar',
