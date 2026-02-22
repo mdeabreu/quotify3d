@@ -48,6 +48,7 @@ export const Filaments: CollectionConfig = {
         name: 'pricePerGram',
         label: 'Price per gram',
         required: true,
+        defaultValue: 0,
         min: 0,
         admin: {
           position: 'sidebar',

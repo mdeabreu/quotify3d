@@ -5,7 +5,6 @@ import { amountField } from '@payloadcms/plugin-ecommerce'
 import { adminOnly } from '@/access/adminOnly'
 import { gcodeStatusOptions } from '@/collections/constants/gcodeStatusOptions'
 import { ensureUniqueCombination } from '@/collections/Gcodes/hooks/ensureUniqueCombination'
-import { createProductOnApproval } from '@/collections/Gcodes/hooks/createProductOnApproval'
 import { queueSliceWorkflow } from '@/collections/Gcodes/hooks/queueSliceWorkflow'
 import { currenciesConfig } from '@/config/currencies'
 
@@ -239,6 +238,6 @@ export const Gcodes: CollectionConfig = {
   ],
   hooks: {
     beforeValidate: [ensureUniqueCombination],
-    afterChange: [queueSliceWorkflow, createProductOnApproval],
+    afterChange: [queueSliceWorkflow],
   },
 }
