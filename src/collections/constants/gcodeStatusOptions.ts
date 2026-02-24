@@ -1,4 +1,5 @@
 export const gcodeStatusOptions = [
+  { label: 'New', value: 'new' },
   { label: 'Queued', value: 'queued' },
   { label: 'Collecting context', value: 'collecting-context' },
   { label: 'Slicing', value: 'slicing' },

@@ -11,8 +11,7 @@ export const queueSliceWorkflow: CollectionAfterChangeHook = async ({
   }
 
   const shouldQueue =
-    operation === 'create' ||
-    (operation === 'update' && doc.status === 'queued' && previousDoc?.status !== 'queued')
+    operation === 'update' && doc.status === 'queued' && previousDoc?.status !== 'queued'
   if (!shouldQueue) {
     return doc
   }

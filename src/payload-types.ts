@@ -15,7 +15,7 @@ export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded'
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "QuoteStatus".
  */
-export type QuoteStatus = 'new' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
+export type QuoteStatus = 'new' | 'queued' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
 /**
  * Supported timezones in IANA format.
  *
@@ -951,7 +951,16 @@ export interface Variant {
  */
 export interface Gcode {
   id: number;
-  status: 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed';
+  status:
+    | 'new'
+    | 'queued'
+    | 'collecting-context'
+    | 'slicing'
+    | 'parsing'
+    | 'sliced'
+    | 'in-review'
+    | 'approved'
+    | 'failed';
   /**
    * Estimated price based on slicer output.
    */
@@ -1360,7 +1369,17 @@ export interface Quote {
     machine?: (number | null) | Machine;
     gcode?: (number | null) | Gcode;
     gcodeStatus?:
-      | ('queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed')
+      | (
+          | 'new'
+          | 'queued'
+          | 'collecting-context'
+          | 'slicing'
+          | 'parsing'
+          | 'sliced'
+          | 'in-review'
+          | 'approved'
+          | 'failed'
+        )
       | null;
     gcodePrice?: number | null;
     id?: string | null;

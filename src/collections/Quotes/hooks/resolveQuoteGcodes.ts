@@ -46,7 +46,7 @@ export const resolveQuoteGcodes: CollectionBeforeChangeHook = async ({ data, req
           req,
           overrideAccess: false,
           data: {
-            status: 'queued',
+            status: 'new',
             model,
             filament,
             process,

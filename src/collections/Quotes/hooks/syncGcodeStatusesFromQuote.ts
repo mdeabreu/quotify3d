@@ -2,14 +2,19 @@ import type { CollectionAfterChangeHook } from 'payload'
 
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
-const syncableQuoteStatuses = new Set(['in-review', 'approved'])
+const syncableQuoteStatuses = new Set(['queued', 'in-review', 'approved'])
 
 export const syncGcodeStatusesFromQuote: CollectionAfterChangeHook = async ({
   doc,
   operation,
   previousDoc,
   req,
+  context,
 }) => {
+  if (context?.skipQuoteStatusSync) {
+    return doc
+  }
+
   if (!doc || !syncableQuoteStatuses.has(doc.status)) {
     return doc
   }
@@ -35,40 +40,53 @@ export const syncGcodeStatusesFromQuote: CollectionAfterChangeHook = async ({
     }
   }
 
-  if (gcodeIds.size === 0) {
-    return doc
+  if (gcodeIds.size > 0) {
+    const gcodesToUpdate = await req.payload.find({
+      collection: 'gcodes',
+      depth: 0,
+      limit: gcodeIds.size,
+      req,
+      overrideAccess: true,
+      where: {
+        and: [
+          {
+            id: {
+              in: Array.from(gcodeIds),
+            },
+          },
+          {
+            status: {
+              not_equals: doc.status,
+            },
+          },
+        ],
+      },
+    })
+
+    for (const gcode of gcodesToUpdate.docs) {
+      await req.payload.update({
+        collection: 'gcodes',
+        id: gcode.id,
+        req,
+        overrideAccess: true,
+        data: {
+          status: doc.status,
+        },
+      })
+    }
   }
 
-  const gcodesToUpdate = await req.payload.find({
-    collection: 'gcodes',
-    depth: 0,
-    limit: gcodeIds.size,
-    req,
-    overrideAccess: true,
-    where: {
-      and: [
-        {
-          id: {
-            in: Array.from(gcodeIds),
-          },
-        },
-        {
-          status: {
-            not_equals: doc.status,
-          },
-        },
-      ],
-    },
-  })
-
-  for (const gcode of gcodesToUpdate.docs) {
+  if (doc.status === 'queued') {
     await req.payload.update({
-      collection: 'gcodes',
-      id: gcode.id,
+      collection: 'quotes',
+      id: doc.id,
       req,
       overrideAccess: true,
       data: {
-        status: doc.status,
+        status: 'new',
+      },
+      context: {
+        skipQuoteStatusSync: true,
       },
     })
   }

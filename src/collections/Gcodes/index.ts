@@ -34,7 +34,7 @@ export const Gcodes: CollectionConfig = {
       name: 'status',
       type: 'select',
       required: true,
-      defaultValue: 'queued',
+      defaultValue: 'new',
       options: gcodeStatusOptions,
       admin: {
         position: 'sidebar',
