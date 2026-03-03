@@ -54,6 +54,7 @@ export const Quotes: CollectionConfig = {
       options: [
         { label: 'New', value: 'new' },
         { label: 'Queued', value: 'queued' },
+        { label: 'Sliced', value: 'sliced' },
         { label: 'Ready for Review', value: 'ready-for-review' },
         { label: 'In Review', value: 'in-review' },
         { label: 'Approved', value: 'approved' },

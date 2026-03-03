@@ -83,7 +83,7 @@ export const syncGcodeStatusesFromQuote: CollectionAfterChangeHook = async ({
       req,
       overrideAccess: true,
       data: {
-        status: 'new',
+        status: 'sliced',
       },
       context: {
         skipQuoteStatusSync: true,
