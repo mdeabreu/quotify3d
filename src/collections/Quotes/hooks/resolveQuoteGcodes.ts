@@ -44,7 +44,8 @@ export const resolveQuoteGcodes: CollectionBeforeChangeHook = async ({ data, req
           collection: 'gcodes',
           depth: 0,
           req,
-          overrideAccess: false,
+          // Quote creation is public, but provisioning the backing gcode is an internal side effect.
+          overrideAccess: true,
           data: {
             status: 'new',
             model,

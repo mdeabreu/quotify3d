@@ -9,6 +9,8 @@ export const normalizeCustomerOrEmail: CollectionBeforeChangeHook = async ({
 }) => {
   if (!data) return data
 
+  console.log(data)
+
   const normalizedEmail =
     typeof data.customerEmail === 'string' ? data.customerEmail.trim().toLowerCase() : undefined
 
@@ -20,7 +22,8 @@ export const normalizeCustomerOrEmail: CollectionBeforeChangeHook = async ({
     data.customerEmail ??
     (typeof originalDoc?.customerEmail === 'string' ? originalDoc.customerEmail : undefined)
 
-  const existingCustomer = resolveRelationID(data.customer) ?? resolveRelationID(originalDoc?.customer)
+  const existingCustomer =
+    resolveRelationID(data.customer) ?? resolveRelationID(originalDoc?.customer)
 
   if (existingCustomer) {
     data.customer = existingCustomer
