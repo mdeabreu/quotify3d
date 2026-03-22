@@ -8,9 +8,7 @@ import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
-import { resolveQuoteGcodes } from '@/collections/Quotes/hooks/resolveQuoteGcodes'
-import { resolveQuoteSubtotal } from '@/collections/Quotes/hooks/resolveQuoteSubtotal'
-import { syncGcodeStatusesFromQuote } from '@/collections/Quotes/hooks/syncGcodeStatusesFromQuote'
+import { syncOwnedGcodesForQuote } from '@/collections/Quotes/hooks/syncOwnedGcodesForQuote'
 import { currenciesConfig } from '@/config/currencies'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 
@@ -106,12 +104,7 @@ export const Quotes: CollectionConfig = {
   ],
   hooks: {
     beforeValidate: [applyDefaultMachine],
-    beforeChange: [
-      normalizeCustomerOrEmail,
-      resolveQuoteGcodes,
-      resetStatusWhenSlicedQuoteChanges,
-      resolveQuoteSubtotal,
-    ],
-    afterChange: [syncGcodeStatusesFromQuote, createProductsOnApproval],
+    beforeChange: [normalizeCustomerOrEmail, resetStatusWhenSlicedQuoteChanges],
+    afterChange: [syncOwnedGcodesForQuote, createProductsOnApproval],
   },
 }

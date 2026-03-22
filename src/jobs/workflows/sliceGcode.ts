@@ -57,7 +57,9 @@ export const sliceGcodeWorkflow: WorkflowHandler<'sliceGcode'> = async ({ req, j
 
     await updateStatus('parsing')
 
-    const gcodePaths: string[] = Array.isArray(sliced?.gcodePaths) ? sliced.gcodePaths : []
+    const gcodePaths = Array.isArray(sliced?.gcodePaths)
+      ? sliced.gcodePaths.filter((path): path is string => typeof path === 'string')
+      : []
 
     if (gcodePaths.length === 0) {
       throw new Error('sliceGcode: sliceModelTask returned no gcode paths')
@@ -133,28 +135,6 @@ export const sliceGcodeWorkflow: WorkflowHandler<'sliceGcode'> = async ({ req, j
     })
 
     await updateStatus('sliced')
-
-    const quotes = await req.payload.find({
-      collection: 'quotes',
-      depth: 0,
-      limit: 100,
-      overrideAccess: true,
-      where: {
-        'items.gcode': {
-          equals: gcodeId,
-        },
-      },
-    })
-
-    for (const quote of quotes.docs) {
-      await req.payload.update({
-        collection: 'quotes',
-        id: quote.id,
-        data: {},
-        depth: 0,
-        overrideAccess: true,
-      })
-    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'sliceGcode: unknown error'
 
