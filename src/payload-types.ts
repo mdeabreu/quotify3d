@@ -8,14 +8,14 @@
 
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "OrderStatus".
- */
-export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded') | null;
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "QuoteStatus".
  */
 export type QuoteStatus = 'new' | 'queued' | 'sliced' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "OrderStatus".
+ */
+export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded') | null;
 /**
  * Supported timezones in IANA format.
  *
@@ -951,16 +951,9 @@ export interface Variant {
  */
 export interface Gcode {
   id: number;
-  status:
-    | 'new'
-    | 'queued'
-    | 'collecting-context'
-    | 'slicing'
-    | 'parsing'
-    | 'sliced'
-    | 'in-review'
-    | 'approved'
-    | 'failed';
+  quote: number | Quote;
+  quoteItemID: string;
+  status: 'new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed';
   /**
    * Estimated price based on slicer output.
    */
@@ -1012,6 +1005,39 @@ export interface Gcode {
         id?: string | null;
       }[]
     | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "quotes".
+ */
+export interface Quote {
+  id: number;
+  customer?: (number | null) | User;
+  /**
+   * Used when the requester is not logged in.
+   */
+  customerEmail?: string | null;
+  status: QuoteStatus;
+  subtotal?: number | null;
+  currency?: ('CAD' | 'USD') | null;
+  items: {
+    model: number | Model;
+    quantity: number;
+    filament: number | Filament;
+    colour: number | Colour;
+    process: number | Process;
+    machine?: (number | null) | Machine;
+    gcode?: (number | null) | Gcode;
+    gcodeStatus?: ('new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed') | null;
+    gcodePrice?: number | null;
+    id?: string | null;
+  }[];
+  /**
+   * Optional requirements, deadlines, or context provided by the requester.
+   */
+  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1343,51 +1369,6 @@ export interface Address {
     | 'SE'
     | 'CH';
   phone?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "quotes".
- */
-export interface Quote {
-  id: number;
-  customer?: (number | null) | User;
-  /**
-   * Used when the requester is not logged in.
-   */
-  customerEmail?: string | null;
-  status: QuoteStatus;
-  subtotal?: number | null;
-  currency?: ('CAD' | 'USD') | null;
-  items: {
-    model: number | Model;
-    quantity: number;
-    filament: number | Filament;
-    colour: number | Colour;
-    process: number | Process;
-    machine?: (number | null) | Machine;
-    gcode?: (number | null) | Gcode;
-    gcodeStatus?:
-      | (
-          | 'new'
-          | 'queued'
-          | 'collecting-context'
-          | 'slicing'
-          | 'parsing'
-          | 'sliced'
-          | 'in-review'
-          | 'approved'
-          | 'failed'
-        )
-      | null;
-    gcodePrice?: number | null;
-    id?: string | null;
-  }[];
-  /**
-   * Optional requirements, deadlines, or context provided by the requester.
-   */
-  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2051,6 +2032,8 @@ export interface QuotesSelect<T extends boolean = true> {
  * via the `definition` "gcodes_select".
  */
 export interface GcodesSelect<T extends boolean = true> {
+  quote?: T;
+  quoteItemID?: T;
   status?: T;
   estimatedPrice?: T;
   model?: T;
