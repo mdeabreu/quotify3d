@@ -357,6 +357,8 @@ export interface Product {
     description?: string | null;
   };
   categories?: (number | Category)[] | null;
+  quote?: (number | null) | Quote;
+  quoteItemID?: string | null;
   gcode?: (number | null) | Gcode;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -947,69 +949,6 @@ export interface Variant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "gcodes".
- */
-export interface Gcode {
-  id: number;
-  quote: number | Quote;
-  quoteItemID: string;
-  status: 'new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed';
-  /**
-   * Estimated price based on slicer output.
-   */
-  estimatedPrice?: number | null;
-  model: number | Model;
-  filament: number | Filament;
-  process: number | Process;
-  machine: number | Machine;
-  /**
-   * Optional override for total weight (grams).
-   */
-  weightOverride?: number | null;
-  /**
-   * Optional override for total duration (seconds).
-   */
-  durationOverride?: number | null;
-  /**
-   * Optional override for pricing calculations.
-   */
-  priceOverride?: number | null;
-  /**
-   * Total across plates (grams).
-   */
-  estimatedWeight?: number | null;
-  /**
-   * Total across plates (seconds).
-   */
-  estimatedDuration?: number | null;
-  slicingCommand?: string | null;
-  /**
-   * Stdout/stderr emitted by the slicer.
-   */
-  slicerOutput?: string | null;
-  /**
-   * Set when the slicing workflow fails.
-   */
-  error?: string | null;
-  plates?:
-    | {
-        /**
-         * Per-plate filament estimate (grams).
-         */
-        estimatedWeight?: number | null;
-        /**
-         * Per-plate time estimate (seconds).
-         */
-        estimatedDuration?: number | null;
-        gcode?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "quotes".
  */
 export interface Quote {
@@ -1242,6 +1181,69 @@ export interface MachineConfig {
     | string
     | number
     | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gcodes".
+ */
+export interface Gcode {
+  id: number;
+  quote: number | Quote;
+  quoteItemID: string;
+  status: 'new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed';
+  /**
+   * Estimated price based on slicer output.
+   */
+  estimatedPrice?: number | null;
+  model: number | Model;
+  filament: number | Filament;
+  process: number | Process;
+  machine: number | Machine;
+  /**
+   * Optional override for total weight (grams).
+   */
+  weightOverride?: number | null;
+  /**
+   * Optional override for total duration (seconds).
+   */
+  durationOverride?: number | null;
+  /**
+   * Optional override for pricing calculations.
+   */
+  priceOverride?: number | null;
+  /**
+   * Total across plates (grams).
+   */
+  estimatedWeight?: number | null;
+  /**
+   * Total across plates (seconds).
+   */
+  estimatedDuration?: number | null;
+  slicingCommand?: string | null;
+  /**
+   * Stdout/stderr emitted by the slicer.
+   */
+  slicerOutput?: string | null;
+  /**
+   * Set when the slicing workflow fails.
+   */
+  error?: string | null;
+  plates?:
+    | {
+        /**
+         * Per-plate filament estimate (grams).
+         */
+        estimatedWeight?: number | null;
+        /**
+         * Per-plate time estimate (seconds).
+         */
+        estimatedDuration?: number | null;
+        gcode?: string | null;
+        id?: string | null;
+      }[]
     | null;
   updatedAt: string;
   createdAt: string;
@@ -2341,6 +2343,8 @@ export interface ProductsSelect<T extends boolean = true> {
         description?: T;
       };
   categories?: T;
+  quote?: T;
+  quoteItemID?: T;
   gcode?: T;
   generateSlug?: T;
   slug?: T;

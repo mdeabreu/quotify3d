@@ -54,11 +54,11 @@ type OptionCardProps = {
   selected: boolean
 }
 
-const steps = ['Upload Models', 'Material', 'Colour', 'Quality', 'Review & Contact']
+const steps = ['Upload files', 'Material', 'Color', 'Print quality', 'Contact']
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const shortenDescription = (description: string | null): string => {
-  if (!description || !description.trim()) return 'No additional details provided.'
+const shortenDescription = (description: string | null): string | null => {
+  if (!description || !description.trim()) return null
 
   const normalized = description.trim()
   if (normalized.length <= 120) return normalized
@@ -114,12 +114,14 @@ const OptionCard: React.FC<OptionCardProps> = ({ onSelect, option, selected }) =
         />
       ) : (
         <div className="h-32 w-full rounded-sm border bg-muted/40 flex items-center justify-center text-xs font-mono uppercase tracking-wider text-primary/50">
-          No image
+          Preview unavailable
         </div>
       )}
 
       <p className="mt-3 font-medium">{option.name}</p>
-      <p className="mt-1 text-sm text-primary/70">{shortenDescription(option.description)}</p>
+      {shortenDescription(option.description) ? (
+        <p className="mt-1 text-sm text-primary/70">{shortenDescription(option.description)}</p>
+      ) : null}
     </button>
   )
 }
@@ -361,11 +363,9 @@ export const QuoteWizard = () => {
 
       if (!quoteID) throw new Error('Quote creation response is missing an ID.')
 
-      toast.success('Quote created. Redirecting to quote editor...')
+      toast.success('Quote request created. Opening your workspace...')
       router.push(
-        isGuest
-          ? `/quotes/${quoteID}/edit?email=${encodeURIComponent(normalizedEmail)}`
-          : `/quotes/${quoteID}/edit`,
+        isGuest ? `/quotes/${quoteID}?email=${encodeURIComponent(normalizedEmail)}` : `/quotes/${quoteID}`,
       )
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Unable to create quote.'
@@ -384,10 +384,10 @@ export const QuoteWizard = () => {
     <section className="border rounded-lg bg-card p-6 md:p-8">
       <div className="max-w-3xl">
         <p className="text-xs uppercase tracking-widest font-mono text-primary/60">Quote Wizard</p>
-        <h1 className="text-3xl md:text-4xl font-medium mt-2">Start your 3D print quote</h1>
+        <h1 className="text-3xl md:text-4xl font-medium mt-2">Request a 3D print quote</h1>
         <p className="text-primary/70 mt-4">
-          Upload one or more models, pick your print settings with guided context, then confirm your
-          contact details before creating the quote.
+          Upload your files, choose your preferred material, color, and print quality, then confirm
+          your contact details so we can prepare your quote.
         </p>
       </div>
 
@@ -410,7 +410,10 @@ export const QuoteWizard = () => {
       <div className="mt-8 rounded-md border bg-background p-4 md:p-6 space-y-4">
         {step === 0 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Upload one or more models</h2>
+            <h2 className="font-medium">Upload your files</h2>
+            <p className="text-sm text-primary/70">
+              Add one or more 3D model files. You can set a quantity for each file before continuing.
+            </p>
             <Input
               accept=".stl,.3mf,.obj,.step,.stp,.amf,.ply"
               multiple
@@ -434,7 +437,7 @@ export const QuoteWizard = () => {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <Label htmlFor={`quantity-${index}`}>Qty</Label>
+                        <Label htmlFor={`quantity-${index}`}>Quantity</Label>
                         <Input
                           className="w-24"
                           id={`quantity-${index}`}
@@ -462,8 +465,8 @@ export const QuoteWizard = () => {
 
         {step === 1 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Choose material</h2>
-            <p className="text-sm text-primary/70">This choice applies to all uploaded models.</p>
+            <h2 className="font-medium">Choose a material</h2>
+            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
 
             {isLoadingOptions ? (
               <p className="text-sm text-primary/70">Loading materials...</p>
@@ -484,11 +487,11 @@ export const QuoteWizard = () => {
 
         {step === 2 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Choose colour</h2>
-            <p className="text-sm text-primary/70">This choice applies to all uploaded models.</p>
+            <h2 className="font-medium">Choose a color</h2>
+            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
 
             {isLoadingOptions ? (
-              <p className="text-sm text-primary/70">Loading colours...</p>
+              <p className="text-sm text-primary/70">Loading colors...</p>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {options.colours.map((option) => (
@@ -506,8 +509,8 @@ export const QuoteWizard = () => {
 
         {step === 3 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Choose quality</h2>
-            <p className="text-sm text-primary/70">This choice applies to all uploaded models.</p>
+            <h2 className="font-medium">Choose print quality</h2>
+            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
 
             {isLoadingOptions ? (
               <p className="text-sm text-primary/70">Loading quality options...</p>
@@ -528,10 +531,13 @@ export const QuoteWizard = () => {
 
         {step === 4 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Review & contact</h2>
+            <h2 className="font-medium">Review your request</h2>
+            <p className="text-sm text-primary/70">
+              Double-check your files and selections, then confirm how we should contact you.
+            </p>
 
             <div className="rounded-md border px-4 py-3">
-              <p className="text-xs uppercase tracking-widest font-mono text-primary/50">Models</p>
+              <p className="text-xs uppercase tracking-widest font-mono text-primary/50">Files</p>
               <ul className="mt-2 space-y-1 text-sm">
                 {modelLines.map((line, index) => (
                   <li key={`${line.file.name}-${line.file.size}-${index}`}>
@@ -547,11 +553,11 @@ export const QuoteWizard = () => {
                 {selectedFilament?.name ?? 'Not selected'}
               </p>
               <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Colour</span>
+                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Color</span>
                 {selectedColour?.name ?? 'Not selected'}
               </p>
               <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Quality</span>
+                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Print quality</span>
                 {selectedProcess?.name ?? 'Not selected'}
               </p>
             </div>
@@ -580,19 +586,19 @@ export const QuoteWizard = () => {
                   value={customerEmail}
                 />
                 <p className="text-xs text-primary/60">
-                  We will use this to associate your quote and let you access the edit page.
+                  We will use this email to send updates and help you return to this quote later.
                 </p>
               </div>
             ) : (
               <p className="text-sm text-primary/70">
-                Signed in as <span className="font-medium">{user.email}</span>. This quote will be
-                attached to your account.
+                Signed in as <span className="font-medium">{user.email}</span>. This quote request
+                will be saved to your account.
               </p>
             )}
 
             <p className="text-xs text-primary/60">
-              After creation, your quote is queued for slicing so an estimated price can be
-              generated.
+              Once submitted, we will process your files and generate an estimated price as soon as it
+              is ready.
             </p>
           </div>
         )}
@@ -625,7 +631,7 @@ export const QuoteWizard = () => {
 
         {step === 4 && (
           <Button disabled={isSubmitting || !canContinue} onClick={submitWizard} type="button">
-            {isSubmitting ? 'Creating quote...' : 'Create quote'}
+            {isSubmitting ? 'Submitting request...' : 'Submit quote request'}
           </Button>
         )}
       </div>

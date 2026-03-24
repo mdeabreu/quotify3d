@@ -215,6 +215,21 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
       relationTo: 'categories',
     },
     {
+      name: 'quote',
+      type: 'relationship',
+      relationTo: 'quotes',
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'quoteItemID',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
       name: 'gcode',
       type: 'relationship',
       relationTo: 'gcodes',

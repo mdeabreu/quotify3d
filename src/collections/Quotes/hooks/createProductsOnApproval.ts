@@ -203,8 +203,9 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
   for (const [index, item] of doc.items.entries()) {
     const lineNumber = index + 1
     const gcodeID = resolveRelationID(item.gcode)
+    const quoteItemID = typeof item.id === 'string' && item.id.length > 0 ? item.id : null
 
-    if (typeof gcodeID !== 'number') {
+    if (typeof gcodeID !== 'number' || !quoteItemID) {
       continue
     }
 
@@ -218,13 +219,13 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
       where: {
         and: [
           {
-            gcode: {
-              equals: gcodeID,
+            quote: {
+              equals: doc.id,
             },
           },
           {
-            slug: {
-              like: `q${doc.id}-i${lineNumber}`,
+            quoteItemID: {
+              equals: quoteItemID,
             },
           },
         ],
@@ -348,12 +349,15 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
     const quantity = toOptionalNumber(item.quantity)
 
     const modelSlugPart = kebabCase(derivedTitle) || `quote-${doc.id}-item-${lineNumber}`
-    const slugBase = `${modelSlugPart}-q${doc.id}-i${lineNumber}`
+    const quoteItemSlugPart = kebabCase(quoteItemID) || `item-${lineNumber}`
+    const slugBase = `${modelSlugPart}-q${doc.id}-qi${quoteItemSlugPart}`
     const slug = await getUniqueSlug({ req, slugBase })
 
     const productData: RequiredDataFromCollectionSlug<'products'> = {
       title: derivedTitle,
       slug,
+      quote: doc.id,
+      quoteItemID,
       gcode: gcodeID,
       _status: 'published',
       enableVariants: false,
