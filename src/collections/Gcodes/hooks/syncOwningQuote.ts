@@ -48,6 +48,7 @@ export const syncOwningQuote: CollectionAfterChangeHook = async ({
     collection: 'quotes',
     id: quoteID,
     depth: 0,
+    req,
     overrideAccess: true,
   })
 
