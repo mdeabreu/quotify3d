@@ -148,6 +148,10 @@ const findAccessibleQuote = async ({
   quoteID: number | string
   quoteUser: Awaited<ReturnType<Awaited<ReturnType<typeof getPayload>>['auth']>>['user']
 }) => {
+  if (!quoteUser && !customerEmail) {
+    return null
+  }
+
   const {
     docs: [quoteResult],
   } = await payloadInstance.find({
