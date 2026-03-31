@@ -46,6 +46,27 @@ export const Quotes: CollectionConfig = {
       },
     },
     {
+      name: 'accessToken',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+      hooks: {
+        beforeValidate: [
+          ({ operation, value }) => {
+            if (operation === 'create' || !value) {
+              return crypto.randomUUID()
+            }
+
+            return value
+          },
+        ],
+      },
+    },
+    {
       name: 'status',
       type: 'select',
       defaultValue: 'new',

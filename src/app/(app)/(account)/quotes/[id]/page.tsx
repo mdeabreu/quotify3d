@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 
 type PageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ email?: string }>
+  searchParams: Promise<{ email?: string; accessToken?: string }>
 }
 
 type QuoteOptionResponse = {
@@ -102,8 +102,21 @@ const serializeQuoteItem = (item: Quote['items'][number]) => {
   }
 }
 
-const getQuotePath = (quoteID: number, customerEmail: string) =>
-  `/quotes/${quoteID}${customerEmail ? `?email=${encodeURIComponent(customerEmail)}` : ''}`
+const getQuotePath = (quoteID: number, customerEmail: string, accessToken: string) => {
+  const queryParams = new URLSearchParams()
+
+  if (customerEmail) {
+    queryParams.set('email', customerEmail)
+  }
+
+  if (accessToken) {
+    queryParams.set('accessToken', accessToken)
+  }
+
+  const queryString = queryParams.toString()
+
+  return `/quotes/${quoteID}${queryString ? `?${queryString}` : ''}`
+}
 
 const isEditableQuoteStatus = (status: QuoteStatus) => editableStatuses.has(status)
 
@@ -138,17 +151,19 @@ const getReadOnlyQuoteMessage = (status: QuoteStatus) => {
 }
 
 const findAccessibleQuote = async ({
+  accessToken,
   customerEmail,
   payloadInstance,
   quoteID,
   quoteUser,
 }: {
+  accessToken: string
   customerEmail: string
   payloadInstance: Awaited<ReturnType<typeof getPayload>>
   quoteID: number | string
   quoteUser: Awaited<ReturnType<Awaited<ReturnType<typeof getPayload>>['auth']>>['user']
 }) => {
-  if (!quoteUser && !customerEmail) {
+  if (!quoteUser && !accessToken) {
     return null
   }
 
@@ -174,16 +189,22 @@ const findAccessibleQuote = async ({
                 },
               },
             ]
-          : []),
-        ...(!quoteUser && customerEmail
-          ? [
+          : [
               {
-                customerEmail: {
-                  equals: customerEmail,
+                accessToken: {
+                  equals: accessToken,
                 },
               },
-            ]
-          : []),
+              ...(customerEmail
+                ? [
+                    {
+                      customerEmail: {
+                        equals: customerEmail,
+                      },
+                    },
+                  ]
+                : []),
+            ]),
       ],
     },
     select: {
@@ -192,6 +213,7 @@ const findAccessibleQuote = async ({
       currency: true,
       items: true,
       customerEmail: true,
+      accessToken: true,
       customer: true,
       status: true,
       createdAt: true,
@@ -200,7 +222,30 @@ const findAccessibleQuote = async ({
     },
   })
 
-  return quoteResult ?? null
+  const quoteAccessToken =
+    quoteResult && 'accessToken' in quoteResult ? quoteResult.accessToken : undefined
+
+  const canAccessAsGuest =
+    !quoteUser &&
+    accessToken &&
+    quoteResult &&
+    quoteAccessToken &&
+    quoteAccessToken === accessToken &&
+    (!customerEmail ||
+      (quoteResult.customerEmail && quoteResult.customerEmail === customerEmail))
+
+  const canAccessAsUser =
+    quoteUser &&
+    quoteResult &&
+    quoteResult.customer &&
+    (typeof quoteResult.customer === 'object' ? quoteResult.customer.id : quoteResult.customer) ===
+      quoteUser.id
+
+  if (quoteResult && (canAccessAsGuest || canAccessAsUser)) {
+    return quoteResult
+  }
+
+  return null
 }
 
 export default async function QuotePage({ params, searchParams }: PageProps) {
@@ -209,9 +254,10 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
   const { user } = await payload.auth({ headers })
 
   const { id } = await params
-  const { email = '' } = await searchParams
+  const { email = '', accessToken = '' } = await searchParams
 
   const quote = await findAccessibleQuote({
+    accessToken,
     customerEmail: email,
     payloadInstance: payload,
     quoteID: id,
@@ -347,10 +393,12 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1) return
 
     const accessibleQuote = await findAccessibleQuote({
+      accessToken,
       customerEmail,
       payloadInstance: payload,
       quoteID,
@@ -380,7 +428,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       })
     }
 
-    redirect(getQuotePath(quoteID, customerEmail))
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
   const saveItemAction = async (formData: FormData) => {
@@ -393,6 +441,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const itemID = String(formData.get('itemID') ?? '')
     const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
     const quantity = Number.parseInt(String(formData.get('quantity') ?? ''), 10)
     const filament = Number.parseInt(String(formData.get('filament') ?? ''), 10)
     const colour = Number.parseInt(String(formData.get('colour') ?? ''), 10)
@@ -412,6 +461,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     }
 
     const accessibleQuote = await findAccessibleQuote({
+      accessToken,
       customerEmail,
       payloadInstance: payload,
       quoteID,
@@ -460,7 +510,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       })
     }
 
-    redirect(getQuotePath(quoteID, customerEmail))
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
   const removeItemAction = async (formData: FormData) => {
@@ -473,10 +523,12 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const itemID = String(formData.get('itemID') ?? '')
     const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1 || !itemID) return
 
     const accessibleQuote = await findAccessibleQuote({
+      accessToken,
       customerEmail,
       payloadInstance: payload,
       quoteID,
@@ -512,7 +564,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       })
     }
 
-    redirect(getQuotePath(quoteID, customerEmail))
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
   const addModelsAction = async (formData: FormData) => {
@@ -524,6 +576,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
     const filament =
       Number.parseInt(String(formData.get('filament') ?? ''), 10) || materialOptions[0]?.id
     const colour = Number.parseInt(String(formData.get('colour') ?? ''), 10) || colourOptions[0]?.id
@@ -541,6 +594,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     }
 
     const accessibleQuote = await findAccessibleQuote({
+      accessToken,
       customerEmail,
       payloadInstance: payload,
       quoteID,
@@ -609,7 +663,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       })
     }
 
-    redirect(getQuotePath(quoteID, customerEmail))
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
   const submitForReviewAction = async (formData: FormData) => {
@@ -621,10 +675,12 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1) return
 
     const accessibleQuote = await findAccessibleQuote({
+      accessToken,
       customerEmail,
       payloadInstance: payload,
       quoteID,
@@ -654,7 +710,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       })
     }
 
-    redirect(getQuotePath(quoteID, customerEmail))
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
   return (
@@ -737,9 +793,10 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
             addModelsAction={addModelsAction}
             colourOptions={colourOptions}
             currencyCode={quote.currency ?? undefined}
-            editable={editable}
-            email={email}
-            items={workspaceItems}
+          editable={editable}
+          email={email}
+          accessToken={accessToken}
+          items={workspaceItems}
             materialOptions={materialOptions}
             qualityOptions={qualityOptions}
             quoteID={quote.id}

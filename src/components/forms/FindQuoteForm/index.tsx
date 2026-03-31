@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/providers/Auth'
-import { useRouter } from 'next/navigation'
-import React, { Fragment, useCallback } from 'react'
+import React, { Fragment, useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { sendQuoteAccessEmail } from './sendQuoteAccessEmail'
 
 type FormData = {
   email: string
@@ -20,8 +20,10 @@ type Props = {
 }
 
 export const FindQuoteForm: React.FC<Props> = ({ initialEmail }) => {
-  const router = useRouter()
   const { user } = useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   const {
     formState: { errors },
@@ -35,16 +37,49 @@ export const FindQuoteForm: React.FC<Props> = ({ initialEmail }) => {
 
   const onSubmit = useCallback(
     async (data: FormData) => {
-      router.push(`/quotes/${data.quoteID}?email=${data.email}`)
+      setIsSubmitting(true)
+      setSubmitError(null)
+
+      try {
+        const result = await sendQuoteAccessEmail({
+          email: data.email,
+          quoteID: data.quoteID,
+        })
+
+        if (result.success) {
+          setSuccess(true)
+        } else {
+          setSubmitError(result.error || 'Something went wrong. Please try again.')
+        }
+      } catch {
+        setSubmitError('Something went wrong. Please try again.')
+      } finally {
+        setIsSubmitting(false)
+      }
     },
-    [router],
+    [],
   )
+
+  if (success) {
+    return (
+      <Fragment>
+        <h1 className="mb-4 text-xl">Check your email</h1>
+        <div className="prose dark:prose-invert">
+          <p>
+            {
+              "If a quote exists with the provided email and quote ID, we've sent you an email with a link to view your quote details."
+            }
+          </p>
+        </div>
+      </Fragment>
+    )
+  }
 
   return (
     <Fragment>
       <h1 className="mb-4 text-xl">Find my quote</h1>
       <div className="prose mb-8 dark:prose-invert">
-        <p>{`Please enter your email and quote ID below.`}</p>
+        <p>{`Please enter your email and quote ID below. We'll send you a link to view your quote.`}</p>
       </div>
       <form className="flex max-w-lg flex-col gap-8" onSubmit={handleSubmit(onSubmit)}>
         <FormItem>
@@ -71,8 +106,14 @@ export const FindQuoteForm: React.FC<Props> = ({ initialEmail }) => {
           />
           {errors.quoteID && <FormError message={errors.quoteID.message} />}
         </FormItem>
-        <Button className="self-start" type="submit" variant="default">
-          Find my quote
+        {submitError && <FormError message={submitError} />}
+        <Button
+          className="self-start"
+          disabled={isSubmitting}
+          type="submit"
+          variant="default"
+        >
+          {isSubmitting ? 'Sending...' : 'Find quote'}
         </Button>
       </form>
     </Fragment>

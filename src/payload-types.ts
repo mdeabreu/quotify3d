@@ -962,6 +962,7 @@ export interface Quote {
    * Used when the requester is not logged in.
    */
   customerEmail?: string | null;
+  accessToken?: string | null;
   status: QuoteStatus;
   subtotal?: number | null;
   currency?: ('CAD' | 'USD') | null;
@@ -2012,6 +2013,7 @@ export interface ModelsSelect<T extends boolean = true> {
 export interface QuotesSelect<T extends boolean = true> {
   customer?: T;
   customerEmail?: T;
+  accessToken?: T;
   status?: T;
   subtotal?: T;
   currency?: T;

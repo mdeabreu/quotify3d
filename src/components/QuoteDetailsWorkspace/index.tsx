@@ -44,6 +44,7 @@ type EditorStep = 'material' | 'colour' | 'quality'
 
 type Props = {
   addModelsAction: (formData: FormData) => void | Promise<void>
+  accessToken?: string
   currencyCode?: string
   editable: boolean
   email?: string
@@ -105,6 +106,7 @@ const OptionCard = ({
 
 const QuoteItemEditorDialog = ({
   colourOptions,
+  accessToken = '',
   currencyCode,
   email = '',
   item,
@@ -115,6 +117,7 @@ const QuoteItemEditorDialog = ({
   trigger,
 }: {
   colourOptions: QuoteOption[]
+  accessToken?: string
   currencyCode?: string
   email?: string
   item: QuoteWorkspaceItem
@@ -264,6 +267,7 @@ const QuoteItemEditorDialog = ({
             <input name="colour" type="hidden" value={colourId} />
             <input name="process" type="hidden" value={processId} />
             {email ? <input name="email" type="hidden" value={email} /> : null}
+            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
 
             <div className="min-w-0 flex-1 text-sm text-primary/70">
               <p className="truncate">
@@ -284,6 +288,7 @@ const QuoteItemEditorDialog = ({
 
 export const QuoteDetailsWorkspace = ({
   addModelsAction,
+  accessToken = '',
   colourOptions,
   currencyCode,
   editable,
@@ -320,6 +325,7 @@ export const QuoteDetailsWorkspace = ({
             value={items[0]?.processId ?? String(qualityOptions[0]?.id ?? '')}
           />
           {email ? <input name="email" type="hidden" value={email} /> : null}
+          {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -402,6 +408,7 @@ export const QuoteDetailsWorkspace = ({
                       <div className="flex flex-wrap gap-2">
                         <QuoteItemEditorDialog
                           colourOptions={colourOptions}
+                          accessToken={accessToken}
                           currencyCode={currencyCode}
                           email={email}
                           item={item}
@@ -421,6 +428,9 @@ export const QuoteDetailsWorkspace = ({
                           <input name="quoteID" type="hidden" value={quoteID} />
                           <input name="itemID" type="hidden" value={item.id} />
                           {email ? <input name="email" type="hidden" value={email} /> : null}
+                          {accessToken ? (
+                            <input name="accessToken" type="hidden" value={accessToken} />
+                          ) : null}
                           <Button disabled={!canRemove} size="icon" type="submit" variant="outline">
                             <Trash2Icon className="size-4" />
                             <span className="sr-only">Remove item</span>
@@ -445,6 +455,7 @@ export const QuoteDetailsWorkspace = ({
           <form action={refreshEstimatesAction}>
             <input name="quoteID" type="hidden" value={quoteID} />
             {email ? <input name="email" type="hidden" value={email} /> : null}
+            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
             <Button size="sm" type="submit" variant="outline">
               Refresh estimate
             </Button>
@@ -453,6 +464,7 @@ export const QuoteDetailsWorkspace = ({
           <form action={submitForReviewAction}>
             <input name="quoteID" type="hidden" value={quoteID} />
             {email ? <input name="email" type="hidden" value={email} /> : null}
+            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
             <Button size="sm" type="submit">
               Send for review
             </Button>
