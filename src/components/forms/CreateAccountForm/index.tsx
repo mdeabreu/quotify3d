@@ -6,6 +6,7 @@ import { Message } from '@/components/Message'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useEcommerce } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -22,6 +23,7 @@ export const CreateAccountForm: React.FC = () => {
   const searchParams = useSearchParams()
   const allParams = searchParams.toString() ? `?${searchParams.toString()}` : ''
   const { login } = useAuth()
+  const { onLogin } = useEcommerce()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<null | string>(null)
@@ -60,15 +62,19 @@ export const CreateAccountForm: React.FC = () => {
 
       try {
         await login(data)
+        await onLogin()
         clearTimeout(timer)
+
         if (redirect) router.push(redirect)
         else router.push(`/account?success=${encodeURIComponent('Account created successfully')}`)
+
+        router.refresh()
       } catch (_) {
         clearTimeout(timer)
         setError('There was an error with the credentials provided. Please try again.')
       }
     },
-    [login, router, searchParams],
+    [login, onLogin, router, searchParams],
   )
 
   return (

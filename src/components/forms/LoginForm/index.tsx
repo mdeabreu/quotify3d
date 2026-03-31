@@ -6,6 +6,7 @@ import { Message } from '@/components/Message'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useEcommerce } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -22,6 +23,7 @@ export const LoginForm: React.FC = () => {
   const allParams = searchParams.toString() ? `?${searchParams.toString()}` : ''
   const redirect = useRef(searchParams.get('redirect'))
   const { login } = useAuth()
+  const { onLogin } = useEcommerce()
   const router = useRouter()
   const [error, setError] = React.useState<null | string>(null)
 
@@ -35,13 +37,17 @@ export const LoginForm: React.FC = () => {
     async (data: FormData) => {
       try {
         await login(data)
+        await onLogin()
+
         if (redirect?.current) router.push(redirect.current)
         else router.push('/account')
+
+        router.refresh()
       } catch (_) {
         setError('There was an error with the credentials provided. Please try again.')
       }
     },
-    [login, router],
+    [login, onLogin, router],
   )
 
   return (
