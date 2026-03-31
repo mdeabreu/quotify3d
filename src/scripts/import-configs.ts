@@ -251,12 +251,45 @@ async function selectConfigs(
 }
 
 type ImportSummary = {
+    configs: OperationCounts
+    catalogItems: OperationCounts
+}
+
+type OperationCounts = {
     created: number
     updated: number
     skipped: number
 }
 
-async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): Promise<ImportSummary> {
+type ImportedConfigResult = {
+    collection: CollectionSlug
+    configDocID: number
+    configContents: Record<string, unknown>
+    name: string
+    status: keyof OperationCounts
+    type: string
+}
+
+type ExistingDocShape = {
+    id: number
+    name?: string | null
+}
+
+function getEmptyCounts(): OperationCounts {
+    return { created: 0, updated: 0, skipped: 0 }
+}
+
+function toOptionalString(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+}
+
+async function importConfigs(
+    configs: ConfigType[],
+    shouldOverwrite: boolean,
+): Promise<ImportedConfigResult[]> {
     const spin = p.spinner()
     spin.start()
 
@@ -266,7 +299,7 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
         process: 'process-configs',
     }
 
-    const summary: ImportSummary = { created: 0, updated: 0, skipped: 0 }
+    const results: ImportedConfigResult[] = []
 
     for (const config of configs) {
         spin.message(`Importing ${config.name} (${config.type})`)
@@ -274,7 +307,6 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
 
         const collection = typeToCollection[config.type]
         if (!collection) {
-            summary.skipped += 1
             continue
         }
 
@@ -289,16 +321,23 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
             },
         })
 
-        const existingDoc = existing.docs[0]
+        const existingDoc = existing.docs[0] as ExistingDocShape | undefined
 
         if (existingDoc) {
             if (!shouldOverwrite) {
                 p.log.warn(`Skipping ${name} (${config.type}) - already exists`)
-                summary.skipped += 1
+                results.push({
+                    collection,
+                    configDocID: existingDoc.id,
+                    configContents,
+                    name,
+                    status: 'skipped',
+                    type: config.type,
+                })
                 continue
             }
 
-            await payload.update({
+            const updatedDoc = await payload.update({
                 collection,
                 id: existingDoc.id,
                 data: {
@@ -306,20 +345,139 @@ async function importConfigs(configs: ConfigType[], shouldOverwrite: boolean): P
                     config: configContents,
                 },
             })
-            summary.updated += 1
+
+            results.push({
+                collection,
+                configContents,
+                configDocID: updatedDoc.id,
+                name,
+                status: 'updated',
+                type: config.type,
+            })
         } else {
-            await payload.create({
+            const createdDoc = await payload.create({
                 collection,
                 data: {
                     name,
                     config: configContents,
                 },
             })
-            summary.created += 1
+
+            results.push({
+                collection,
+                configContents,
+                configDocID: createdDoc.id,
+                name,
+                status: 'created',
+                type: config.type,
+            })
         }
     }
 
     spin.stop('Importing complete')
+    return results
+}
+
+async function shouldCreateCatalogItems(): Promise<boolean | undefined> {
+    const result = await p.confirm({
+        message: 'Also create or update matching catalog items?',
+        initialValue: false,
+    })
+
+    if (p.isCancel(result)) return undefined
+
+    return result
+}
+
+async function createCatalogItems(
+    importedConfigs: ImportedConfigResult[],
+    shouldOverwrite: boolean,
+): Promise<OperationCounts> {
+    const spin = p.spinner()
+    spin.start()
+
+    const typeToCollection: Record<string, CollectionSlug> = {
+        filament: 'filaments',
+        machine: 'machines',
+        process: 'processes',
+    }
+
+    const summary = getEmptyCounts()
+
+    for (const importedConfig of importedConfigs) {
+        const collection = typeToCollection[importedConfig.type]
+
+        if (!collection) {
+            continue
+        }
+
+        spin.message(`Syncing catalog item for ${importedConfig.name} (${importedConfig.type})`)
+
+        const existing = await payload.find({
+            collection,
+            depth: 0,
+            limit: 1,
+            where: {
+                name: { equals: importedConfig.name },
+            },
+        })
+
+        const existingDoc = existing.docs[0] as ExistingDocShape | undefined
+        const description = toOptionalString(importedConfig.configContents.description)
+
+        if (existingDoc) {
+            if (!shouldOverwrite) {
+                p.log.warn(`Skipping catalog item ${importedConfig.name} (${importedConfig.type}) - already exists`)
+                summary.skipped += 1
+                continue
+            }
+
+            const data: Record<string, unknown> = {
+                name: importedConfig.name,
+                config: importedConfig.configDocID,
+            }
+
+            if (description) {
+                data.description = description
+            }
+
+            await payload.update({
+                collection,
+                id: existingDoc.id,
+                data,
+            })
+
+            summary.updated += 1
+            continue
+        }
+
+        const data: Record<string, unknown> = {
+            active: false,
+            config: importedConfig.configDocID,
+            name: importedConfig.name,
+        }
+
+        if (description) {
+            data.description = description
+        }
+
+        if (collection === 'filaments') {
+            data.pricePerGram = 0
+        }
+
+        if (collection === 'machines') {
+            data.pricePerHour = 0
+        }
+
+        await payload.create({
+            collection,
+            data,
+        })
+
+        summary.created += 1
+    }
+
+    spin.stop('Catalog sync complete')
     return summary
 }
 
@@ -363,9 +521,28 @@ export const script = async (config: SanitizedConfig) => {
     const configs = await selectConfigs(profilesDir, selectedProfile, selectedTypes)
     if (configs.length === 0) process.exit(0)
 
-    const summary = await importConfigs(configs, shouldOverwrite)
+    const createCatalogItemsResult = await shouldCreateCatalogItems()
+    if (typeof createCatalogItemsResult === 'undefined') process.exit(0)
 
-    p.outro(`Imported configs. Created: ${summary.created}, Updated: ${summary.updated}, Skipped: ${summary.skipped}.`)
+    const importedConfigs = await importConfigs(configs, shouldOverwrite)
+
+    const summary: ImportSummary = {
+        configs: importedConfigs.reduce<OperationCounts>((counts, importedConfig) => {
+            counts[importedConfig.status] += 1
+            return counts
+        }, getEmptyCounts()),
+        catalogItems: createCatalogItemsResult
+            ? await createCatalogItems(importedConfigs, shouldOverwrite)
+            : getEmptyCounts(),
+    }
+
+    p.outro(
+        [
+            'Import complete.',
+            `Configs -> Created: ${summary.configs.created}, Updated: ${summary.configs.updated}, Skipped: ${summary.configs.skipped}.`,
+            `Catalog items -> Created: ${summary.catalogItems.created}, Updated: ${summary.catalogItems.updated}, Skipped: ${summary.catalogItems.skipped}.`,
+        ].join('\n'),
+    )
 
     process.exit(0)
 }
