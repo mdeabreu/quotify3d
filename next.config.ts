@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    dangerouslyAllowLocalIP: true,
     localPatterns: [
       {
         pathname: '/api/media/file/**',
