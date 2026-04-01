@@ -44,6 +44,7 @@ type QuoteOption = {
 }
 
 const editableStatuses = new Set<QuoteStatus>(['new', 'queued', 'sliced'])
+const inProgressGcodeStatuses = new Set(['queued', 'collecting-context', 'slicing', 'parsing'])
 
 const toAbsoluteURL = (value: string): string => {
   if (value.startsWith('http://') || value.startsWith('https://')) {
@@ -383,6 +384,10 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
   )
 
   const hasPendingLineItemPrice = workspaceItems.some((item) => item.gcodePrice === null)
+  const hasFailedLineItems = workspaceItems.some((item) => item.gcodeStatus === 'failed')
+  const hasInProgressLineItems = workspaceItems.some(
+    (item) => item.gcodeStatus && inProgressGcodeStatuses.has(item.gcodeStatus),
+  )
 
   const updatePriceAction = async (formData: FormData) => {
     'use server'
@@ -793,13 +798,17 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
             addModelsAction={addModelsAction}
             colourOptions={colourOptions}
             currencyCode={quote.currency ?? undefined}
-          editable={editable}
-          email={email}
-          accessToken={accessToken}
-          items={workspaceItems}
+            editable={editable}
+            email={email}
+            accessToken={accessToken}
+            hasFailedItems={hasFailedLineItems}
+            hasInProgressItems={hasInProgressLineItems}
+            hasPendingPrices={hasPendingLineItemPrice}
+            items={workspaceItems}
             materialOptions={materialOptions}
             qualityOptions={qualityOptions}
             quoteID={quote.id}
+            quoteStatus={quote.status}
             refreshEstimatesAction={updatePriceAction}
             removeItemAction={removeItemAction}
             saveItemAction={saveItemAction}

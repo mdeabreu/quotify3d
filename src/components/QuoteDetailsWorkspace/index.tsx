@@ -14,8 +14,10 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/utilities/cn'
 import { PencilIcon, Trash2Icon } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import type { QuoteStatus } from '@/payload-types'
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
 type QuoteOption = {
   id: number
@@ -48,11 +50,15 @@ type Props = {
   currencyCode?: string
   editable: boolean
   email?: string
+  hasFailedItems: boolean
+  hasInProgressItems: boolean
+  hasPendingPrices: boolean
   items: QuoteWorkspaceItem[]
   materialOptions: QuoteOption[]
   qualityOptions: QuoteOption[]
   colourOptions: QuoteOption[]
   quoteID: number
+  quoteStatus: QuoteStatus
   refreshEstimatesAction: (formData: FormData) => void | Promise<void>
   removeItemAction: (formData: FormData) => void | Promise<void>
   saveItemAction: (formData: FormData) => void | Promise<void>
@@ -68,6 +74,32 @@ const steps: { id: EditorStep; label: string }[] = [
 const humanizeStatus = (status: string | null) => {
   if (!status) return null
   return status.replaceAll('-', ' ')
+}
+
+const AUTO_REFRESH_INTERVAL_MS = 3000
+
+export const shouldAutoRefreshQuote = ({
+  editable,
+  hasFailedItems,
+  hasInProgressItems,
+  hasPendingPrices,
+  quoteStatus,
+}: {
+  editable: boolean
+  hasFailedItems: boolean
+  hasInProgressItems: boolean
+  hasPendingPrices: boolean
+  quoteStatus: QuoteStatus
+}) => {
+  if (!editable) return false
+
+  if (hasFailedItems) return false
+
+  if (hasInProgressItems) {
+    return true
+  }
+
+  return quoteStatus === 'queued' && hasPendingPrices
 }
 
 const OptionCard = ({
@@ -293,16 +325,52 @@ export const QuoteDetailsWorkspace = ({
   currencyCode,
   editable,
   email = '',
+  hasFailedItems,
+  hasInProgressItems,
+  hasPendingPrices,
   items,
   materialOptions,
   qualityOptions,
   quoteID,
+  quoteStatus,
   refreshEstimatesAction,
   removeItemAction,
   saveItemAction,
   submitForReviewAction,
 }: Props) => {
+  const router = useRouter()
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
+  const shouldAutoRefresh = shouldAutoRefreshQuote({
+    editable,
+    hasFailedItems,
+    hasInProgressItems,
+    hasPendingPrices,
+    quoteStatus,
+  })
+
+  const refreshRoute = useEffectEvent(() => {
+    router.refresh()
+  })
+
+  useEffect(() => {
+    if (!shouldAutoRefresh) {
+      return
+    }
+
+    const refreshWhenVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return
+      }
+
+      refreshRoute()
+    }
+
+    const interval = window.setInterval(refreshWhenVisible, AUTO_REFRESH_INTERVAL_MS)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [refreshRoute, shouldAutoRefresh])
 
   return (
     <div className="space-y-6">
@@ -452,6 +520,12 @@ export const QuoteDetailsWorkspace = ({
 
       {editable ? (
         <div className="flex flex-wrap justify-end gap-3 border-t pt-4">
+          {shouldAutoRefresh ? (
+            <p className="mr-auto self-center text-sm text-primary/70">
+              Updating estimates automatically while slicing finishes.
+            </p>
+          ) : null}
+
           <form action={refreshEstimatesAction}>
             <input name="quoteID" type="hidden" value={quoteID} />
             {email ? <input name="email" type="hidden" value={email} /> : null}
