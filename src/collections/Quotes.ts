@@ -8,6 +8,7 @@ import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
+import { sendQuoteCreatedEmail } from '@/collections/Quotes/hooks/sendQuoteCreatedEmail'
 import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
 import { syncOwnedGcodesForQuote } from '@/collections/Quotes/hooks/syncOwnedGcodesForQuote'
 import { currenciesConfig } from '@/config/currencies'
@@ -127,6 +128,11 @@ export const Quotes: CollectionConfig = {
   hooks: {
     beforeValidate: [applyDefaultMachine],
     beforeChange: [normalizeCustomerOrEmail, resetStatusWhenSlicedQuoteChanges],
-    afterChange: [syncOwnedGcodesForQuote, createProductsOnApproval, sendQuoteApprovedEmail],
+    afterChange: [
+      syncOwnedGcodesForQuote,
+      createProductsOnApproval,
+      sendQuoteCreatedEmail,
+      sendQuoteApprovedEmail,
+    ],
   },
 }

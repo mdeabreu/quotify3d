@@ -35,20 +35,12 @@ const getQuoteURL = ({
   return `${serverURL}/quotes/${quoteID}`
 }
 
-export const sendQuoteApprovedEmail: CollectionAfterChangeHook = async ({
+export const sendQuoteCreatedEmail: CollectionAfterChangeHook = async ({
   doc,
   operation,
-  previousDoc,
   req,
 }) => {
-  if (!doc) return doc
-
-  const movedToApproved =
-    doc.status === 'approved' && (operation === 'create' || previousDoc?.status !== 'approved')
-
-  if (!movedToApproved) {
-    return doc
-  }
+  if (!doc || operation !== 'create') return doc
 
   try {
     const recipient = await resolveCustomerRecipient({
@@ -59,7 +51,7 @@ export const sendQuoteApprovedEmail: CollectionAfterChangeHook = async ({
 
     if (!recipient) {
       req.payload.logger.warn({
-        msg: 'Skipping quote approved email because no customer email could be resolved',
+        msg: 'Skipping quote created email because no customer email could be resolved',
         quoteID: doc.id,
       })
       return doc
@@ -74,11 +66,11 @@ export const sendQuoteApprovedEmail: CollectionAfterChangeHook = async ({
 
     await req.payload.sendEmail({
       to: recipient.email,
-      subject: `Your quote #${doc.id} is approved`,
+      subject: `Your quote #${doc.id} has been created`,
       html: `
-        <h1>Your quote is approved</h1>
-        <p>Your quote #${doc.id} has been approved and is ready for you to review.</p>
-        <p>You can now return to your quote, add the approved items to your cart, and complete checkout.</p>
+        <h1>Your quote has been created</h1>
+        <p>Your quote #${doc.id} has been created successfully.</p>
+        <p>You can use the link below to come back and review your quote at any time.</p>
         <p><a href="${quoteURL}">View quote #${doc.id}</a></p>
         <p>If the button above does not work, copy and paste this link into your browser:</p>
         <p>${quoteURL}</p>
@@ -87,7 +79,7 @@ export const sendQuoteApprovedEmail: CollectionAfterChangeHook = async ({
   } catch (err) {
     req.payload.logger.error({
       err,
-      msg: 'Failed to send quote approved email',
+      msg: 'Failed to send quote created email',
       quoteID: doc.id,
     })
   }
