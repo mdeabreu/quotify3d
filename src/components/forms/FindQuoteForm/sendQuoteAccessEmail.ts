@@ -20,12 +20,13 @@ export async function sendQuoteAccessEmail({
   quoteID,
 }: SendQuoteAccessEmailArgs): Promise<SendQuoteAccessEmailResult> {
   const payload = await getPayload({ config: configPromise })
+  const normalizedEmail = email.trim().toLowerCase()
 
   try {
     const { docs: quotes } = await payload.find({
       collection: 'quotes',
       where: {
-        and: [{ id: { equals: quoteID } }, { customerEmail: { equals: email } }],
+        and: [{ id: { equals: quoteID } }, { customerEmail: { equals: normalizedEmail } }],
       },
       limit: 1,
       depth: 0,
@@ -40,10 +41,10 @@ export async function sendQuoteAccessEmail({
     }
 
     const serverURL = getServerSideURL()
-    const quoteURL = `${serverURL}/quotes/${quote.id}?email=${encodeURIComponent(email)}&accessToken=${accessToken}`
+    const quoteURL = `${serverURL}/quotes/${quote.id}?email=${encodeURIComponent(normalizedEmail)}&accessToken=${accessToken}`
 
     await payload.sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: `Access your quote #${quote.id}`,
       html: `
         <h1>View Your Quote</h1>

@@ -360,12 +360,23 @@ export const QuoteWizard = () => {
           : typeof quoteJSON?.id === 'number'
             ? quoteJSON.id
             : null
+      const quoteAccessToken =
+        typeof quoteJSON?.doc?.accessToken === 'string'
+          ? quoteJSON.doc.accessToken
+          : typeof quoteJSON?.accessToken === 'string'
+            ? quoteJSON.accessToken
+            : null
 
       if (!quoteID) throw new Error('Quote creation response is missing an ID.')
+      if (isGuest && !quoteAccessToken) {
+        throw new Error('Quote creation response is missing an access token.')
+      }
 
       toast.success('Quote request created. Opening your workspace...')
       router.push(
-        isGuest ? `/quotes/${quoteID}?email=${encodeURIComponent(normalizedEmail)}` : `/quotes/${quoteID}`,
+        isGuest
+          ? `/quotes/${quoteID}?email=${encodeURIComponent(normalizedEmail)}&accessToken=${encodeURIComponent(quoteAccessToken || '')}`
+          : `/quotes/${quoteID}`,
       )
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Unable to create quote.'
