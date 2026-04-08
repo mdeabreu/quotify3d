@@ -362,8 +362,10 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       processId: String(resolveRelationID(item.process) ?? ''),
       processLabel:
         typeof item.process === 'object' && item.process?.name ? item.process.name : 'Quality',
+      gcodeDuration: typeof item.gcodeDuration === 'number' ? item.gcodeDuration : null,
       gcodePrice: typeof item.gcodePrice === 'number' ? item.gcodePrice : null,
       gcodeStatus: typeof item.gcodeStatus === 'string' ? item.gcodeStatus : null,
+      gcodeWeight: typeof item.gcodeWeight === 'number' ? item.gcodeWeight : null,
       productID: relatedProduct?.id,
       productSlug: relatedProduct?.slug ?? undefined,
     }

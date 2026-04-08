@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/utilities/cn'
+import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
 import { PencilIcon, Trash2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -29,8 +30,10 @@ type QuoteOption = {
 export type QuoteWorkspaceItem = {
   colourId: string
   colourLabel: string
+  gcodeDuration: number | null
   gcodePrice: number | null
   gcodeStatus: string | null
+  gcodeWeight: number | null
   id: string
   modelLabel: string
   productID?: number
@@ -441,6 +444,18 @@ export const QuoteDetailsWorkspace = ({
                       {statusLabel ? (
                         <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono uppercase tracking-widest text-primary/55">
                           {statusLabel}
+                        </p>
+                      ) : null}
+
+                      {typeof item.gcodeWeight === 'number' ? (
+                        <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono tracking-widest text-primary/55">
+                          {formatWeight(item.gcodeWeight)}
+                        </p>
+                      ) : null}
+
+                      {typeof item.gcodeDuration === 'number' ? (
+                        <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono tracking-widest text-primary/55">
+                          {formatDuration(item.gcodeDuration)}
                         </p>
                       ) : null}
                     </div>
