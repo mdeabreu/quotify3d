@@ -976,6 +976,8 @@ export interface Quote {
     gcode?: (number | null) | Gcode;
     gcodeStatus?: ('new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed') | null;
     gcodePrice?: number | null;
+    gcodeWeight?: number | null;
+    gcodeDuration?: number | null;
     id?: string | null;
   }[];
   /**
@@ -2029,6 +2031,8 @@ export interface QuotesSelect<T extends boolean = true> {
         gcode?: T;
         gcodeStatus?: T;
         gcodePrice?: T;
+        gcodeWeight?: T;
+        gcodeDuration?: T;
         id?: T;
       };
   notes?: T;
