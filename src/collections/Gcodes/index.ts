@@ -4,8 +4,8 @@ import { amountField } from '@payloadcms/plugin-ecommerce'
 
 import { adminOnly } from '@/access/adminOnly'
 import { gcodeStatusOptions } from '@/collections/constants/gcodeStatusOptions'
-import { ensureUniqueCombination } from '@/collections/Gcodes/hooks/ensureUniqueCombination'
 import { queueSliceWorkflow } from '@/collections/Gcodes/hooks/queueSliceWorkflow'
+import { syncOwningQuote } from '@/collections/Gcodes/hooks/syncOwningQuote'
 import { currenciesConfig } from '@/config/currencies'
 
 const slicerFieldAccess = {
@@ -27,14 +27,32 @@ export const Gcodes: CollectionConfig = {
   },
   admin: {
     group: 'Jobs',
-    defaultColumns: ['id', 'status', 'model', 'filament', 'process', 'machine'],
+    defaultColumns: ['id', 'status', 'quote', 'quoteItemID', 'model', 'filament', 'process', 'machine'],
   },
   fields: [
+    {
+      name: 'quote',
+      type: 'relationship',
+      relationTo: 'quotes',
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'quoteItemID',
+      type: 'text',
+      required: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
     {
       name: 'status',
       type: 'select',
       required: true,
-      defaultValue: 'queued',
+      defaultValue: 'new',
       options: gcodeStatusOptions,
       admin: {
         position: 'sidebar',
@@ -237,7 +255,6 @@ export const Gcodes: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [ensureUniqueCombination],
-    afterChange: [queueSliceWorkflow],
+    afterChange: [queueSliceWorkflow, syncOwningQuote],
   },
 }

@@ -8,14 +8,14 @@
 
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "QuoteStatus".
+ */
+export type QuoteStatus = 'new' | 'queued' | 'sliced' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "OrderStatus".
  */
 export type OrderStatus = ('processing' | 'completed' | 'cancelled' | 'refunded') | null;
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "QuoteStatus".
- */
-export type QuoteStatus = 'new' | 'ready-for-review' | 'in-review' | 'approved' | 'rejected';
 /**
  * Supported timezones in IANA format.
  *
@@ -361,6 +361,8 @@ export interface Product {
     description?: string | null;
   };
   categories?: (number | Category)[] | null;
+  quote?: (number | null) | Quote;
+  quoteItemID?: string | null;
   gcode?: (number | null) | Gcode;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -951,62 +953,37 @@ export interface Variant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "gcodes".
+ * via the `definition` "quotes".
  */
-export interface Gcode {
+export interface Quote {
   id: number;
-  status: 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed';
+  customer?: (number | null) | User;
   /**
-   * Estimated price based on slicer output.
+   * Used when the requester is not logged in.
    */
-  estimatedPrice?: number | null;
-  model: number | Model;
-  filament: number | Filament;
-  process: number | Process;
-  machine: number | Machine;
+  customerEmail?: string | null;
+  accessToken?: string | null;
+  status: QuoteStatus;
+  subtotal?: number | null;
+  currency?: ('CAD' | 'USD') | null;
+  items: {
+    model: number | Model;
+    quantity: number;
+    filament: number | Filament;
+    colour: number | Colour;
+    process: number | Process;
+    machine?: (number | null) | Machine;
+    gcode?: (number | null) | Gcode;
+    gcodeStatus?: ('new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed') | null;
+    gcodePrice?: number | null;
+    gcodeWeight?: number | null;
+    gcodeDuration?: number | null;
+    id?: string | null;
+  }[];
   /**
-   * Optional override for total weight (grams).
+   * Optional requirements, deadlines, or context provided by the requester.
    */
-  weightOverride?: number | null;
-  /**
-   * Optional override for total duration (seconds).
-   */
-  durationOverride?: number | null;
-  /**
-   * Optional override for pricing calculations.
-   */
-  priceOverride?: number | null;
-  /**
-   * Total across plates (grams).
-   */
-  estimatedWeight?: number | null;
-  /**
-   * Total across plates (seconds).
-   */
-  estimatedDuration?: number | null;
-  slicingCommand?: string | null;
-  /**
-   * Stdout/stderr emitted by the slicer.
-   */
-  slicerOutput?: string | null;
-  /**
-   * Set when the slicing workflow fails.
-   */
-  error?: string | null;
-  plates?:
-    | {
-        /**
-         * Per-plate filament estimate (grams).
-         */
-        estimatedWeight?: number | null;
-        /**
-         * Per-plate time estimate (seconds).
-         */
-        estimatedDuration?: number | null;
-        gcode?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1217,6 +1194,69 @@ export interface MachineConfig {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gcodes".
+ */
+export interface Gcode {
+  id: number;
+  quote: number | Quote;
+  quoteItemID: string;
+  status: 'new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed';
+  /**
+   * Estimated price based on slicer output.
+   */
+  estimatedPrice?: number | null;
+  model: number | Model;
+  filament: number | Filament;
+  process: number | Process;
+  machine: number | Machine;
+  /**
+   * Optional override for total weight (grams).
+   */
+  weightOverride?: number | null;
+  /**
+   * Optional override for total duration (seconds).
+   */
+  durationOverride?: number | null;
+  /**
+   * Optional override for pricing calculations.
+   */
+  priceOverride?: number | null;
+  /**
+   * Total across plates (grams).
+   */
+  estimatedWeight?: number | null;
+  /**
+   * Total across plates (seconds).
+   */
+  estimatedDuration?: number | null;
+  slicingCommand?: string | null;
+  /**
+   * Stdout/stderr emitted by the slicer.
+   */
+  slicerOutput?: string | null;
+  /**
+   * Set when the slicing workflow fails.
+   */
+  error?: string | null;
+  plates?:
+    | {
+        /**
+         * Per-plate filament estimate (grams).
+         */
+        estimatedWeight?: number | null;
+        /**
+         * Per-plate time estimate (seconds).
+         */
+        estimatedDuration?: number | null;
+        gcode?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "transactions".
  */
 export interface Transaction {
@@ -1338,41 +1378,6 @@ export interface Address {
     | 'SE'
     | 'CH';
   phone?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "quotes".
- */
-export interface Quote {
-  id: number;
-  customer?: (number | null) | User;
-  /**
-   * Used when the requester is not logged in.
-   */
-  customerEmail?: string | null;
-  status: QuoteStatus;
-  subtotal?: number | null;
-  currency?: ('CAD' | 'USD') | null;
-  items: {
-    model: number | Model;
-    quantity: number;
-    filament: number | Filament;
-    colour: number | Colour;
-    process: number | Process;
-    machine?: (number | null) | Machine;
-    gcode?: (number | null) | Gcode;
-    gcodeStatus?:
-      | ('queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'in-review' | 'approved' | 'failed')
-      | null;
-    gcodePrice?: number | null;
-    id?: string | null;
-  }[];
-  /**
-   * Optional requirements, deadlines, or context provided by the requester.
-   */
-  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2010,6 +2015,7 @@ export interface ModelsSelect<T extends boolean = true> {
 export interface QuotesSelect<T extends boolean = true> {
   customer?: T;
   customerEmail?: T;
+  accessToken?: T;
   status?: T;
   subtotal?: T;
   currency?: T;
@@ -2025,6 +2031,8 @@ export interface QuotesSelect<T extends boolean = true> {
         gcode?: T;
         gcodeStatus?: T;
         gcodePrice?: T;
+        gcodeWeight?: T;
+        gcodeDuration?: T;
         id?: T;
       };
   notes?: T;
@@ -2036,6 +2044,8 @@ export interface QuotesSelect<T extends boolean = true> {
  * via the `definition` "gcodes_select".
  */
 export interface GcodesSelect<T extends boolean = true> {
+  quote?: T;
+  quoteItemID?: T;
   status?: T;
   estimatedPrice?: T;
   model?: T;
@@ -2343,6 +2353,8 @@ export interface ProductsSelect<T extends boolean = true> {
         description?: T;
       };
   categories?: T;
+  quote?: T;
+  quoteItemID?: T;
   gcode?: T;
   generateSlug?: T;
   slug?: T;
@@ -2624,6 +2636,16 @@ export interface FooterSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_widget".
+ */
+export interface CollectionsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskBuildSlicerContextTask".
  */
 export interface TaskBuildSlicerContextTask {
@@ -2685,16 +2707,6 @@ export interface WorkflowSliceGcode {
   input: {
     gcodeId: string;
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "collections_widget".
- */
-export interface CollectionsWidget {
-  data?: {
-    [k: string]: unknown;
-  };
-  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

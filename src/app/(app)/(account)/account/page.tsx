@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { headers as getHeaders } from 'next/headers.js'
 import configPromise from '@payload-config'
 import { AccountForm } from '@/components/forms/AccountForm'
-import { Order } from '@/payload-types'
+import { Order, Quote } from '@/payload-types'
 import { OrderItem } from '@/components/OrderItem'
+import { QuoteItem } from '@/components/QuoteItem'
 import { getPayload } from 'payload'
 import { redirect } from 'next/navigation'
 
@@ -17,6 +18,7 @@ export default async function AccountPage() {
   const { user } = await payload.auth({ headers })
 
   let orders: Order[] | null = null
+  let quotes: Quote[] | null = null
 
   if (!user) {
     redirect(
@@ -39,6 +41,21 @@ export default async function AccountPage() {
     })
 
     orders = ordersResult?.docs || []
+
+    const quotesResult = await payload.find({
+      collection: 'quotes',
+      limit: 5,
+      user,
+      overrideAccess: false,
+      pagination: false,
+      where: {
+        customer: {
+          equals: user?.id,
+        },
+      },
+    })
+
+    quotes = quotesResult?.docs || []
   } catch (error) {
     // when deploying this template on Payload Cloud, this page needs to build before the APIs are live
     // so swallow the error here and simply render the page with fallback data where necessary
@@ -79,6 +96,35 @@ export default async function AccountPage() {
 
         <Button asChild variant="default">
           <Link href="/orders">View all orders</Link>
+        </Button>
+      </div>
+
+      <div className=" border p-8 rounded-lg bg-primary-foreground">
+        <h2 className="text-3xl font-medium mb-8">Recent Quotes</h2>
+
+        <div className="prose dark:prose-invert mb-8">
+          <p>
+            These are your most recent quote requests. As your quotes are reviewed and updated, you
+            can track their status here.
+          </p>
+        </div>
+
+        {(!quotes || !Array.isArray(quotes) || quotes?.length === 0) && (
+          <p className="mb-8">You have no quotes.</p>
+        )}
+
+        {quotes && quotes.length > 0 && (
+          <ul className="flex flex-col gap-6 mb-8">
+            {quotes?.map((quote) => (
+              <li key={quote.id}>
+                <QuoteItem quote={quote} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <Button asChild variant="default">
+          <Link href="/quotes">View all quotes</Link>
         </Button>
       </div>
     </>

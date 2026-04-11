@@ -14,6 +14,8 @@ export const QuoteStatus: React.FC<Props> = ({ status, className }) => {
         className,
         {
           'bg-primary/10': status === 'new',
+          'bg-primary/20': status === 'queued',
+          'bg-primary/30': status === 'sliced',
           'bg-warning/30': status === 'ready-for-review',
           'bg-warning': status === 'in-review',
           'bg-success': status === 'approved',

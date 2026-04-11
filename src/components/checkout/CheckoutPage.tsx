@@ -12,7 +12,7 @@ import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import React, { Suspense, useCallback, useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 
 import { cssVariables } from '@/cssVariables'
 import { CheckoutForm } from '@/components/forms/CheckoutForm'
@@ -55,22 +55,15 @@ export const CheckoutPage: React.FC = () => {
   const [isProcessingPayment, setProcessingPayment] = useState(false)
 
   const cartIsEmpty = !cart || !cart.items || !cart.items.length
+  const defaultBillingAddress = addresses?.[0]
+  const effectiveBillingAddress = billingAddress ?? defaultBillingAddress
+  const effectiveShippingAddress = billingAddressSameAsShipping
+    ? effectiveBillingAddress
+    : shippingAddress
 
   const canGoToPayment = Boolean(
-    (email || user) && billingAddress && (billingAddressSameAsShipping || shippingAddress),
+    (email || user) && effectiveBillingAddress && effectiveShippingAddress,
   )
-
-  // On initial load wait for addresses to be loaded and check to see if we can prefill a default one
-  useEffect(() => {
-    if (!shippingAddress) {
-      if (addresses && addresses.length > 0) {
-        const defaultAddress = addresses[0]
-        if (defaultAddress) {
-          setBillingAddress(defaultAddress)
-        }
-      }
-    }
-  }, [addresses])
 
   useEffect(() => {
     return () => {
@@ -82,34 +75,31 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [])
 
-  const initiatePaymentIntent = useCallback(
-    async (paymentID: string) => {
-      try {
-        const paymentData = (await initiatePayment(paymentID, {
-          additionalData: {
-            ...(email ? { customerEmail: email } : {}),
-            billingAddress,
-            shippingAddress: billingAddressSameAsShipping ? billingAddress : shippingAddress,
-          },
-        })) as Record<string, unknown>
+  const initiatePaymentIntent = async (paymentID: string) => {
+    try {
+      const paymentData = (await initiatePayment(paymentID, {
+        additionalData: {
+          ...(email ? { customerEmail: email } : {}),
+          billingAddress: effectiveBillingAddress,
+          shippingAddress: effectiveShippingAddress,
+        },
+      })) as Record<string, unknown>
 
-        if (paymentData) {
-          setPaymentData(paymentData)
-        }
-      } catch (error) {
-        const errorData = error instanceof Error ? JSON.parse(error.message) : {}
-        let errorMessage = 'An error occurred while initiating payment.'
-
-        if (errorData?.cause?.code === 'OutOfStock') {
-          errorMessage = 'One or more items in your cart are out of stock.'
-        }
-
-        setError(errorMessage)
-        toast.error(errorMessage)
+      if (paymentData) {
+        setPaymentData(paymentData)
       }
-    },
-    [billingAddress, billingAddressSameAsShipping, shippingAddress],
-  )
+    } catch (error) {
+      const errorData = error instanceof Error ? JSON.parse(error.message) : {}
+      let errorMessage = 'An error occurred while initiating payment.'
+
+      if (errorData?.cause?.code === 'OutOfStock') {
+        errorMessage = 'One or more items in your cart are out of stock.'
+      }
+
+      setError(errorMessage)
+      toast.error(errorMessage)
+    }
+  }
 
   if (!stripe) return null
 
@@ -195,22 +185,30 @@ export const CheckoutPage: React.FC = () => {
 
         <h2 className="font-medium text-3xl">Address</h2>
 
-        {billingAddress ? (
+        {effectiveBillingAddress ? (
           <div>
             <AddressItem
               actions={
-                <Button
-                  variant={'outline'}
-                  disabled={Boolean(paymentData)}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setBillingAddress(undefined)
-                  }}
-                >
-                  Remove
-                </Button>
+                user ? (
+                  <CheckoutAddresses
+                    heading="Change billing address"
+                    description="Choose a different billing address."
+                    setAddress={setBillingAddress}
+                  />
+                ) : (
+                  <Button
+                    variant={'outline'}
+                    disabled={Boolean(paymentData)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setBillingAddress(undefined)
+                    }}
+                  >
+                    Remove
+                  </Button>
+                )
               }
-              address={billingAddress}
+              address={effectiveBillingAddress}
             />
           </div>
         ) : user ? (
@@ -340,7 +338,7 @@ export const CheckoutPage: React.FC = () => {
                 <div className="flex flex-col gap-8">
                   <CheckoutForm
                     customerEmail={email}
-                    billingAddress={billingAddress}
+                    billingAddress={effectiveBillingAddress}
                     setProcessingPayment={setProcessingPayment}
                   />
                   <Button

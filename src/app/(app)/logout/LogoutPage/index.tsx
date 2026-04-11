@@ -1,11 +1,15 @@
 'use client'
 
+import { useEcommerce } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React, { Fragment, useEffect, useState } from 'react'
 
 export const LogoutPage: React.FC = (props) => {
   const { logout } = useAuth()
+  const { onLogout } = useEcommerce()
+  const router = useRouter()
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
@@ -13,6 +17,8 @@ export const LogoutPage: React.FC = (props) => {
     const performLogout = async () => {
       try {
         await logout()
+        onLogout()
+        router.refresh()
         setSuccess('Logged out successfully.')
       } catch (_) {
         setError('You are already logged out.')
@@ -20,7 +26,7 @@ export const LogoutPage: React.FC = (props) => {
     }
 
     void performLogout()
-  }, [logout])
+  }, [logout, onLogout, router])
 
   return (
     <Fragment>
@@ -31,7 +37,7 @@ export const LogoutPage: React.FC = (props) => {
             What would you like to do next?
             <Fragment>
               {' '}
-              <Link href="/search">Click here</Link>
+              <Link href="/">Click here</Link>
               {` to shop.`}
             </Fragment>
             {` To log back in, `}

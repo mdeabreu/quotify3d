@@ -1,33 +1,8 @@
 import type { CollectionAfterChangeHook, RequiredDataFromCollectionSlug } from 'payload'
 
 import { currenciesConfig } from '@/config/currencies'
+import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
-
-const formatDuration = (totalSeconds: number): string => {
-  const safeSeconds = Math.max(0, Math.floor(totalSeconds))
-  const days = Math.floor(safeSeconds / 86400)
-  const hours = Math.floor((safeSeconds % 86400) / 3600)
-  const minutes = Math.floor((safeSeconds % 3600) / 60)
-  const seconds = safeSeconds % 60
-
-  const parts: string[] = []
-  if (days > 0) parts.push(`${days} day${days === 1 ? '' : 's'}`)
-  if (hours > 0) parts.push(`${hours} hour${hours === 1 ? '' : 's'}`)
-  if (minutes > 0) parts.push(`${minutes} minute${minutes === 1 ? '' : 's'}`)
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds} second${seconds === 1 ? '' : 's'}`)
-
-  return parts.join(', ')
-}
-
-const formatWeight = (grams: number): string => {
-  const safeGrams = Math.max(0, grams)
-  if (safeGrams >= 1000) {
-    const kilograms = safeGrams / 1000
-    return `${safeGrams.toFixed(1)} g (${kilograms.toFixed(2)} kg)`
-  }
-
-  return `${safeGrams.toFixed(1)} g`
-}
 
 const kebabCase = (value: string): string =>
   value
@@ -203,8 +178,9 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
   for (const [index, item] of doc.items.entries()) {
     const lineNumber = index + 1
     const gcodeID = resolveRelationID(item.gcode)
+    const quoteItemID = typeof item.id === 'string' && item.id.length > 0 ? item.id : null
 
-    if (typeof gcodeID !== 'number') {
+    if (typeof gcodeID !== 'number' || !quoteItemID) {
       continue
     }
 
@@ -218,13 +194,13 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
       where: {
         and: [
           {
-            gcode: {
-              equals: gcodeID,
+            quote: {
+              equals: doc.id,
             },
           },
           {
-            slug: {
-              like: `q${doc.id}-i${lineNumber}`,
+            quoteItemID: {
+              equals: quoteItemID,
             },
           },
         ],
@@ -348,12 +324,15 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
     const quantity = toOptionalNumber(item.quantity)
 
     const modelSlugPart = kebabCase(derivedTitle) || `quote-${doc.id}-item-${lineNumber}`
-    const slugBase = `${modelSlugPart}-q${doc.id}-i${lineNumber}`
+    const quoteItemSlugPart = kebabCase(quoteItemID) || `item-${lineNumber}`
+    const slugBase = `${modelSlugPart}-q${doc.id}-qi${quoteItemSlugPart}`
     const slug = await getUniqueSlug({ req, slugBase })
 
     const productData: RequiredDataFromCollectionSlug<'products'> = {
       title: derivedTitle,
       slug,
+      quote: doc.id,
+      quoteItemID,
       gcode: gcodeID,
       _status: 'published',
       enableVariants: false,

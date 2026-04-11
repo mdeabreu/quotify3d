@@ -7,9 +7,10 @@ import { publicAccess } from '@/access/publicAccess'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
-import { resolveQuoteGcodes } from '@/collections/Quotes/hooks/resolveQuoteGcodes'
-import { resolveQuoteSubtotal } from '@/collections/Quotes/hooks/resolveQuoteSubtotal'
-import { syncGcodeStatusesFromQuote } from '@/collections/Quotes/hooks/syncGcodeStatusesFromQuote'
+import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
+import { sendQuoteCreatedEmail } from '@/collections/Quotes/hooks/sendQuoteCreatedEmail'
+import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
+import { syncOwnedGcodesForQuote } from '@/collections/Quotes/hooks/syncOwnedGcodesForQuote'
 import { currenciesConfig } from '@/config/currencies'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 
@@ -47,12 +48,35 @@ export const Quotes: CollectionConfig = {
       },
     },
     {
+      name: 'accessToken',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+      hooks: {
+        beforeValidate: [
+          ({ operation, value }) => {
+            if (operation === 'create' || !value) {
+              return crypto.randomUUID()
+            }
+
+            return value
+          },
+        ],
+      },
+    },
+    {
       name: 'status',
       type: 'select',
       defaultValue: 'new',
       interfaceName: 'QuoteStatus',
       options: [
         { label: 'New', value: 'new' },
+        { label: 'Queued', value: 'queued' },
+        { label: 'Sliced', value: 'sliced' },
         { label: 'Ready for Review', value: 'ready-for-review' },
         { label: 'In Review', value: 'in-review' },
         { label: 'Approved', value: 'approved' },
@@ -103,7 +127,12 @@ export const Quotes: CollectionConfig = {
   ],
   hooks: {
     beforeValidate: [applyDefaultMachine],
-    beforeChange: [normalizeCustomerOrEmail, resolveQuoteGcodes, resolveQuoteSubtotal],
-    afterChange: [syncGcodeStatusesFromQuote, createProductsOnApproval],
+    beforeChange: [normalizeCustomerOrEmail, resetStatusWhenSlicedQuoteChanges],
+    afterChange: [
+      syncOwnedGcodesForQuote,
+      createProductsOnApproval,
+      sendQuoteCreatedEmail,
+      sendQuoteApprovedEmail,
+    ],
   },
 }

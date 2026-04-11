@@ -5,7 +5,7 @@ import type { Media as MediaType, Product } from '@/payload-types'
 import { Media } from '@/components/Media'
 import { GridTileImage } from '@/components/Grid/tile'
 import { useSearchParams } from 'next/navigation'
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 
 import { Carousel, CarouselApi, CarouselContent, CarouselItem } from '@/components/ui/carousel'
 import { DefaultDocumentIDType } from 'payload'
@@ -18,6 +18,21 @@ export const Gallery: React.FC<Props> = ({ gallery }) => {
   const searchParams = useSearchParams()
   const [current, setCurrent] = React.useState(0)
   const [api, setApi] = React.useState<CarouselApi>()
+  const selectedVariantIndex = useMemo(() => {
+    const values = Array.from(searchParams.values())
+
+    return gallery.findIndex((item) => {
+      if (!item.variantOption) return false
+
+      let variantID: DefaultDocumentIDType
+
+      if (typeof item.variantOption === 'object') {
+        variantID = item.variantOption.id
+      } else variantID = item.variantOption
+
+      return Boolean(values.find((value) => value === String(variantID)))
+    })
+  }, [gallery, searchParams])
 
   useEffect(() => {
     if (!api) {
@@ -26,32 +41,18 @@ export const Gallery: React.FC<Props> = ({ gallery }) => {
   }, [api])
 
   useEffect(() => {
-    const values = Array.from(searchParams.values())
-
-    if (values && api) {
-      const index = gallery.findIndex((item) => {
-        if (!item.variantOption) return false
-
-        let variantID: DefaultDocumentIDType
-
-        if (typeof item.variantOption === 'object') {
-          variantID = item.variantOption.id
-        } else variantID = item.variantOption
-
-        return Boolean(values.find((value) => value === String(variantID)))
-      })
-      if (index !== -1) {
-        setCurrent(index)
-        api.scrollTo(index, true)
-      }
+    if (api && selectedVariantIndex !== -1) {
+      api.scrollTo(selectedVariantIndex, true)
     }
-  }, [searchParams, api, gallery])
+  }, [api, selectedVariantIndex])
+
+  const currentIndex = selectedVariantIndex !== -1 ? selectedVariantIndex : current
 
   return (
     <div>
       <div className="relative w-full overflow-hidden mb-8">
         <Media
-          resource={gallery[current].image}
+          resource={gallery[currentIndex].image}
           className="w-full"
           imgClassName="w-full rounded-lg"
         />
@@ -63,15 +64,15 @@ export const Gallery: React.FC<Props> = ({ gallery }) => {
             if (typeof item.image !== 'object') return null
 
             return (
-              <CarouselItem
-                className="basis-1/5"
-                key={`${item.image.id}-${i}`}
-                onClick={() => setCurrent(i)}
-              >
-                <GridTileImage active={i === current} media={item.image} />
-              </CarouselItem>
-            )
-          })}
+            <CarouselItem
+              className="basis-1/5"
+              key={`${item.image.id}-${i}`}
+              onClick={() => setCurrent(i)}
+            >
+              <GridTileImage active={i === currentIndex} media={item.image} />
+            </CarouselItem>
+          )
+        })}
         </CarouselContent>
       </Carousel>
     </div>

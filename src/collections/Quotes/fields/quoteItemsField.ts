@@ -180,6 +180,80 @@ export const quoteItemsField = (): Field => ({
             },
           },
         }),
+        {
+          name: 'gcodeWeight',
+          type: 'number',
+          label: 'Gcode Weight',
+          virtual: true,
+          admin: {
+            readOnly: true,
+          },
+          hooks: {
+            afterRead: [
+              async ({ req, siblingData }) => {
+                const gcodeID = resolveRelationID((siblingData as { gcode?: unknown })?.gcode)
+                if (typeof gcodeID !== 'number') return null
+
+                try {
+                  const gcode = await req.payload.findByID({
+                    collection: 'gcodes',
+                    id: gcodeID,
+                    depth: 0,
+                    req,
+                    overrideAccess: true,
+                    select: {
+                      weightOverride: true,
+                      estimatedWeight: true,
+                    },
+                  })
+
+                  if (typeof gcode.weightOverride === 'number') return gcode.weightOverride
+                  if (typeof gcode.estimatedWeight === 'number') return gcode.estimatedWeight
+                  return null
+                } catch {
+                  return null
+                }
+              },
+            ],
+          },
+        },
+        {
+          name: 'gcodeDuration',
+          type: 'number',
+          label: 'Gcode Duration',
+          virtual: true,
+          admin: {
+            readOnly: true,
+          },
+          hooks: {
+            afterRead: [
+              async ({ req, siblingData }) => {
+                const gcodeID = resolveRelationID((siblingData as { gcode?: unknown })?.gcode)
+                if (typeof gcodeID !== 'number') return null
+
+                try {
+                  const gcode = await req.payload.findByID({
+                    collection: 'gcodes',
+                    id: gcodeID,
+                    depth: 0,
+                    req,
+                    overrideAccess: true,
+                    select: {
+                      durationOverride: true,
+                      estimatedDuration: true,
+                    },
+                  })
+
+                  if (typeof gcode.durationOverride === 'number') return gcode.durationOverride
+                  if (typeof gcode.estimatedDuration === 'number') return gcode.estimatedDuration
+                  return null
+                } catch {
+                  return null
+                }
+              },
+            ],
+          },
+        },
       ],
     },
   ],

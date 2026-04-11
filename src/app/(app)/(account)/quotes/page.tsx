@@ -2,8 +2,10 @@ import type { Quote } from '@/payload-types'
 import type { Metadata } from 'next'
 
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import Link from 'next/link'
 
 import { QuoteItem } from '@/components/QuoteItem'
+import { Button } from '@/components/ui/button'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { headers as getHeaders } from 'next/headers'
@@ -40,7 +42,12 @@ export default async function Quotes() {
   return (
     <>
       <div className="border p-8 rounded-lg bg-primary-foreground w-full">
-        <h1 className="text-3xl font-medium mb-8">Quotes</h1>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-medium">Quotes</h1>
+          <Button asChild>
+            <Link href="/quotes/new">Start new quote</Link>
+          </Button>
+        </div>
         {(!quotes || !Array.isArray(quotes) || quotes?.length === 0) && (
           <p className="">You have no quotes.</p>
         )}
