@@ -275,15 +275,23 @@ type ExistingDocShape = {
     name?: string | null
 }
 
+type CatalogPricing = {
+    filamentPricePerGram?: number
+    machinePricePerHour?: number
+}
+
 function getEmptyCounts(): OperationCounts {
     return { created: 0, updated: 0, skipped: 0 }
 }
 
-function toOptionalString(value: unknown): string | undefined {
-    if (typeof value !== 'string') return undefined
-
+function parseNonNegativeNumber(value: string): number | undefined {
     const trimmed = value.trim()
-    return trimmed.length > 0 ? trimmed : undefined
+    if (trimmed.length === 0) return undefined
+
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed) || parsed < 0) return undefined
+
+    return parsed
 }
 
 async function importConfigs(
@@ -389,9 +397,52 @@ async function shouldCreateCatalogItems(): Promise<boolean | undefined> {
     return result
 }
 
+async function promptForPrice(message: string): Promise<number | undefined> {
+    const result = await p.text({
+        message,
+        defaultValue: '0',
+        placeholder: '0',
+        validate: (value) => {
+            if (typeof parseNonNegativeNumber(value) === 'undefined') {
+                return 'Enter a non-negative number'
+            }
+
+            return undefined
+        },
+    })
+
+    if (p.isCancel(result)) return undefined
+
+    return parseNonNegativeNumber(result as string)
+}
+
+async function selectCatalogPricing(configs: ConfigType[]): Promise<CatalogPricing | undefined> {
+    const hasFilaments = configs.some((config) => config.type === 'filament')
+    const hasMachines = configs.some((config) => config.type === 'machine')
+
+    const pricing: CatalogPricing = {}
+
+    if (hasMachines) {
+        const machinePricePerHour = await promptForPrice('Price per hour for imported machines')
+        if (typeof machinePricePerHour === 'undefined') return undefined
+
+        pricing.machinePricePerHour = machinePricePerHour
+    }
+
+    if (hasFilaments) {
+        const filamentPricePerGram = await promptForPrice('Price per gram for imported filaments')
+        if (typeof filamentPricePerGram === 'undefined') return undefined
+
+        pricing.filamentPricePerGram = filamentPricePerGram
+    }
+
+    return pricing
+}
+
 async function createCatalogItems(
     importedConfigs: ImportedConfigResult[],
     shouldOverwrite: boolean,
+    pricing: CatalogPricing,
 ): Promise<OperationCounts> {
     const spin = p.spinner()
     spin.start()
@@ -423,7 +474,6 @@ async function createCatalogItems(
         })
 
         const existingDoc = existing.docs[0] as ExistingDocShape | undefined
-        const description = toOptionalString(importedConfig.configContents.description)
 
         if (existingDoc) {
             if (!shouldOverwrite) {
@@ -437,8 +487,12 @@ async function createCatalogItems(
                 config: importedConfig.configDocID,
             }
 
-            if (description) {
-                data.description = description
+            if (collection === 'filaments' && typeof pricing.filamentPricePerGram === 'number') {
+                data.pricePerGram = pricing.filamentPricePerGram
+            }
+
+            if (collection === 'machines' && typeof pricing.machinePricePerHour === 'number') {
+                data.pricePerHour = pricing.machinePricePerHour
             }
 
             await payload.update({
@@ -457,16 +511,12 @@ async function createCatalogItems(
             name: importedConfig.name,
         }
 
-        if (description) {
-            data.description = description
-        }
-
         if (collection === 'filaments') {
-            data.pricePerGram = 0
+            data.pricePerGram = pricing.filamentPricePerGram ?? 0
         }
 
         if (collection === 'machines') {
-            data.pricePerHour = 0
+            data.pricePerHour = pricing.machinePricePerHour ?? 0
         }
 
         await payload.create({
@@ -524,6 +574,12 @@ export const script = async (config: SanitizedConfig) => {
     const createCatalogItemsResult = await shouldCreateCatalogItems()
     if (typeof createCatalogItemsResult === 'undefined') process.exit(0)
 
+    const catalogPricing = createCatalogItemsResult
+        ? await selectCatalogPricing(configs)
+        : undefined
+
+    if (createCatalogItemsResult && typeof catalogPricing === 'undefined') process.exit(0)
+
     const importedConfigs = await importConfigs(configs, shouldOverwrite)
 
     const summary: ImportSummary = {
@@ -532,7 +588,7 @@ export const script = async (config: SanitizedConfig) => {
             return counts
         }, getEmptyCounts()),
         catalogItems: createCatalogItemsResult
-            ? await createCatalogItems(importedConfigs, shouldOverwrite)
+            ? await createCatalogItems(importedConfigs, shouldOverwrite, catalogPricing ?? {})
             : getEmptyCounts(),
     }
 
