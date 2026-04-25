@@ -11,11 +11,20 @@ export const Spools: CollectionConfig = {
     update: adminOnly,
   },
   admin: {
-    defaultColumns: ['name', 'material', 'colour', 'vendor'],
+    defaultColumns: ['name', 'active', 'material', 'colour', 'vendor'],
     group: 'Operations',
     useAsTitle: 'name',
   },
   fields: [
+    {
+      name: 'active',
+      type: 'checkbox',
+      defaultValue: true,
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
+    },
     {
       type: 'row',
       fields: [

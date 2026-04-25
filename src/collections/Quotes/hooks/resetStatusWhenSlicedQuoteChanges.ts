@@ -11,6 +11,7 @@ const serializeItems = (items: unknown): string => {
   return JSON.stringify(
     items.map((item) => ({
       model: resolveRelationID(item?.model) ?? null,
+      spool: resolveRelationID(item?.spool) ?? null,
       filament: resolveRelationID(item?.filament) ?? null,
       colour: resolveRelationID(item?.colour) ?? null,
       process: resolveRelationID(item?.process) ?? null,
@@ -38,7 +39,8 @@ export const resetStatusWhenSlicedQuoteChanges: CollectionBeforeChangeHook = asy
   }
 
   const notesChanged =
-    hasOwn(data, 'notes') && (typeof data.notes === 'string' ? data.notes : null) !== originalDoc.notes
+    hasOwn(data, 'notes') &&
+    (typeof data.notes === 'string' ? data.notes : null) !== originalDoc.notes
   const itemsChanged =
     hasOwn(data, 'items') && serializeItems(data.items) !== serializeItems(originalDoc.items)
 

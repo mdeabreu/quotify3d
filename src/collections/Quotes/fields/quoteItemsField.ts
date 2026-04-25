@@ -57,13 +57,21 @@ export const quoteItemsField = (): Field => ({
       type: 'row',
       fields: [
         {
+          name: 'spool',
+          type: 'relationship',
+          relationTo: 'spools',
+          admin: {
+            width: '34%',
+          },
+        },
+        {
           name: 'filament',
           label: 'Material',
           type: 'relationship',
           relationTo: 'filaments',
           required: true,
           admin: {
-            width: '34%',
+            width: '33%',
           },
         },
         {
@@ -75,24 +83,27 @@ export const quoteItemsField = (): Field => ({
             width: '33%',
           },
         },
-        {
-          name: 'process',
-          type: 'relationship',
-          relationTo: 'processes',
-          required: true,
-          admin: {
-            width: '33%',
-          },
-        },
       ],
     },
     {
       type: 'row',
       fields: [
         {
+          name: 'process',
+          type: 'relationship',
+          relationTo: 'processes',
+          required: true,
+          admin: {
+            width: '50%',
+          },
+        },
+        {
           name: 'machine',
           type: 'relationship',
           relationTo: 'machines',
+          admin: {
+            width: '50%',
+          },
         },
       ],
     },
