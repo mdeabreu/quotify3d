@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  buildAvailableSpoolOptions,
+  findSpoolForPair,
+  uniqueOptions,
+  type AvailableOption,
+  type AvailableSpoolOption,
+} from '@/lib/spoolAvailability'
 import { useAuth } from '@/providers/Auth'
 import { cn } from '@/utilities/cn'
 import Link from 'next/link'
@@ -26,17 +33,9 @@ type QuoteOptionResponse = {
     | null
 }
 
-type QuoteOption = {
-  id: number
-  name: string
-  description: string | null
-  imageUrl: string | null
-}
-
 type QuoteOptionsResponse = {
-  colours: QuoteOption[]
-  filaments: QuoteOption[]
-  processes: QuoteOption[]
+  processes: AvailableOption[]
+  spools: AvailableSpoolOption[]
 }
 
 type RestFindResponse<T> = {
@@ -50,7 +49,7 @@ type ModelLine = {
 
 type OptionCardProps = {
   onSelect: (value: string) => void
-  option: QuoteOption
+  option: AvailableOption
   selected: boolean
 }
 
@@ -77,7 +76,7 @@ const toAbsoluteURL = (value: string): string => {
   return `${base}${value}`
 }
 
-const normalizeOption = (option: QuoteOptionResponse): QuoteOption => {
+const normalizeOption = (option: QuoteOptionResponse): AvailableOption => {
   let imageUrl: string | null = null
 
   if (option.image && typeof option.image === 'object') {
@@ -135,9 +134,8 @@ export const QuoteWizard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [options, setOptions] = useState<QuoteOptionsResponse>({
-    colours: [],
-    filaments: [],
     processes: [],
+    spools: [],
   })
 
   const [customerEmail, setCustomerEmail] = useState('')
@@ -156,27 +154,27 @@ export const QuoteWizard = () => {
     const loadOptions = async () => {
       try {
         const query = '?depth=1&limit=200&pagination=false&sort=name&where[active][equals]=true'
+        const spoolQuery = '?depth=2&limit=500&pagination=false&sort=id&where[active][equals]=true'
 
-        const [filamentsResponse, coloursResponse, processesResponse] = await Promise.all([
-          fetch(`/api/filaments${query}`, { method: 'GET', credentials: 'include' }),
-          fetch(`/api/colours${query}`, { method: 'GET', credentials: 'include' }),
+        const [spoolsResponse, processesResponse] = await Promise.all([
+          fetch(`/api/spools${spoolQuery}`, { method: 'GET', credentials: 'include' }),
           fetch(`/api/processes${query}`, { method: 'GET', credentials: 'include' }),
         ])
 
-        if (!filamentsResponse.ok || !coloursResponse.ok || !processesResponse.ok) {
+        if (!spoolsResponse.ok || !processesResponse.ok) {
           throw new Error('Unable to load quote options.')
         }
 
-        const [filamentsJSON, coloursJSON, processesJSON] = await Promise.all([
-          filamentsResponse.json() as Promise<RestFindResponse<QuoteOptionResponse>>,
-          coloursResponse.json() as Promise<RestFindResponse<QuoteOptionResponse>>,
+        const [spoolsJSON, processesJSON] = await Promise.all([
+          spoolsResponse.json() as Promise<
+            RestFindResponse<Parameters<typeof buildAvailableSpoolOptions>[0][number]>
+          >,
           processesResponse.json() as Promise<RestFindResponse<QuoteOptionResponse>>,
         ])
 
         setOptions({
-          filaments: (filamentsJSON.docs ?? []).map(normalizeOption),
-          colours: (coloursJSON.docs ?? []).map(normalizeOption),
           processes: (processesJSON.docs ?? []).map(normalizeOption),
+          spools: buildAvailableSpoolOptions(spoolsJSON.docs ?? []),
         })
       } catch (loadError) {
         console.error(loadError)
@@ -188,6 +186,37 @@ export const QuoteWizard = () => {
 
     void loadOptions()
   }, [])
+
+  const selectedSpool = useMemo(
+    () =>
+      findSpoolForPair(options.spools, {
+        colour,
+        filament,
+      }),
+    [colour, filament, options.spools],
+  )
+
+  const availableMaterials = useMemo(() => {
+    const colourID = Number.parseInt(colour, 10)
+
+    return uniqueOptions(
+      Number.isInteger(colourID)
+        ? options.spools.filter((spool) => spool.colour.id === colourID)
+        : options.spools,
+      'filament',
+    )
+  }, [colour, options.spools])
+
+  const availableColours = useMemo(() => {
+    const filamentID = Number.parseInt(filament, 10)
+
+    return uniqueOptions(
+      Number.isInteger(filamentID)
+        ? options.spools.filter((spool) => spool.filament.id === filamentID)
+        : options.spools,
+      'colour',
+    )
+  }, [filament, options.spools])
 
   const canContinue = useMemo(() => {
     if (step === 0) {
@@ -202,7 +231,7 @@ export const QuoteWizard = () => {
     }
 
     if (step === 2) {
-      return Boolean(colour)
+      return Boolean(colour && selectedSpool)
     }
 
     if (step === 3) {
@@ -213,7 +242,17 @@ export const QuoteWizard = () => {
     if (!isGuest) return true
 
     return EMAIL_REGEX.test(customerEmail.trim())
-  }, [authLoading, colour, customerEmail, filament, isGuest, modelLines, process, step])
+  }, [
+    authLoading,
+    colour,
+    customerEmail,
+    filament,
+    isGuest,
+    modelLines,
+    process,
+    selectedSpool,
+    step,
+  ])
 
   const onSelectFiles = (fileList: FileList | null) => {
     if (!fileList) return
@@ -265,7 +304,7 @@ export const QuoteWizard = () => {
   const submitWizard = async () => {
     setError(null)
 
-    if (!canContinue || step !== 4) {
+    if (!canContinue || step !== 4 || !selectedSpool) {
       setError('Please complete all steps before submitting.')
       return
     }
@@ -328,6 +367,7 @@ export const QuoteWizard = () => {
         items: modelLines.map((line, index) => ({
           model: modelIDs[index],
           quantity: line.quantity,
+          spool: selectedSpool.id,
           filament: Number.parseInt(filament, 10),
           colour: Number.parseInt(colour, 10),
           process: Number.parseInt(process, 10),
@@ -387,9 +427,25 @@ export const QuoteWizard = () => {
     }
   }
 
-  const selectedFilament = options.filaments.find((option) => String(option.id) === filament)
-  const selectedColour = options.colours.find((option) => String(option.id) === colour)
+  const selectedFilament = availableMaterials.find((option) => String(option.id) === filament)
+  const selectedColour = availableColours.find((option) => String(option.id) === colour)
   const selectedProcess = options.processes.find((option) => String(option.id) === process)
+
+  const selectFilament = (value: string) => {
+    setFilament(value)
+
+    if (colour && !findSpoolForPair(options.spools, { colour, filament: value })) {
+      setColour('')
+    }
+  }
+
+  const selectColour = (value: string) => {
+    setColour(value)
+
+    if (filament && !findSpoolForPair(options.spools, { colour: value, filament })) {
+      setFilament('')
+    }
+  }
 
   return (
     <section className="border rounded-lg bg-card p-6 md:p-8">
@@ -423,7 +479,8 @@ export const QuoteWizard = () => {
           <div className="space-y-4">
             <h2 className="font-medium">Upload your files</h2>
             <p className="text-sm text-primary/70">
-              Add one or more 3D model files. You can set a quantity for each file before continuing.
+              Add one or more 3D model files. You can set a quantity for each file before
+              continuing.
             </p>
             <Input
               accept=".stl,.3mf,.obj,.step,.stp,.amf,.ply"
@@ -477,51 +534,67 @@ export const QuoteWizard = () => {
         {step === 1 && (
           <div className="space-y-4">
             <h2 className="font-medium">Choose a material</h2>
-            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
+            <p className="text-sm text-primary/70">
+              This selection will apply to every file in this quote.
+            </p>
 
             {isLoadingOptions ? (
               <p className="text-sm text-primary/70">Loading materials...</p>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {options.filaments.map((option) => (
+                {availableMaterials.map((option) => (
                   <OptionCard
                     key={option.id}
-                    onSelect={setFilament}
+                    onSelect={selectFilament}
                     option={option}
                     selected={String(option.id) === filament}
                   />
                 ))}
               </div>
             )}
+            {!isLoadingOptions && availableMaterials.length === 0 ? (
+              <p className="text-sm text-primary/70">
+                No materials are available for the selected color.
+              </p>
+            ) : null}
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-4">
             <h2 className="font-medium">Choose a color</h2>
-            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
+            <p className="text-sm text-primary/70">
+              This selection will apply to every file in this quote.
+            </p>
 
             {isLoadingOptions ? (
               <p className="text-sm text-primary/70">Loading colors...</p>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {options.colours.map((option) => (
+                {availableColours.map((option) => (
                   <OptionCard
                     key={option.id}
-                    onSelect={setColour}
+                    onSelect={selectColour}
                     option={option}
                     selected={String(option.id) === colour}
                   />
                 ))}
               </div>
             )}
+            {!isLoadingOptions && availableColours.length === 0 ? (
+              <p className="text-sm text-primary/70">
+                No colors are available for the selected material.
+              </p>
+            ) : null}
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-4">
             <h2 className="font-medium">Choose print quality</h2>
-            <p className="text-sm text-primary/70">This selection will apply to every file in this quote.</p>
+            <p className="text-sm text-primary/70">
+              This selection will apply to every file in this quote.
+            </p>
 
             {isLoadingOptions ? (
               <p className="text-sm text-primary/70">Loading quality options...</p>
@@ -568,7 +641,9 @@ export const QuoteWizard = () => {
                 {selectedColour?.name ?? 'Not selected'}
               </p>
               <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Print quality</span>
+                <span className="font-mono uppercase text-primary/50 text-xs mr-2">
+                  Print quality
+                </span>
                 {selectedProcess?.name ?? 'Not selected'}
               </p>
             </div>
@@ -608,8 +683,8 @@ export const QuoteWizard = () => {
             )}
 
             <p className="text-xs text-primary/60">
-              Once submitted, we will process your files and generate an estimated price as soon as it
-              is ready.
+              Once submitted, we will process your files and generate an estimated price as soon as
+              it is ready.
             </p>
           </div>
         )}

@@ -7,6 +7,7 @@ import { AddAllQuoteItemsToCartButton } from '@/components/QuoteActions/AddAllQu
 import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
+import { buildAvailableSpoolOptions, uniqueOptions } from '@/lib/spoolAvailability'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 import { ChevronLeftIcon } from 'lucide-react'
@@ -83,6 +84,7 @@ const toNumericRelationID = (value: unknown): number | null => {
 
 const serializeQuoteItem = (item: Quote['items'][number]) => {
   const model = toNumericRelationID(item.model)
+  const spool = toNumericRelationID(item.spool)
   const filament = toNumericRelationID(item.filament)
   const colour = toNumericRelationID(item.colour)
   const process = toNumericRelationID(item.process)
@@ -95,6 +97,7 @@ const serializeQuoteItem = (item: Quote['items'][number]) => {
     id: item.id ?? undefined,
     model,
     quantity: item.quantity,
+    spool: spool ?? undefined,
     filament,
     colour,
     process,
@@ -232,8 +235,7 @@ const findAccessibleQuote = async ({
     quoteResult &&
     quoteAccessToken &&
     quoteAccessToken === accessToken &&
-    (!customerEmail ||
-      (quoteResult.customerEmail && quoteResult.customerEmail === customerEmail))
+    (!customerEmail || (quoteResult.customerEmail && quoteResult.customerEmail === customerEmail))
 
   const canAccessAsUser =
     quoteUser &&
@@ -287,16 +289,23 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     },
   } as const
 
-  const [filamentsResult, coloursResult, processesResult] = await Promise.all([
+  const spoolQuery = {
+    depth: 2,
+    limit: 500,
+    pagination: false,
+    sort: 'id',
+    where: {
+      active: {
+        equals: true,
+      },
+    },
+  } as const
+
+  const [spoolsResult, processesResult] = await Promise.all([
     payload.find({
-      collection: 'filaments',
+      collection: 'spools',
       overrideAccess: true,
-      ...optionQuery,
-    }),
-    payload.find({
-      collection: 'colours',
-      overrideAccess: true,
-      ...optionQuery,
+      ...spoolQuery,
     }),
     payload.find({
       collection: 'processes',
@@ -305,8 +314,9 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     }),
   ])
 
-  const materialOptions = (filamentsResult.docs as QuoteOptionResponse[]).map(normalizeOption)
-  const colourOptions = (coloursResult.docs as QuoteOptionResponse[]).map(normalizeOption)
+  const spoolOptions = buildAvailableSpoolOptions(spoolsResult.docs)
+  const materialOptions = uniqueOptions(spoolOptions, 'filament')
+  const colourOptions = uniqueOptions(spoolOptions, 'colour')
   const qualityOptions = (processesResult.docs as QuoteOptionResponse[]).map(normalizeOption)
 
   const relatedProductsResult =
@@ -345,7 +355,9 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
   const workspaceItems = quote.items.map((item, index) => {
     const relatedProduct =
-      typeof item.id === 'string' && item.id.length > 0 ? productByQuoteItemID.get(item.id) : undefined
+      typeof item.id === 'string' && item.id.length > 0
+        ? productByQuoteItemID.get(item.id)
+        : undefined
 
     return {
       id: item.id ?? `${quote.id}-${index}`,
@@ -354,11 +366,13 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           ? item.model.originalFilename
           : `Model ${index + 1}`,
       quantity: item.quantity,
+      spoolId: String(resolveRelationID(item.spool) ?? ''),
       filamentId: String(resolveRelationID(item.filament) ?? ''),
       filamentLabel:
         typeof item.filament === 'object' && item.filament?.name ? item.filament.name : 'Material',
       colourId: String(resolveRelationID(item.colour) ?? ''),
-      colourLabel: typeof item.colour === 'object' && item.colour?.name ? item.colour.name : 'Colour',
+      colourLabel:
+        typeof item.colour === 'object' && item.colour?.name ? item.colour.name : 'Colour',
       processId: String(resolveRelationID(item.process) ?? ''),
       processLabel:
         typeof item.process === 'object' && item.process?.name ? item.process.name : 'Quality',
@@ -399,7 +413,9 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const { user } = await payload.auth({ headers })
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
     const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1) return
@@ -447,9 +463,12 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const itemID = String(formData.get('itemID') ?? '')
-    const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
     const accessToken = String(formData.get('accessToken') ?? '').trim()
     const quantity = Number.parseInt(String(formData.get('quantity') ?? ''), 10)
+    const spool = Number.parseInt(String(formData.get('spool') ?? ''), 10)
     const filament = Number.parseInt(String(formData.get('filament') ?? ''), 10)
     const colour = Number.parseInt(String(formData.get('colour') ?? ''), 10)
     const process = Number.parseInt(String(formData.get('process') ?? ''), 10)
@@ -460,6 +479,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       !itemID ||
       !Number.isInteger(quantity) ||
       quantity < 1 ||
+      !Number.isInteger(spool) ||
       !Number.isInteger(filament) ||
       !Number.isInteger(colour) ||
       !Number.isInteger(process)
@@ -489,6 +509,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
         return {
           ...serializedItem,
           quantity,
+          spool,
           filament,
           colour,
           process,
@@ -529,7 +550,9 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
     const itemID = String(formData.get('itemID') ?? '')
-    const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
     const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1 || !itemID) return
@@ -582,17 +605,23 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const { user } = await payload.auth({ headers })
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
     const accessToken = String(formData.get('accessToken') ?? '').trim()
+    const fallbackSpool = spoolOptions[0]
+    const spool = Number.parseInt(String(formData.get('spool') ?? ''), 10) || fallbackSpool?.id
     const filament =
-      Number.parseInt(String(formData.get('filament') ?? ''), 10) || materialOptions[0]?.id
-    const colour = Number.parseInt(String(formData.get('colour') ?? ''), 10) || colourOptions[0]?.id
+      Number.parseInt(String(formData.get('filament') ?? ''), 10) || fallbackSpool?.filament.id
+    const colour =
+      Number.parseInt(String(formData.get('colour') ?? ''), 10) || fallbackSpool?.colour.id
     const process =
       Number.parseInt(String(formData.get('process') ?? ''), 10) || qualityOptions[0]?.id
 
     if (
       !Number.isInteger(quoteID) ||
       quoteID < 1 ||
+      !Number.isInteger(spool) ||
       !Number.isInteger(filament) ||
       !Number.isInteger(colour) ||
       !Number.isInteger(process)
@@ -644,6 +673,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const newItems = createdModels.map((model) => ({
       model: model.id,
       quantity: 1,
+      spool,
       filament,
       colour,
       process,
@@ -681,7 +711,9 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     const { user } = await payload.auth({ headers })
 
     const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '').trim().toLowerCase()
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
     const accessToken = String(formData.get('accessToken') ?? '').trim()
 
     if (!Number.isInteger(quoteID) || quoteID < 1) return
@@ -815,6 +847,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
             removeItemAction={removeItemAction}
             saveItemAction={saveItemAction}
             submitForReviewAction={submitForReviewAction}
+            spoolOptions={spoolOptions}
           />
         </div>
 
