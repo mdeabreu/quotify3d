@@ -12,88 +12,74 @@ import {
 } from '@/lib/library'
 
 const find = vi.fn()
-const payloadFindExpectations = [
-  {
-    collection: 'filaments',
-    expectedResult: [
-      {
+const activeSpoolResponse = {
+  docs: [
+    {
+      active: true,
+      id: 30,
+      material: {
+        active: true,
         description: 'Rigid and easy to print.',
         id: 1,
         image: null,
         name: 'PLA',
         pricePerGram: 0.18,
       },
-    ],
-    fetchItems: fetchMaterialLibraryItems,
-    response: {
-      docs: [{ description: 'Rigid and easy to print.', id: 1, image: null, name: 'PLA', pricePerGram: 0.18 }],
-    },
-    select: {
-      description: true,
-      image: true,
-      name: true,
-      pricePerGram: true,
-    },
-  },
-  {
-    collection: 'colours',
-    expectedResult: [
-      {
+      colour: {
+        active: true,
         description: 'High-contrast dual tone.',
         finish: 'silk',
         id: 7,
         image: null,
         name: 'Sunset Shift',
-        swatches: ['#ff6600', '#3300ff'],
+        swatches: [{ hexcode: '#ff6600' }, { hexcode: '#3300ff' }],
         type: 'co-extrusion',
       },
-    ],
-    fetchItems: fetchColourLibraryItems,
-    response: {
-      docs: [
-        {
-          description: 'High-contrast dual tone.',
-          finish: 'silk',
-          id: 7,
-          image: null,
-          name: 'Sunset Shift',
-          swatches: [{ hexcode: '#ff6600' }, { hexcode: '#3300ff' }],
-          type: 'co-extrusion',
-        },
-      ],
     },
-    select: {
-      description: true,
-      finish: true,
-      image: true,
-      name: true,
-      swatches: {
-        hexcode: true,
-      },
-      type: true,
-    },
-  },
-  {
-    collection: 'processes',
-    expectedResult: [
-      {
-        description: 'Balanced speed and finish.',
-        id: 3,
+    {
+      active: true,
+      id: 31,
+      material: {
+        active: true,
+        description: 'Duplicate material should collapse.',
+        id: 1,
         image: null,
-        name: 'Draft',
+        name: 'PLA',
+        pricePerGram: 0.18,
       },
-    ],
-    fetchItems: fetchProcessLibraryItems,
-    response: {
-      docs: [{ description: 'Balanced speed and finish.', id: 3, image: null, name: 'Draft' }],
+      colour: {
+        active: false,
+        description: 'Unavailable colour.',
+        finish: 'regular',
+        id: 8,
+        image: null,
+        name: 'Hidden',
+        swatches: [],
+        type: 'solid',
+      },
     },
-    select: {
-      description: true,
-      image: true,
-      name: true,
+  ],
+}
+
+const processExpectation = {
+  collection: 'processes',
+  expectedResult: [
+    {
+      description: 'Balanced speed and finish.',
+      id: 3,
+      image: null,
+      name: 'Draft',
     },
+  ],
+  response: {
+    docs: [{ description: 'Balanced speed and finish.', id: 3, image: null, name: 'Draft' }],
   },
-] as const
+  select: {
+    description: true,
+    image: true,
+    name: true,
+  },
+} as const
 
 vi.mock('@payload-config', () => ({
   default: {},
@@ -110,24 +96,61 @@ describe('library helpers', () => {
     find.mockReset()
   })
 
-  it.each(payloadFindExpectations)('queries the $collection collection directly through Payload', async ({
-    collection,
-    expectedResult,
-    fetchItems,
-    response,
-    select,
-  }) => {
-    find.mockResolvedValueOnce(response)
+  it('derives material library items from active spool combinations', async () => {
+    find.mockResolvedValueOnce(activeSpoolResponse)
 
-    const result = await fetchItems()
+    await expect(fetchMaterialLibraryItems()).resolves.toEqual([
+      {
+        description: 'Rigid and easy to print.',
+        id: 1,
+        image: null,
+        name: 'PLA',
+        pricePerGram: 0.18,
+      },
+    ])
+    expect(find).toHaveBeenCalledWith({
+      collection: 'spools',
+      depth: 2,
+      limit: 200,
+      overrideAccess: false,
+      pagination: false,
+      sort: 'id',
+      where: {
+        active: {
+          equals: true,
+        },
+      },
+    })
+  })
+
+  it('derives colour library items from active spool combinations', async () => {
+    find.mockResolvedValueOnce(activeSpoolResponse)
+
+    await expect(fetchColourLibraryItems()).resolves.toEqual([
+      {
+        description: 'High-contrast dual tone.',
+        finish: 'silk',
+        id: 7,
+        image: null,
+        name: 'Sunset Shift',
+        swatches: ['#ff6600', '#3300ff'],
+        type: 'co-extrusion',
+      },
+    ])
+  })
+
+  it('queries the processes collection directly through Payload', async () => {
+    find.mockResolvedValueOnce(processExpectation.response)
+
+    const result = await fetchProcessLibraryItems()
 
     expect(find).toHaveBeenCalledWith({
-      collection,
+      collection: processExpectation.collection,
       depth: 1,
       limit: 200,
       overrideAccess: false,
       pagination: false,
-      select,
+      select: processExpectation.select,
       sort: 'name',
       where: {
         active: {
@@ -135,16 +158,12 @@ describe('library helpers', () => {
         },
       },
     })
-    expect(result).toEqual(expectedResult)
+    expect(result).toEqual(processExpectation.expectedResult)
   })
 
   it('normalizes colour swatches from Payload records', () => {
     expect(
-      extractColourSwatches([
-        { hexcode: ' #FFFFFF ' },
-        { hexcode: '#000000' },
-        { hexcode: '' },
-      ]),
+      extractColourSwatches([{ hexcode: ' #FFFFFF ' }, { hexcode: '#000000' }, { hexcode: '' }]),
     ).toEqual(['#FFFFFF', '#000000'])
   })
 })
@@ -188,5 +207,4 @@ describe('library UI', () => {
     expect(screen.getByLabelText('#ff6600')).toBeTruthy()
     expect(screen.getByLabelText('#3300ff')).toBeTruthy()
   })
-
 })
