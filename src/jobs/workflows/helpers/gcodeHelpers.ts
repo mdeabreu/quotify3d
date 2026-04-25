@@ -240,6 +240,7 @@ export const sliceModel = async ({
     '1',
     '--slice',
     '0',
+    //'--curr-bed-type "Textured PEI Plate"',
     '--load-filaments',
     filamentConfigPath,
     '--load-settings',
