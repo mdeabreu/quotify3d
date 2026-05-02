@@ -969,6 +969,7 @@ export interface Quote {
   items: {
     model: number | Model;
     quantity: number;
+    spool?: (number | null) | Spool;
     filament: number | Filament;
     colour: number | Colour;
     process: number | Process;
@@ -1013,6 +1014,48 @@ export interface Model {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "spools".
+ */
+export interface Spool {
+  id: number;
+  active: boolean;
+  name: string;
+  vendor: number | Vendor;
+  material: number | Filament;
+  colour: number | Colour;
+  purchases?:
+    | {
+        date: string;
+        pricePerUnit: number;
+        unitsPurchased: number;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vendors".
+ */
+export interface Vendor {
+  id: number;
+  name: string;
+  /**
+   * Public storefront or vendor URL
+   */
+  url: string;
+  spools?: {
+    docs?: (number | Spool)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "filaments".
  */
 export interface Filament {
@@ -1048,47 +1091,6 @@ export interface FilamentConfig {
     | number
     | boolean
     | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "spools".
- */
-export interface Spool {
-  id: number;
-  name: string;
-  vendor: number | Vendor;
-  material: number | Filament;
-  colour: number | Colour;
-  purchases?:
-    | {
-        date: string;
-        pricePerUnit: number;
-        unitsPurchased: number;
-        url: string;
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vendors".
- */
-export interface Vendor {
-  id: number;
-  name: string;
-  /**
-   * Public storefront or vendor URL
-   */
-  url: string;
-  spools?: {
-    docs?: (number | Spool)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -2024,6 +2026,7 @@ export interface QuotesSelect<T extends boolean = true> {
     | {
         model?: T;
         quantity?: T;
+        spool?: T;
         filament?: T;
         colour?: T;
         process?: T;
@@ -2076,6 +2079,7 @@ export interface GcodesSelect<T extends boolean = true> {
  * via the `definition` "spools_select".
  */
 export interface SpoolsSelect<T extends boolean = true> {
+  active?: T;
   name?: T;
   vendor?: T;
   material?: T;

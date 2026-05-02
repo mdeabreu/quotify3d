@@ -7,6 +7,7 @@ import { publicAccess } from '@/access/publicAccess'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
+import { normalizeQuoteItemSpools } from '@/collections/Quotes/hooks/normalizeQuoteItemSpools'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
 import { sendQuoteCreatedEmail } from '@/collections/Quotes/hooks/sendQuoteCreatedEmail'
 import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
@@ -126,7 +127,7 @@ export const Quotes: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeValidate: [applyDefaultMachine],
+    beforeValidate: [normalizeQuoteItemSpools, applyDefaultMachine],
     beforeChange: [normalizeCustomerOrEmail, resetStatusWhenSlicedQuoteChanges],
     afterChange: [
       syncOwnedGcodesForQuote,

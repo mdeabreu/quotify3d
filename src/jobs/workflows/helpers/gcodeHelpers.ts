@@ -240,6 +240,7 @@ export const sliceModel = async ({
     '1',
     '--slice',
     '0',
+    '--allow-newer-file',
     '--load-filaments',
     filamentConfigPath,
     '--load-settings',

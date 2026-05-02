@@ -1,13 +1,14 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  QuoteDetailsWorkspace,
-  shouldAutoRefreshQuote,
-} from '@/components/QuoteDetailsWorkspace'
+import { QuoteDetailsWorkspace, shouldAutoRefreshQuote } from '@/components/QuoteDetailsWorkspace'
 
 const refresh = vi.fn()
+
+afterEach(() => {
+  cleanup()
+})
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -38,8 +39,61 @@ const baseProps = {
   refreshEstimatesAction: async () => {},
   removeItemAction: async () => {},
   saveItemAction: async () => {},
+  spoolOptions: [],
   submitForReviewAction: async () => {},
 }
+
+const materialOptions = [
+  {
+    description: null,
+    id: 1,
+    imageUrl: null,
+    name: 'PLA',
+  },
+  {
+    description: null,
+    id: 2,
+    imageUrl: null,
+    name: 'PETG',
+  },
+]
+
+const colourOptions = [
+  {
+    description: null,
+    id: 10,
+    imageUrl: null,
+    name: 'Red',
+  },
+  {
+    description: null,
+    id: 11,
+    imageUrl: null,
+    name: 'Black',
+  },
+]
+
+const qualityOptions = [
+  {
+    description: null,
+    id: 20,
+    imageUrl: null,
+    name: 'Standard',
+  },
+]
+
+const spoolOptions = [
+  {
+    id: 100,
+    filament: materialOptions[0],
+    colour: colourOptions[0],
+  },
+  {
+    id: 101,
+    filament: materialOptions[1],
+    colour: colourOptions[1],
+  },
+]
 
 describe('QuoteDetailsWorkspace auto refresh', () => {
   beforeEach(() => {
@@ -59,7 +113,9 @@ describe('QuoteDetailsWorkspace auto refresh', () => {
   it('refreshes the route while processing is in progress', () => {
     render(<QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />)
 
-    expect(screen.getByText('Updating estimates automatically while slicing finishes.')).toBeTruthy()
+    expect(
+      screen.getByText('Updating estimates automatically while slicing finishes.'),
+    ).toBeTruthy()
 
     vi.advanceTimersByTime(3000)
     expect(refresh).toHaveBeenCalledTimes(1)
@@ -81,7 +137,9 @@ describe('QuoteDetailsWorkspace auto refresh', () => {
   })
 
   it('stops refreshing when the quote is not eligible for auto refresh', () => {
-    const { rerender } = render(<QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />)
+    const { rerender } = render(
+      <QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />,
+    )
 
     vi.advanceTimersByTime(3000)
     expect(refresh).toHaveBeenCalledTimes(1)
@@ -128,5 +186,78 @@ describe('shouldAutoRefreshQuote', () => {
         quoteStatus: 'queued',
       }),
     ).toBe(false)
+  })
+})
+
+describe('QuoteDetailsWorkspace material availability', () => {
+  it('filters colours to active spool combinations for the selected material', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: null,
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '100',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Colour' }))
+
+    expect(screen.getAllByText('Red').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Black')).toBeNull()
+  })
+
+  it('filters materials to active spool combinations for the selected colour', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '11',
+            colourLabel: 'Black',
+            filamentId: '2',
+            filamentLabel: 'PETG',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: null,
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '101',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
+
+    expect(screen.getAllByText('PETG').length).toBeGreaterThan(0)
+    expect(screen.queryByText('PLA')).toBeNull()
   })
 })

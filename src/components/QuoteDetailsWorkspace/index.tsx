@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { findSpoolForPair, uniqueOptions, type AvailableSpoolOption } from '@/lib/spoolAvailability'
 import { cn } from '@/utilities/cn'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
 import { PencilIcon, Trash2Icon } from 'lucide-react'
@@ -41,6 +42,7 @@ export type QuoteWorkspaceItem = {
   processId: string
   processLabel: string
   quantity: number
+  spoolId: string
   filamentId: string
   filamentLabel: string
 }
@@ -65,6 +67,7 @@ type Props = {
   refreshEstimatesAction: (formData: FormData) => void | Promise<void>
   removeItemAction: (formData: FormData) => void | Promise<void>
   saveItemAction: (formData: FormData) => void | Promise<void>
+  spoolOptions: AvailableSpoolOption[]
   submitForReviewAction: (formData: FormData) => void | Promise<void>
 }
 
@@ -135,7 +138,9 @@ const OptionCard = ({
     )}
 
     <p className="mt-3 font-medium">{option.name}</p>
-    {option.description ? <p className="mt-1 line-clamp-2 text-sm text-primary/70">{option.description}</p> : null}
+    {option.description ? (
+      <p className="mt-1 line-clamp-2 text-sm text-primary/70">{option.description}</p>
+    ) : null}
   </button>
 )
 
@@ -149,6 +154,7 @@ const QuoteItemEditorDialog = ({
   qualityOptions,
   quoteID,
   saveItemAction,
+  spoolOptions,
   trigger,
 }: {
   colourOptions: QuoteOption[]
@@ -160,6 +166,7 @@ const QuoteItemEditorDialog = ({
   qualityOptions: QuoteOption[]
   quoteID: number
   saveItemAction: (formData: FormData) => void | Promise<void>
+  spoolOptions: AvailableSpoolOption[]
   trigger: ReactNode
 }) => {
   const [activeStep, setActiveStep] = useState<EditorStep>('material')
@@ -187,6 +194,30 @@ const QuoteItemEditorDialog = ({
   const selectedMaterial = materialByID.get(filamentId)
   const selectedColour = colourByID.get(colourId)
   const selectedQuality = qualityByID.get(processId)
+  const selectedSpool = findSpoolForPair(spoolOptions, {
+    colour: colourId,
+    filament: filamentId,
+  })
+  const filteredMaterialOptions = useMemo(() => {
+    const selectedColourID = Number.parseInt(colourId, 10)
+
+    return uniqueOptions(
+      Number.isInteger(selectedColourID)
+        ? spoolOptions.filter((spool) => spool.colour.id === selectedColourID)
+        : spoolOptions,
+      'filament',
+    )
+  }, [colourId, spoolOptions])
+  const filteredColourOptions = useMemo(() => {
+    const selectedFilamentID = Number.parseInt(filamentId, 10)
+
+    return uniqueOptions(
+      Number.isInteger(selectedFilamentID)
+        ? spoolOptions.filter((spool) => spool.filament.id === selectedFilamentID)
+        : spoolOptions,
+      'colour',
+    )
+  }, [filamentId, spoolOptions])
 
   return (
     <Dialog>
@@ -199,14 +230,18 @@ const QuoteItemEditorDialog = ({
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-[120px]">
-              <p className="text-xs font-mono uppercase tracking-widest text-primary/50">Quantity</p>
+              <p className="text-xs font-mono uppercase tracking-widest text-primary/50">
+                Quantity
+              </p>
               <Input
                 aria-label={`Quantity for ${item.modelLabel}`}
                 className="mt-2"
                 min={1}
                 onChange={(event) => {
                   const nextQuantity = Number.parseInt(event.target.value, 10)
-                  setQuantity(Number.isInteger(nextQuantity) && nextQuantity >= 1 ? nextQuantity : 1)
+                  setQuantity(
+                    Number.isInteger(nextQuantity) && nextQuantity >= 1 ? nextQuantity : 1,
+                  )
                 }}
                 type="number"
                 value={quantity}
@@ -245,12 +280,18 @@ const QuoteItemEditorDialog = ({
 
           {activeStep === 'material' ? (
             <div className="grid gap-3 md:grid-cols-2">
-              {materialOptions.map((option) => (
+              {filteredMaterialOptions.map((option) => (
                 <OptionCard
                   key={option.id}
                   onSelect={(value) => {
                     setFilamentId(value)
                     setFilamentLabel(materialByID.get(value)?.name ?? filamentLabel)
+                    if (
+                      colourId &&
+                      !findSpoolForPair(spoolOptions, { colour: colourId, filament: value })
+                    ) {
+                      setColourId('')
+                    }
                   }}
                   option={option}
                   selected={filamentId === String(option.id)}
@@ -261,12 +302,18 @@ const QuoteItemEditorDialog = ({
 
           {activeStep === 'colour' ? (
             <div className="grid gap-3 md:grid-cols-2">
-              {colourOptions.map((option) => (
+              {filteredColourOptions.map((option) => (
                 <OptionCard
                   key={option.id}
                   onSelect={(value) => {
                     setColourId(value)
                     setColourLabel(colourByID.get(value)?.name ?? colourLabel)
+                    if (
+                      filamentId &&
+                      !findSpoolForPair(spoolOptions, { colour: value, filament: filamentId })
+                    ) {
+                      setFilamentId('')
+                    }
                   }}
                   option={option}
                   selected={colourId === String(option.id)}
@@ -298,6 +345,7 @@ const QuoteItemEditorDialog = ({
             <input name="quoteID" type="hidden" value={quoteID} />
             <input name="itemID" type="hidden" value={item.id} />
             <input name="quantity" type="hidden" value={quantity} />
+            <input name="spool" type="hidden" value={selectedSpool?.id ?? item.spoolId} />
             <input name="filament" type="hidden" value={filamentId} />
             <input name="colour" type="hidden" value={colourId} />
             <input name="process" type="hidden" value={processId} />
@@ -311,7 +359,13 @@ const QuoteItemEditorDialog = ({
               </p>
             </div>
 
-            <Button size="sm" type="submit">
+            {!selectedSpool ? (
+              <p className="text-sm text-red-500">
+                Choose an available material and colour combination.
+              </p>
+            ) : null}
+
+            <Button disabled={!selectedSpool} size="sm" type="submit">
               Save
             </Button>
           </form>
@@ -339,6 +393,7 @@ export const QuoteDetailsWorkspace = ({
   refreshEstimatesAction,
   removeItemAction,
   saveItemAction,
+  spoolOptions,
   submitForReviewAction,
 }: Props) => {
   const router = useRouter()
@@ -378,17 +433,25 @@ export const QuoteDetailsWorkspace = ({
   return (
     <div className="space-y-6">
       {editable ? (
-        <form action={addModelsAction} className="rounded-xl border border-dashed bg-background/70 p-4">
+        <form
+          action={addModelsAction}
+          className="rounded-xl border border-dashed bg-background/70 p-4"
+        >
           <input name="quoteID" type="hidden" value={quoteID} />
+          <input
+            name="spool"
+            type="hidden"
+            value={items[0]?.spoolId || String(spoolOptions[0]?.id ?? '')}
+          />
           <input
             name="filament"
             type="hidden"
-            value={items[0]?.filamentId ?? String(materialOptions[0]?.id ?? '')}
+            value={items[0]?.filamentId || String(spoolOptions[0]?.filament.id ?? '')}
           />
           <input
             name="colour"
             type="hidden"
-            value={items[0]?.colourId ?? String(colourOptions[0]?.id ?? '')}
+            value={items[0]?.colourId || String(spoolOptions[0]?.colour.id ?? '')}
           />
           <input
             name="process"
@@ -425,7 +488,8 @@ export const QuoteDetailsWorkspace = ({
         <ul className="flex flex-col gap-6">
           {items.map((item) => {
             const canRemove = editable && items.length > 1
-            const subtotal = typeof item.gcodePrice === 'number' ? item.gcodePrice * item.quantity : null
+            const subtotal =
+              typeof item.gcodePrice === 'number' ? item.gcodePrice * item.quantity : null
             const statusLabel = humanizeStatus(item.gcodeStatus)
 
             return (
@@ -484,7 +548,10 @@ export const QuoteDetailsWorkspace = ({
                     </div>
 
                     {typeof item.productID === 'number' ? (
-                      <AddQuoteItemToCartButton productID={item.productID} quantity={item.quantity} />
+                      <AddQuoteItemToCartButton
+                        productID={item.productID}
+                        quantity={item.quantity}
+                      />
                     ) : null}
 
                     {editable ? (
@@ -499,6 +566,7 @@ export const QuoteDetailsWorkspace = ({
                           qualityOptions={qualityOptions}
                           quoteID={quoteID}
                           saveItemAction={saveItemAction}
+                          spoolOptions={spoolOptions}
                           trigger={
                             <Button size="icon" variant="outline">
                               <PencilIcon className="size-4" />
