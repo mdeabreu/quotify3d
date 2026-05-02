@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '200mb',
     },
   },
+  // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
+  // See: https://github.com/vercel/next.js/issues/86431
+  sassOptions: {
+    loadPaths: ['./node_modules/@payloadcms/ui/dist/scss/'],
+  },
   images: {
     dangerouslyAllowLocalIP: true,
     localPatterns: [
