@@ -21,7 +21,11 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: '^(_|ignore)',
         },
       ],
+      'react-hooks/set-state-in-effect': 'warn',
     },
+  },
+  {
+    ignores: ['.next/', 'src/payload-types.ts', 'src/payload-generated-schema.ts'],
   },
 ]
 
