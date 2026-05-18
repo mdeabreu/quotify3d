@@ -1039,6 +1039,17 @@ async function shouldCreateCatalogItems(): Promise<boolean | undefined> {
     return result
 }
 
+async function shouldMarkCatalogItemsActive(): Promise<boolean | undefined> {
+    const result = await p.confirm({
+        message: 'Mark synced catalog items active?',
+        initialValue: false,
+    })
+
+    if (p.isCancel(result)) return undefined
+
+    return result
+}
+
 async function shouldApplyMissingCliDefaults(configs: ConfigType[]): Promise<boolean | undefined> {
     const hasFilaments = configs.some((config) => config.type === 'filament')
     if (!hasFilaments) return false
@@ -1098,6 +1109,7 @@ async function selectCatalogPricing(configs: ConfigType[]): Promise<CatalogPrici
 async function createCatalogItems(
     importedConfigs: ImportedConfigResult[],
     shouldOverwrite: boolean,
+    shouldMarkActive: boolean,
     pricing: CatalogPricing,
 ): Promise<OperationCounts> {
     const spin = p.spinner()
@@ -1139,8 +1151,9 @@ async function createCatalogItems(
             }
 
             const data: Record<string, unknown> = {
-                name: importedConfig.name,
+                active: shouldMarkActive,
                 config: importedConfig.configDocID,
+                name: importedConfig.name,
             }
 
             if (collection === 'filaments' && typeof pricing.filamentPricePerGram === 'number') {
@@ -1162,7 +1175,7 @@ async function createCatalogItems(
         }
 
         const data: Record<string, unknown> = {
-            active: false,
+            active: shouldMarkActive,
             config: importedConfig.configDocID,
             name: importedConfig.name,
         }
@@ -1236,6 +1249,12 @@ export const script = async (config: SanitizedConfig) => {
     const createCatalogItemsResult = await shouldCreateCatalogItems()
     if (typeof createCatalogItemsResult === 'undefined') process.exit(0)
 
+    const markCatalogItemsActive = createCatalogItemsResult
+        ? await shouldMarkCatalogItemsActive()
+        : false
+
+    if (typeof markCatalogItemsActive === 'undefined') process.exit(0)
+
     const catalogPricing = createCatalogItemsResult
         ? await selectCatalogPricing(configs)
         : undefined
@@ -1250,7 +1269,12 @@ export const script = async (config: SanitizedConfig) => {
             return counts
         }, getEmptyCounts()),
         catalogItems: createCatalogItemsResult
-            ? await createCatalogItems(importedConfigs, shouldOverwrite, catalogPricing ?? {})
+            ? await createCatalogItems(
+                importedConfigs,
+                shouldOverwrite,
+                markCatalogItemsActive,
+                catalogPricing ?? {},
+            )
             : getEmptyCounts(),
     }
 
