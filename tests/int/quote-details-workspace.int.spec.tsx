@@ -199,6 +199,73 @@ describe('shouldAutoRefreshQuote', () => {
 })
 
 describe('QuoteDetailsWorkspace material availability', () => {
+  it('shows refresh copy for unsliced line items that need a new estimate', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: 'new',
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '100',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        quoteStatus="new"
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    expect(screen.getByText('Refresh estimate needed')).toBeTruthy()
+    expect(screen.queryByText('Estimate in progress')).toBeNull()
+  })
+
+  it('keeps in-progress copy for queued line items', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: 'queued',
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '100',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        quoteStatus="queued"
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    expect(screen.getByText('Estimate in progress')).toBeTruthy()
+  })
+
   it('shows all active materials in the material step', () => {
     render(
       <QuoteDetailsWorkspace

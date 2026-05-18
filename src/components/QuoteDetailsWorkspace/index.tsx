@@ -84,6 +84,19 @@ const humanizeStatus = (status: string | null) => {
   return status.replaceAll('-', ' ')
 }
 
+const getPendingEstimateLabel = ({
+  gcodeStatus,
+  quoteStatus,
+}: {
+  gcodeStatus: string | null
+  quoteStatus: QuoteStatus
+}) => {
+  if (gcodeStatus === 'failed') return 'Estimate failed'
+  if (gcodeStatus === 'new' || quoteStatus === 'new') return 'Refresh estimate needed'
+
+  return 'Estimate in progress'
+}
+
 const AUTO_REFRESH_INTERVAL_MS = 3000
 
 export const shouldAutoRefreshQuote = ({
@@ -162,6 +175,7 @@ const QuoteItemEditorDialog = ({
   materialOptions,
   qualityOptions,
   quoteID,
+  quoteStatus,
   saveItemAction,
   spoolOptions,
   trigger,
@@ -174,6 +188,7 @@ const QuoteItemEditorDialog = ({
   materialOptions: QuoteOption[]
   qualityOptions: QuoteOption[]
   quoteID: number
+  quoteStatus: QuoteStatus
   saveItemAction: (formData: FormData) => void | Promise<void>
   spoolOptions: AvailableSpoolOption[]
   trigger: ReactNode
@@ -260,7 +275,9 @@ const QuoteItemEditorDialog = ({
                   currencyCode={currencyCode}
                 />
               ) : (
-                <p className="text-sm text-primary/70">Estimate in progress</p>
+                <p className="text-sm text-primary/70">
+                  {getPendingEstimateLabel({ gcodeStatus: item.gcodeStatus, quoteStatus })}
+                </p>
               )}
             </div>
           </div>
@@ -517,6 +534,10 @@ export const QuoteDetailsWorkspace = ({
             const subtotal =
               typeof item.gcodePrice === 'number' ? item.gcodePrice * item.quantity : null
             const statusLabel = humanizeStatus(item.gcodeStatus)
+            const pendingEstimateLabel = getPendingEstimateLabel({
+              gcodeStatus: item.gcodeStatus,
+              quoteStatus,
+            })
 
             return (
               <li key={item.id}>
@@ -569,7 +590,9 @@ export const QuoteDetailsWorkspace = ({
                           currencyCode={currencyCode}
                         />
                       ) : (
-                        <p className="text-sm font-mono text-primary/50">Estimate in progress</p>
+                        <p className="text-sm font-mono text-primary/50">
+                          {pendingEstimateLabel}
+                        </p>
                       )}
                     </div>
 
@@ -591,6 +614,7 @@ export const QuoteDetailsWorkspace = ({
                           materialOptions={materialOptions}
                           qualityOptions={qualityOptions}
                           quoteID={quoteID}
+                          quoteStatus={quoteStatus}
                           saveItemAction={saveItemAction}
                           spoolOptions={spoolOptions}
                           trigger={
