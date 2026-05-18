@@ -305,7 +305,7 @@ export const QuoteWizard = () => {
     setError(null)
 
     if (!canContinue || step !== 4 || !selectedSpool) {
-      setError('Please complete all steps before submitting.')
+      setError('Please complete all steps before continuing.')
       return
     }
 
@@ -412,7 +412,7 @@ export const QuoteWizard = () => {
         throw new Error('Quote creation response is missing an access token.')
       }
 
-      toast.success('Quote request created. Opening your workspace...')
+      toast.success('Quote draft created. Opening your workspace...')
       router.push(
         isGuest
           ? `/quotes/${quoteID}?email=${encodeURIComponent(normalizedEmail)}&accessToken=${encodeURIComponent(quoteAccessToken || '')}`
@@ -453,8 +453,8 @@ export const QuoteWizard = () => {
         <p className="text-xs uppercase tracking-widest font-mono text-primary/60">Quote Wizard</p>
         <h1 className="text-3xl md:text-4xl font-medium mt-2">Request a 3D print quote</h1>
         <p className="text-primary/70 mt-4">
-          Upload your files, choose your preferred material, color, and print quality, then confirm
-          your contact details so we can prepare your quote.
+          Upload your files, choose starting options for every model, then continue to your quote
+          workspace to review and edit each file before sending it for review.
         </p>
       </div>
 
@@ -535,7 +535,8 @@ export const QuoteWizard = () => {
           <div className="space-y-4">
             <h2 className="font-medium">Choose a material</h2>
             <p className="text-sm text-primary/70">
-              This selection will apply to every file in this quote.
+              This starting selection will apply to every file. You can adjust individual files in
+              the quote workspace next.
             </p>
 
             {isLoadingOptions ? (
@@ -564,7 +565,8 @@ export const QuoteWizard = () => {
           <div className="space-y-4">
             <h2 className="font-medium">Choose a color</h2>
             <p className="text-sm text-primary/70">
-              This selection will apply to every file in this quote.
+              This starting selection will apply to every file. You can adjust individual files in
+              the quote workspace next.
             </p>
 
             {isLoadingOptions ? (
@@ -593,7 +595,8 @@ export const QuoteWizard = () => {
           <div className="space-y-4">
             <h2 className="font-medium">Choose print quality</h2>
             <p className="text-sm text-primary/70">
-              This selection will apply to every file in this quote.
+              This starting selection will apply to every file. You can adjust individual files in
+              the quote workspace next.
             </p>
 
             {isLoadingOptions ? (
@@ -615,9 +618,10 @@ export const QuoteWizard = () => {
 
         {step === 4 && (
           <div className="space-y-4">
-            <h2 className="font-medium">Review your request</h2>
+            <h2 className="font-medium">Review your starting options</h2>
             <p className="text-sm text-primary/70">
-              Double-check your files and selections, then confirm how we should contact you.
+              Double-check your files and selections, then continue to the quote workspace for
+              detailed edits and final review.
             </p>
 
             <div className="rounded-md border px-4 py-3">
@@ -672,7 +676,8 @@ export const QuoteWizard = () => {
                   value={customerEmail}
                 />
                 <p className="text-xs text-primary/60">
-                  We will use this email to send updates and help you return to this quote later.
+                  We will use this email to help you return to the quote workspace and receive
+                  updates later.
                 </p>
               </div>
             ) : (
@@ -683,8 +688,8 @@ export const QuoteWizard = () => {
             )}
 
             <p className="text-xs text-primary/60">
-              Once submitted, we will process your files and generate an estimated price as soon as
-              it is ready.
+              After you continue, we will start processing your files and show estimates in the
+              quote workspace as soon as they are ready.
             </p>
           </div>
         )}
@@ -717,7 +722,7 @@ export const QuoteWizard = () => {
 
         {step === 4 && (
           <Button disabled={isSubmitting || !canContinue} onClick={submitWizard} type="button">
-            {isSubmitting ? 'Submitting request...' : 'Submit quote request'}
+            {isSubmitting ? 'Continuing...' : 'Continue to quote workspace'}
           </Button>
         )}
       </div>
