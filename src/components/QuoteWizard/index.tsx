@@ -1,5 +1,6 @@
 'use client'
 
+import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -48,6 +49,7 @@ type ModelLine = {
 }
 
 type OptionCardProps = {
+  showMaterialPrice?: boolean
   onSelect: (value: string) => void
   option: AvailableOption
   selected: boolean
@@ -95,7 +97,12 @@ const normalizeOption = (option: QuoteOptionResponse): AvailableOption => {
   }
 }
 
-const OptionCard: React.FC<OptionCardProps> = ({ onSelect, option, selected }) => {
+const OptionCard: React.FC<OptionCardProps> = ({
+  showMaterialPrice = false,
+  onSelect,
+  option,
+  selected,
+}) => {
   return (
     <button
       className={cn(
@@ -118,6 +125,11 @@ const OptionCard: React.FC<OptionCardProps> = ({ onSelect, option, selected }) =
       )}
 
       <p className="mt-3 font-medium">{option.name}</p>
+      {showMaterialPrice && typeof option.pricePerGram === 'number' ? (
+        <p className="mt-1 text-sm text-primary/70">
+          <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
+        </p>
+      ) : null}
       {shortenDescription(option.description) ? (
         <p className="mt-1 text-sm text-primary/70">{shortenDescription(option.description)}</p>
       ) : null}
@@ -549,6 +561,7 @@ export const QuoteWizard = () => {
                     onSelect={selectFilament}
                     option={option}
                     selected={String(option.id) === filament}
+                    showMaterialPrice
                   />
                 ))}
               </div>

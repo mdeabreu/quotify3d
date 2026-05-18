@@ -6,6 +6,7 @@ export type AvailableOption = {
   id: number
   imageUrl: string | null
   name: string
+  pricePerGram?: number | null
 }
 
 export type AvailableSpoolOption = {
@@ -46,12 +47,20 @@ const getActiveColour = (value: Spool['colour']): Colour | null => {
   return value
 }
 
-const normalizeOption = (doc: Filament | Colour): AvailableOption => ({
-  description: typeof doc.description === 'string' ? doc.description : null,
-  id: doc.id,
-  imageUrl: getImageUrl(doc.image),
-  name: doc.name,
-})
+const normalizeOption = (doc: Filament | Colour): AvailableOption => {
+  const option: AvailableOption = {
+    description: typeof doc.description === 'string' ? doc.description : null,
+    id: doc.id,
+    imageUrl: getImageUrl(doc.image),
+    name: doc.name,
+  }
+
+  if ('pricePerGram' in doc) {
+    option.pricePerGram = typeof doc.pricePerGram === 'number' ? doc.pricePerGram : null
+  }
+
+  return option
+}
 
 export const buildAvailableSpoolOptions = (spools: ActiveSpool[]): AvailableSpoolOption[] => {
   const canonicalByPair = new Map<string, AvailableSpoolOption>()

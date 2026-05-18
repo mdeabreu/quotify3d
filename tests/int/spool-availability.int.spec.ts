@@ -67,6 +67,7 @@ describe('buildAvailableSpoolOptions', () => {
           id: 1,
           imageUrl: null,
           name: 'PLA',
+          pricePerGram: 0.18,
         },
         id: 21,
       },
