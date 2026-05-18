@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
 
-export const Proccesses: CollectionConfig = {
+export const Processes: CollectionConfig = {
   slug: 'processes',
   access: {
     create: adminOnly,
