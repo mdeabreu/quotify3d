@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,6 +27,7 @@ type QuoteOption = {
   name: string
   description: string | null
   imageUrl: string | null
+  pricePerGram?: number | null
 }
 
 export type QuoteWorkspaceItem = {
@@ -112,10 +114,12 @@ const OptionCard = ({
   onSelect,
   option,
   selected,
+  showMaterialPrice = false,
 }: {
   onSelect: (value: string) => void
   option: QuoteOption
   selected: boolean
+  showMaterialPrice?: boolean
 }) => (
   <button
     className={cn(
@@ -138,6 +142,11 @@ const OptionCard = ({
     )}
 
     <p className="mt-3 font-medium">{option.name}</p>
+    {showMaterialPrice && typeof option.pricePerGram === 'number' ? (
+      <p className="mt-1 text-sm text-primary/70">
+        <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
+      </p>
+    ) : null}
     {option.description ? (
       <p className="mt-1 line-clamp-2 text-sm text-primary/70">{option.description}</p>
     ) : null}
@@ -198,26 +207,17 @@ const QuoteItemEditorDialog = ({
     colour: colourId,
     filament: filamentId,
   })
-  const filteredMaterialOptions = useMemo(() => {
-    const selectedColourID = Number.parseInt(colourId, 10)
-
-    return uniqueOptions(
-      Number.isInteger(selectedColourID)
-        ? spoolOptions.filter((spool) => spool.colour.id === selectedColourID)
-        : spoolOptions,
-      'filament',
-    )
-  }, [colourId, spoolOptions])
   const filteredColourOptions = useMemo(() => {
     const selectedFilamentID = Number.parseInt(filamentId, 10)
 
+    if (!Number.isInteger(selectedFilamentID)) return []
+
     return uniqueOptions(
-      Number.isInteger(selectedFilamentID)
-        ? spoolOptions.filter((spool) => spool.filament.id === selectedFilamentID)
-        : spoolOptions,
+      spoolOptions.filter((spool) => spool.filament.id === selectedFilamentID),
       'colour',
     )
   }, [filamentId, spoolOptions])
+  const canSave = Boolean(selectedSpool && processId)
 
   return (
     <Dialog>
@@ -225,6 +225,9 @@ const QuoteItemEditorDialog = ({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{item.modelLabel}</DialogTitle>
+          <DialogDescription>
+            Update the quantity, material, colour, and print quality for this quote line item.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -274,51 +277,74 @@ const QuoteItemEditorDialog = ({
                 type="button"
               >
                 <p className="font-medium">{step.label}</p>
+                <p className="mt-1 text-xs text-primary/55">
+                  {step.id === 'material'
+                    ? (selectedMaterial?.name ?? 'Choose material')
+                    : step.id === 'colour'
+                      ? (selectedColour?.name ?? 'Choose colour')
+                      : (selectedQuality?.name ?? 'Choose quality')}
+                </p>
               </button>
             ))}
           </div>
 
           {activeStep === 'material' ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {filteredMaterialOptions.map((option) => (
-                <OptionCard
-                  key={option.id}
-                  onSelect={(value) => {
-                    setFilamentId(value)
-                    setFilamentLabel(materialByID.get(value)?.name ?? filamentLabel)
-                    if (
-                      colourId &&
-                      !findSpoolForPair(spoolOptions, { colour: colourId, filament: value })
-                    ) {
-                      setColourId('')
-                    }
-                  }}
-                  option={option}
-                  selected={filamentId === String(option.id)}
-                />
-              ))}
+            <div className="space-y-3">
+              <p className="text-sm text-primary/70">
+                Pick a material first. The next step will show the colours currently available for
+                that material.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                {materialOptions.map((option) => (
+                  <OptionCard
+                    key={option.id}
+                    onSelect={(value) => {
+                      setFilamentId(value)
+                      setFilamentLabel(materialByID.get(value)?.name ?? filamentLabel)
+                      if (
+                        colourId &&
+                        !findSpoolForPair(spoolOptions, { colour: colourId, filament: value })
+                      ) {
+                        setColourId('')
+                      }
+                      setActiveStep('colour')
+                    }}
+                    option={option}
+                    selected={filamentId === String(option.id)}
+                    showMaterialPrice
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
 
           {activeStep === 'colour' ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {filteredColourOptions.map((option) => (
-                <OptionCard
-                  key={option.id}
-                  onSelect={(value) => {
-                    setColourId(value)
-                    setColourLabel(colourByID.get(value)?.name ?? colourLabel)
-                    if (
-                      filamentId &&
-                      !findSpoolForPair(spoolOptions, { colour: value, filament: filamentId })
-                    ) {
-                      setFilamentId('')
-                    }
-                  }}
-                  option={option}
-                  selected={colourId === String(option.id)}
-                />
-              ))}
+            <div className="space-y-3">
+              <p className="text-sm text-primary/70">
+                {selectedMaterial
+                  ? `Showing colours available for ${selectedMaterial.name}.`
+                  : 'Choose a material before selecting a colour.'}
+              </p>
+              {filteredColourOptions.length > 0 ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {filteredColourOptions.map((option) => (
+                    <OptionCard
+                      key={option.id}
+                      onSelect={(value) => {
+                        setColourId(value)
+                        setColourLabel(colourByID.get(value)?.name ?? colourLabel)
+                        setActiveStep('quality')
+                      }}
+                      option={option}
+                      selected={colourId === String(option.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-md border bg-background px-3 py-2 text-sm text-primary/70">
+                  No colours are available for this material right now.
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -365,7 +391,7 @@ const QuoteItemEditorDialog = ({
               </p>
             ) : null}
 
-            <Button disabled={!selectedSpool} size="sm" type="submit">
+            <Button disabled={!canSave} size="sm" type="submit">
               Save
             </Button>
           </form>

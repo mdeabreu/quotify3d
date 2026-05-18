@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -21,6 +21,13 @@ vi.mock('next/link', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh,
+  }),
+}))
+
+vi.mock('@payloadcms/plugin-ecommerce/client/react', () => ({
+  useCurrency: () => ({
+    formatCurrency: (amount: number) => `$${amount.toFixed(2)}`,
+    supportedCurrencies: [{ code: 'USD' }],
   }),
 }))
 
@@ -49,12 +56,14 @@ const materialOptions = [
     id: 1,
     imageUrl: null,
     name: 'PLA',
+    pricePerGram: 0.18,
   },
   {
     description: null,
     id: 2,
     imageUrl: null,
     name: 'PETG',
+    pricePerGram: 0.24,
   },
 ]
 
@@ -190,7 +199,7 @@ describe('shouldAutoRefreshQuote', () => {
 })
 
 describe('QuoteDetailsWorkspace material availability', () => {
-  it('filters colours to active spool combinations for the selected material', () => {
+  it('shows all active materials in the material step', () => {
     render(
       <QuoteDetailsWorkspace
         {...baseProps}
@@ -220,23 +229,24 @@ describe('QuoteDetailsWorkspace material availability', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Colour' }))
 
-    expect(screen.getAllByText('Red').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Black')).toBeNull()
+    expect(screen.getAllByText('PLA').length).toBeGreaterThan(0)
+    expect(screen.getByText('PETG')).toBeTruthy()
+    expect(screen.getByText('$0.18')).toBeTruthy()
+    expect(screen.getByText('$0.24')).toBeTruthy()
   })
 
-  it('filters materials to active spool combinations for the selected colour', () => {
+  it('filters colours after a material is selected', () => {
     render(
       <QuoteDetailsWorkspace
         {...baseProps}
         colourOptions={colourOptions}
         items={[
           {
-            colourId: '11',
-            colourLabel: 'Black',
-            filamentId: '2',
-            filamentLabel: 'PETG',
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
             gcodeDuration: null,
             gcodePrice: null,
             gcodeStatus: null,
@@ -246,7 +256,7 @@ describe('QuoteDetailsWorkspace material availability', () => {
             processId: '20',
             processLabel: 'Standard',
             quantity: 1,
-            spoolId: '101',
+            spoolId: '100',
           },
         ]}
         materialOptions={materialOptions}
@@ -256,8 +266,50 @@ describe('QuoteDetailsWorkspace material availability', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
+    fireEvent.click(screen.getByRole('button', { name: /PETG/ }))
+    const dialog = screen.getByRole('dialog')
 
-    expect(screen.getAllByText('PETG').length).toBeGreaterThan(0)
-    expect(screen.queryByText('PLA')).toBeNull()
+    expect(screen.getByText('Showing colours available for PETG.')).toBeTruthy()
+    expect(within(dialog).getAllByText('Black').length).toBeGreaterThan(0)
+    expect(within(dialog).queryByRole('button', { name: /Red/ })).toBeNull()
+  })
+
+  it('disables save until a compatible colour is selected after changing material', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: null,
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '100',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
+    fireEvent.click(screen.getByRole('button', { name: /PETG/ }))
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: /Black/ }))
+
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(false)
   })
 })
