@@ -24,7 +24,7 @@ import { Filaments } from '@/collections/Filaments'
 import { Media } from '@/collections/Media'
 import { Models } from '@/collections/Models'
 import { Pages } from '@/collections/Pages'
-import { Proccesses } from '@/collections/Proccesses'
+import { Processes } from '@/collections/Processes'
 import { ProcessConfigs } from '@/collections/ProcessConfigs'
 import { Quotes } from '@/collections/Quotes'
 import { Users } from '@/collections/Users'
@@ -41,7 +41,7 @@ import { plugins } from './plugins'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const configCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
-const catalogCollections = [Colours, Filaments, Machines, Proccesses]
+const catalogCollections = [Colours, Filaments, Machines, Processes]
 const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Spools, Vendors]
 
