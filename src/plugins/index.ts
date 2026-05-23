@@ -11,6 +11,7 @@ import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { customerOnlyFieldAccess } from '@/access/customerOnlyFieldAccess'
 import { isAdmin } from '@/access/isAdmin'
 import { isDocumentOwner } from '@/access/isDocumentOwner'
+import { sendOrderCreatedAdminEmail } from '@/collections/Orders/hooks/sendOrderCreatedAdminEmail'
 import { sendOrderCreatedEmail } from '@/collections/Orders/hooks/sendOrderCreatedEmail'
 import { ProductsCollection } from '@/collections/Products'
 import { currenciesConfig } from '@/config/currencies'
@@ -94,7 +95,11 @@ export const plugins: Plugin[] = [
         ...defaultCollection,
         hooks: {
           ...defaultCollection.hooks,
-          afterChange: [...(defaultCollection.hooks?.afterChange || []), sendOrderCreatedEmail],
+          afterChange: [
+            ...(defaultCollection.hooks?.afterChange || []),
+            sendOrderCreatedEmail,
+            sendOrderCreatedAdminEmail,
+          ],
         },
         fields: [
           ...defaultCollection.fields,
