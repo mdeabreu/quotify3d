@@ -1,7 +1,11 @@
 'use server'
 
 import configPromise from '@payload-config'
+import { render } from '@react-email/components'
+import OrderAccessEmail from 'emails/order-access'
 import { getPayload } from 'payload'
+
+import { logSentEmail } from '@/utilities/email/logSentEmail'
 import { getServerSideURL } from '@/utilities/getURL'
 
 type SendOrderAccessEmailArgs = {
@@ -39,21 +43,18 @@ export async function sendOrderAccessEmail({
     const serverURL = getServerSideURL()
     const orderURL = `${serverURL}/orders/${order.id}?email=${encodeURIComponent(email)}&accessToken=${order.accessToken}`
 
-    const emailBody = `
-        <h1>View Your Order</h1>
-        <p>Click the link below to view your order details:</p>
-        <p><a href="${orderURL}">View Order #${order.id}</a></p>
-        <p>Or copy and paste this URL into your browser:</p>
-        <p>${orderURL}</p>
-        <p>This link will give you access to view your order details.</p>
-      `
-
-    console.log('[sendOrderAccessEmail] Email body:', emailBody)
-
     await payload.sendEmail({
       to: email,
       subject: `Access your order #${order.id}`,
-      html: emailBody,
+      html: await render(OrderAccessEmail({ orderID: order.id, orderURL })),
+    })
+
+    logSentEmail({
+      emailType: 'order-access',
+      logger: payload.logger,
+      orderID: order.id,
+      to: email,
+      url: orderURL,
     })
 
     return { success: true }

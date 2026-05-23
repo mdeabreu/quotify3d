@@ -9,8 +9,9 @@ import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMach
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { normalizeQuoteItemSpools } from '@/collections/Quotes/hooks/normalizeQuoteItemSpools'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
-import { sendQuoteCreatedEmail } from '@/collections/Quotes/hooks/sendQuoteCreatedEmail'
 import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
+import { sendQuoteCreatedEmail } from '@/collections/Quotes/hooks/sendQuoteCreatedEmail'
+import { sendQuoteReadyForReviewAdminEmail } from '@/collections/Quotes/hooks/sendQuoteReadyForReviewAdminEmail'
 import { syncOwnedGcodesForQuote } from '@/collections/Quotes/hooks/syncOwnedGcodesForQuote'
 import { currenciesConfig } from '@/config/currencies'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
@@ -134,6 +135,7 @@ export const Quotes: CollectionConfig = {
       createProductsOnApproval,
       sendQuoteCreatedEmail,
       sendQuoteApprovedEmail,
+      sendQuoteReadyForReviewAdminEmail,
     ],
   },
 }

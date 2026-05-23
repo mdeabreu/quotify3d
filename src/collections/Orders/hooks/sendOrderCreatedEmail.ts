@@ -1,7 +1,10 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { resolveCustomerRecipient } from '@/utilities/email/resolveCustomerRecipient'
+import { logSentEmail } from '@/utilities/email/logSentEmail'
 import { getServerSideURL } from '@/utilities/getURL'
+import { render } from '@react-email/components'
+import OrderCreatedEmail from 'emails/order-created'
 
 const toOptionalString = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined
@@ -35,11 +38,7 @@ const getOrderURL = ({
   return `${serverURL}/orders/${orderID}`
 }
 
-export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({
-  doc,
-  operation,
-  req,
-}) => {
+export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (!doc || operation !== 'create') return doc
 
   try {
@@ -67,14 +66,15 @@ export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({
     await req.payload.sendEmail({
       to: recipient.email,
       subject: `Your order #${doc.id} has been placed`,
-      html: `
-        <h1>Your order has been placed</h1>
-        <p>Your order #${doc.id} has been placed successfully.</p>
-        <p>You can use the link below to come back and review your order details at any time.</p>
-        <p><a href="${orderURL}">View order #${doc.id}</a></p>
-        <p>If the button above does not work, copy and paste this link into your browser:</p>
-        <p>${orderURL}</p>
-      `,
+      html: await render(OrderCreatedEmail({ orderID: doc.id, orderURL })),
+    })
+
+    logSentEmail({
+      emailType: 'order-created',
+      logger: req.payload.logger,
+      orderID: doc.id,
+      to: recipient.email,
+      url: orderURL,
     })
   } catch (err) {
     req.payload.logger.error({

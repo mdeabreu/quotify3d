@@ -1,7 +1,10 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { resolveCustomerRecipient } from '@/utilities/email/resolveCustomerRecipient'
+import { logSentEmail } from '@/utilities/email/logSentEmail'
 import { getServerSideURL } from '@/utilities/getURL'
+import { render } from '@react-email/components'
+import QuoteApprovedEmail from 'emails/quote-approved'
 
 const toOptionalString = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined
@@ -75,14 +78,15 @@ export const sendQuoteApprovedEmail: CollectionAfterChangeHook = async ({
     await req.payload.sendEmail({
       to: recipient.email,
       subject: `Your quote #${doc.id} is approved`,
-      html: `
-        <h1>Your quote is approved</h1>
-        <p>Your quote #${doc.id} has been approved and is ready for you to review.</p>
-        <p>You can now return to your quote, add the approved items to your cart, and complete checkout.</p>
-        <p><a href="${quoteURL}">View quote #${doc.id}</a></p>
-        <p>If the button above does not work, copy and paste this link into your browser:</p>
-        <p>${quoteURL}</p>
-      `,
+      html: await render(QuoteApprovedEmail({ quoteID: doc.id, quoteURL })),
+    })
+
+    logSentEmail({
+      emailType: 'quote-approved',
+      logger: req.payload.logger,
+      quoteID: doc.id,
+      to: recipient.email,
+      url: quoteURL,
     })
   } catch (err) {
     req.payload.logger.error({
