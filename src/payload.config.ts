@@ -17,19 +17,19 @@ import { fileURLToPath } from 'url'
 import { Categories } from '@/collections/Categories'
 import { Colours } from '@/collections/Colours'
 import { FilamentConfigs } from '@/collections/FilamentConfigs'
-import { Spools } from '@/collections/Spools'
+import { Filaments } from '@/collections/Filaments'
+import { Gcodes } from '@/collections/Gcodes'
 import { MachineConfigs } from '@/collections/MachineConfigs'
 import { Machines } from '@/collections/Machines'
-import { Filaments } from '@/collections/Filaments'
 import { Media } from '@/collections/Media'
 import { Models } from '@/collections/Models'
 import { Pages } from '@/collections/Pages'
-import { Processes } from '@/collections/Processes'
 import { ProcessConfigs } from '@/collections/ProcessConfigs'
+import { Processes } from '@/collections/Processes'
 import { Quotes } from '@/collections/Quotes'
+import { Spools } from '@/collections/Spools'
 import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
-import { Gcodes } from '@/collections/Gcodes'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
 import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
@@ -37,6 +37,8 @@ import { extractSlicerMetricsTask } from '@/jobs/tasks/extractSlicerMetricsTask'
 import { sliceModelTask } from '@/jobs/tasks/sliceModelTask'
 import { sliceGcodeWorkflow } from '@/jobs/workflows/sliceGcode'
 import { plugins } from './plugins'
+
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -61,7 +63,7 @@ export default buildConfig({
     {
       key: 'import-configs',
       scriptPath: path.resolve(dirname, 'scripts/import-configs.ts'),
-    }
+    },
   ],
   collections: [
     Users,
@@ -113,7 +115,21 @@ export default buildConfig({
       ]
     },
   }),
-  //email: nodemailerAdapter(),
+  email: nodemailerAdapter(),
+  /*
+  email: nodemailerAdapter({
+    defaultFromAddress: process.env.FROM_ADDRESS || 'noreply@quotify3d',
+    defaultFromName: process.env.FROM_NAME || 'quotify3d',
+    transportOptions: {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMPT_PORT,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMPT_PASSWORD,
+      },
+    },
+  }),
+  */
   endpoints: [],
   globals: [Header, Footer],
   plugins,
