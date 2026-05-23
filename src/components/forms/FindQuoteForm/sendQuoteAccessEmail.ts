@@ -1,8 +1,11 @@
 'use server'
 
 import configPromise from '@payload-config'
+import { render } from '@react-email/components'
+import QuoteAccessEmail from 'emails/quote-access'
 import { getPayload } from 'payload'
 
+import { logSentEmail } from '@/utilities/email/logSentEmail'
 import { getServerSideURL } from '@/utilities/getURL'
 
 type SendQuoteAccessEmailArgs = {
@@ -46,14 +49,15 @@ export async function sendQuoteAccessEmail({
     await payload.sendEmail({
       to: normalizedEmail,
       subject: `Access your quote #${quote.id}`,
-      html: `
-        <h1>View Your Quote</h1>
-        <p>Click the link below to view your quote details:</p>
-        <p><a href="${quoteURL}">View Quote #${quote.id}</a></p>
-        <p>Or copy and paste this URL into your browser:</p>
-        <p>${quoteURL}</p>
-        <p>This link will give you access to view your quote details.</p>
-      `,
+      html: await render(QuoteAccessEmail({ quoteID: quote.id, quoteURL })),
+    })
+
+    logSentEmail({
+      emailType: 'quote-access',
+      logger: payload.logger,
+      quoteID: quote.id,
+      to: normalizedEmail,
+      url: quoteURL,
     })
 
     return { success: true }

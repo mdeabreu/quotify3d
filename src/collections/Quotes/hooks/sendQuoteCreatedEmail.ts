@@ -1,7 +1,10 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { resolveCustomerRecipient } from '@/utilities/email/resolveCustomerRecipient'
+import { logSentEmail } from '@/utilities/email/logSentEmail'
 import { getServerSideURL } from '@/utilities/getURL'
+import { render } from '@react-email/components'
+import QuoteCreatedEmail from 'emails/quote-created'
 
 const toOptionalString = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined
@@ -35,11 +38,7 @@ const getQuoteURL = ({
   return `${serverURL}/quotes/${quoteID}`
 }
 
-export const sendQuoteCreatedEmail: CollectionAfterChangeHook = async ({
-  doc,
-  operation,
-  req,
-}) => {
+export const sendQuoteCreatedEmail: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (!doc || operation !== 'create') return doc
 
   try {
@@ -67,14 +66,15 @@ export const sendQuoteCreatedEmail: CollectionAfterChangeHook = async ({
     await req.payload.sendEmail({
       to: recipient.email,
       subject: `Your quote #${doc.id} has been created`,
-      html: `
-        <h1>Your quote has been created</h1>
-        <p>Your quote #${doc.id} has been created successfully.</p>
-        <p>You can use the link below to come back and review your quote at any time.</p>
-        <p><a href="${quoteURL}">View quote #${doc.id}</a></p>
-        <p>If the button above does not work, copy and paste this link into your browser:</p>
-        <p>${quoteURL}</p>
-      `,
+      html: await render(QuoteCreatedEmail({ quoteID: doc.id, quoteURL })),
+    })
+
+    logSentEmail({
+      emailType: 'quote-created',
+      logger: req.payload.logger,
+      quoteID: doc.id,
+      to: recipient.email,
+      url: quoteURL,
     })
   } catch (err) {
     req.payload.logger.error({
