@@ -32,6 +32,13 @@ export const ecommercePlugin =
 
     const accessConfig = sanitizedPluginConfig.access
 
+    // Payment hooks are opt-in. When any hook is configured (either plugin-level
+    // or on an adapter), the default transactions and orders collections gain a
+    // `summary` field that records the breakdown produced by the hook pipeline.
+    const hasHooks =
+      Boolean(sanitizedPluginConfig.payments.hooks) ||
+      (sanitizedPluginConfig.payments.paymentMethods ?? []).some((pm) => Boolean(pm.hooks))
+
     // Ensure collections exists
     if (!incomingConfig.collections) {
       incomingConfig.collections = []
@@ -196,6 +203,7 @@ export const ecommercePlugin =
         currenciesConfig,
         customersSlug: collectionSlugMap.customers,
         enableVariants,
+        hasHooks,
         productsSlug: collectionSlugMap.products,
         variantsSlug: collectionSlugMap.variants ?? 'variants',
       })
@@ -226,6 +234,8 @@ export const ecommercePlugin =
             sanitizedPluginConfig.products.validation) ||
           undefined
 
+        const paymentHooks = sanitizedPluginConfig.payments.hooks
+
         paymentMethods.forEach((paymentMethod) => {
           const methodPath = `/payments/${paymentMethod.name}`
           const endpoints: Endpoint[] = []
@@ -233,7 +243,9 @@ export const ecommercePlugin =
           const initiatePayment: Endpoint = {
             handler: initiatePaymentHandler({
               currenciesConfig,
+              hasHooks,
               inventory: sanitizedPluginConfig.inventory,
+              paymentHooks,
               paymentMethod,
               productsSlug: collectionSlugMap.products,
               productsValidation,
@@ -248,7 +260,9 @@ export const ecommercePlugin =
             handler: confirmOrderHandler({
               cartsSlug: collectionSlugMap.carts,
               currenciesConfig,
+              hasHooks,
               ordersSlug: collectionSlugMap.orders,
+              paymentHooks,
               paymentMethod,
               productsSlug: collectionSlugMap.products,
               productsValidation,
@@ -288,6 +302,7 @@ export const ecommercePlugin =
         currenciesConfig,
         customersSlug: collectionSlugMap.customers,
         enableVariants,
+        hasHooks,
         ordersSlug: collectionSlugMap.orders,
         paymentMethods,
         productsSlug: collectionSlugMap.products,
