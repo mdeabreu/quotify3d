@@ -1,4 +1,9 @@
+packages:
+  - .
+  - packages/*
+
 allowBuilds:
+  '@swc/core': true
   '@vercel/git-hooks': true
   esbuild: true
   sharp: true
