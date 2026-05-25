@@ -21,3 +21,6 @@ runs:
         cache: pnpm
     - run: pnpm install
       shell: bash
+    # temporarily build ecommerce plugin locally
+    - run: pnpm --filter @payloadcms/plugin-ecommerce build
+      shell: bash

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.pnpm-store
 /.pnp
 .pnp.js
 
@@ -43,4 +44,3 @@ public/media
 
 # data
 data/*
-
