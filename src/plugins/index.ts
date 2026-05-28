@@ -1,4 +1,4 @@
-import { ecommercePlugin } from '@payloadcms/plugin-ecommerce'
+import { amountField, ecommercePlugin } from '@payloadcms/plugin-ecommerce'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
@@ -16,6 +16,11 @@ import { sendOrderCreatedEmail } from '@/collections/Orders/hooks/sendOrderCreat
 import { ProductsCollection } from '@/collections/Products'
 import { currenciesConfig } from '@/config/currencies'
 import { Page, Product } from '@/payload-types'
+import {
+  applyCouponDiscount,
+  applyCouponPreviewBeforeChange,
+  resolveCouponCodeBeforeValidate,
+} from '@/utilities/coupons'
 import { getServerSideURL } from '@/utilities/getURL'
 
 const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
@@ -90,6 +95,65 @@ export const plugins: Plugin[] = [
     customers: {
       slug: 'users',
     },
+    carts: {
+      cartsCollectionOverride: ({ defaultCollection }) => ({
+        ...defaultCollection,
+        hooks: {
+          ...defaultCollection.hooks,
+          beforeValidate: [
+            ...(defaultCollection.hooks?.beforeValidate || []),
+            resolveCouponCodeBeforeValidate,
+          ],
+          beforeChange: [
+            ...(defaultCollection.hooks?.beforeChange || []),
+            applyCouponPreviewBeforeChange,
+          ],
+        },
+        fields: [
+          ...defaultCollection.fields,
+          {
+            name: 'appliedCoupon',
+            type: 'relationship',
+            admin: {
+              position: 'sidebar',
+              readOnly: true,
+            },
+            label: 'Applied coupon',
+            relationTo: 'coupons',
+          },
+          {
+            name: 'couponCode',
+            type: 'text',
+            admin: {
+              position: 'sidebar',
+            },
+            label: 'Coupon code',
+          },
+          amountField({
+            currenciesConfig,
+            overrides: {
+              name: 'couponDiscountAmount',
+              admin: {
+                position: 'sidebar',
+                readOnly: true,
+              },
+              label: 'Coupon discount',
+            },
+          }),
+          amountField({
+            currenciesConfig,
+            overrides: {
+              name: 'couponTotal',
+              admin: {
+                position: 'sidebar',
+                readOnly: true,
+              },
+              label: 'Total after coupon',
+            },
+          }),
+        ],
+      }),
+    },
     orders: {
       ordersCollectionOverride: ({ defaultCollection }) => ({
         ...defaultCollection,
@@ -127,6 +191,9 @@ export const plugins: Plugin[] = [
       }),
     },
     payments: {
+      hooks: {
+        beforeInitiatePayment: [applyCouponDiscount],
+      },
       paymentMethods: [
         stripeAdapter({
           secretKey: process.env.STRIPE_SECRET_KEY!,
