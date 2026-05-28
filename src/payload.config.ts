@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
 import { Colours } from '@/collections/Colours'
+import { Coupons } from '@/collections/Coupons'
 import { FilamentConfigs } from '@/collections/FilamentConfigs'
 import { Filaments } from '@/collections/Filaments'
 import { Gcodes } from '@/collections/Gcodes'
@@ -74,6 +75,7 @@ export default buildConfig({
     ...catalogCollections,
     ...productionCollections,
     ...operationsCollections,
+    Coupons,
   ],
   db: sqliteAdapter({
     client: {

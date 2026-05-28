@@ -33,6 +33,12 @@ export const Providers: React.FC<{
                     inventory: true,
                   },
                 },
+                select: {
+                  appliedCoupon: true,
+                  couponCode: true,
+                  couponDiscountAmount: true,
+                  couponTotal: true,
+                },
               },
             }}
             currenciesConfig={currenciesConfig}

@@ -93,6 +93,7 @@ export interface Config {
     gcodes: Gcode;
     spools: Spool;
     vendors: Vendor;
+    coupons: Coupon;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -148,6 +149,7 @@ export interface Config {
     gcodes: GcodesSelect<false> | GcodesSelect<true>;
     spools: SpoolsSelect<false> | SpoolsSelect<true>;
     vendors: VendorsSelect<false> | VendorsSelect<true>;
+    coupons: CouponsSelect<false> | CouponsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -305,6 +307,27 @@ export interface Order {
   status?: OrderStatus;
   amount?: number | null;
   currency?: ('CAD' | 'USD') | null;
+  summary?: {
+    total?: number | null;
+    currency?: ('CAD' | 'USD') | null;
+    lines?:
+      | {
+          type: 'subtotal' | 'tax' | 'shipping' | 'discount' | 'gift_card' | 'custom';
+          label: string;
+          amount: number;
+          metadata?:
+            | {
+                [k: string]: unknown;
+              }
+            | unknown[]
+            | string
+            | number
+            | boolean
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
   accessToken?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1296,6 +1319,27 @@ export interface Transaction {
   cart?: (number | null) | Cart;
   amount?: number | null;
   currency?: ('CAD' | 'USD') | null;
+  summary?: {
+    total?: number | null;
+    currency?: ('CAD' | 'USD') | null;
+    lines?:
+      | {
+          type: 'subtotal' | 'tax' | 'shipping' | 'discount' | 'gift_card' | 'custom';
+          label: string;
+          amount: number;
+          metadata?:
+            | {
+                [k: string]: unknown;
+              }
+            | unknown[]
+            | string
+            | number
+            | boolean
+            | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -1319,6 +1363,39 @@ export interface Cart {
   status?: ('active' | 'purchased' | 'abandoned') | null;
   subtotal?: number | null;
   currency?: ('CAD' | 'USD') | null;
+  appliedCoupon?: (number | null) | Coupon;
+  couponCode?: string | null;
+  couponDiscountAmount?: number | null;
+  couponTotal?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coupons".
+ */
+export interface Coupon {
+  id: number;
+  title: string;
+  code: string;
+  enabled?: boolean | null;
+  appliesTo: 'cart' | 'products';
+  eligibleProducts?: (number | Product)[] | null;
+  /**
+   * Leave empty to allow both guests and logged-in customers.
+   */
+  eligibleCustomers?: (number | User)[] | null;
+  discountType: 'percentage' | 'fixed';
+  percentOff?: number | null;
+  discountAmountInCAD?: number | null;
+  discountAmountInUSD?: number | null;
+  /**
+   * Smallest cart subtotal required before this coupon applies.
+   */
+  minimumSubtotal?: number | null;
+  maxRedemptions?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1580,6 +1657,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'vendors';
         value: number | Vendor;
+      } | null)
+    | ({
+        relationTo: 'coupons';
+        value: number | Coupon;
       } | null)
     | ({
         relationTo: 'forms';
@@ -2109,6 +2190,28 @@ export interface VendorsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coupons_select".
+ */
+export interface CouponsSelect<T extends boolean = true> {
+  title?: T;
+  code?: T;
+  enabled?: T;
+  appliesTo?: T;
+  eligibleProducts?: T;
+  eligibleCustomers?: T;
+  discountType?: T;
+  percentOff?: T;
+  discountAmountInCAD?: T;
+  discountAmountInUSD?: T;
+  minimumSubtotal?: T;
+  maxRedemptions?: T;
+  startsAt?: T;
+  endsAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms_select".
  */
 export interface FormsSelect<T extends boolean = true> {
@@ -2386,6 +2489,10 @@ export interface CartsSelect<T extends boolean = true> {
   status?: T;
   subtotal?: T;
   currency?: T;
+  appliedCoupon?: T;
+  couponCode?: T;
+  couponDiscountAmount?: T;
+  couponTotal?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2423,6 +2530,21 @@ export interface OrdersSelect<T extends boolean = true> {
   status?: T;
   amount?: T;
   currency?: T;
+  summary?:
+    | T
+    | {
+        total?: T;
+        currency?: T;
+        lines?:
+          | T
+          | {
+              type?: T;
+              label?: T;
+              amount?: T;
+              metadata?: T;
+              id?: T;
+            };
+      };
   accessToken?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2469,6 +2591,21 @@ export interface TransactionsSelect<T extends boolean = true> {
   cart?: T;
   amount?: T;
   currency?: T;
+  summary?:
+    | T
+    | {
+        total?: T;
+        currency?: T;
+        lines?:
+          | T
+          | {
+              type?: T;
+              label?: T;
+              amount?: T;
+              metadata?: T;
+              id?: T;
+            };
+      };
   updatedAt?: T;
   createdAt?: T;
 }

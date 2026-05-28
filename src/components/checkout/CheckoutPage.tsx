@@ -12,6 +12,7 @@ import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import * as qs from 'qs-esm'
 import React, { Suspense, useEffect, useState } from 'react'
 
 import { cssVariables } from '@/cssVariables'
@@ -24,7 +25,7 @@ import {
 } from '@payloadcms/plugin-ecommerce/client/react'
 import { CheckoutAddresses } from '@/components/checkout/CheckoutAddresses'
 import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
-import { Address, Product, Variant } from '@/payload-types'
+import { Address, Cart, Product, Variant } from '@/payload-types'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AddressItem } from '@/components/addresses/AddressItem'
 import { FormItem } from '@/components/forms/FormItem'
@@ -33,11 +34,23 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const apiKey = `${process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}`
 const stripe = loadStripe(apiKey)
+const normalizeCouponCode = (code: string): string => code.trim().toUpperCase()
+
+type PaymentSummary = {
+  currency: string
+  lines: {
+    amount: number
+    label: string
+    type: string
+  }[]
+  total: number
+}
 
 export const CheckoutPage: React.FC = () => {
   const { user } = useAuth()
   const router = useRouter()
-  const { cart } = useCart()
+  const { cart: providerCart } = useCart()
+  const cart = providerCart as Cart | undefined
   const [error, setError] = useState<null | string>(null)
   const { theme } = useTheme()
   /**
@@ -53,8 +66,22 @@ export const CheckoutPage: React.FC = () => {
   const [billingAddress, setBillingAddress] = useState<Partial<Address>>()
   const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true)
   const [isProcessingPayment, setProcessingPayment] = useState(false)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponError, setCouponError] = useState<null | string>(null)
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [checkoutCart, setCheckoutCart] = useState<Cart>()
 
-  const cartIsEmpty = !cart || !cart.items || !cart.items.length
+  const activeCart = checkoutCart?.id === cart?.id ? checkoutCart : cart
+  const cartIsEmpty = !activeCart || !activeCart.items || !activeCart.items.length
+  const appliedCoupon =
+    typeof activeCart?.appliedCoupon === 'object' ? activeCart.appliedCoupon : undefined
+  const displayCouponCode = appliedCoupon?.code || activeCart?.couponCode
+  const couponTotal = typeof activeCart?.couponTotal === 'number' ? activeCart.couponTotal : null
+  const couponDiscountAmount =
+    typeof activeCart?.couponDiscountAmount === 'number'
+      ? activeCart.couponDiscountAmount
+      : 0
+  const paymentSummary = paymentData?.summary as PaymentSummary | undefined
   const defaultBillingAddress = addresses?.[0]
   const effectiveBillingAddress = billingAddress ?? defaultBillingAddress
   const effectiveShippingAddress = billingAddressSameAsShipping
@@ -74,6 +101,105 @@ export const CheckoutPage: React.FC = () => {
       setEmailEditable(true)
     }
   }, [])
+
+  const getCartSecret = () => {
+    if (typeof window === 'undefined') return undefined
+    return window.localStorage.getItem('cart_secret') || undefined
+  }
+
+  const getCartQuery = () => {
+    const priceField = `priceIn${currency.code}`
+    const secret = getCartSecret()
+    return `?${qs.stringify({
+      depth: 2,
+      populate: {
+        products: {
+          [priceField]: true,
+          gallery: true,
+          inventory: true,
+          slug: true,
+          title: true,
+        },
+        variants: {
+          [priceField]: true,
+          inventory: true,
+          options: true,
+          title: true,
+        },
+      },
+      ...(secret ? { secret } : {}),
+      select: {
+        appliedCoupon: true,
+        couponCode: true,
+        couponDiscountAmount: true,
+        couponTotal: true,
+        items: true,
+        subtotal: true,
+      },
+    })}`
+  }
+
+  const updateCoupon = async (nextCouponCode: null | string, fallbackError: string) => {
+    if (!activeCart?.id) {
+      throw new Error(fallbackError)
+    }
+
+    const response = await fetch(`/api/carts/${activeCart.id}${getCartQuery()}`, {
+      body: JSON.stringify({
+        couponCode: nextCouponCode,
+      }),
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.errors?.[0]?.message || fallbackError)
+    }
+
+    setPaymentData(null)
+    setCheckoutCart((data?.doc || data) as Cart)
+  }
+
+  const applyCoupon = async () => {
+    const normalizedCouponCode = normalizeCouponCode(couponCode)
+    if (!normalizedCouponCode) return
+
+    setIsApplyingCoupon(true)
+    setCouponError(null)
+
+    try {
+      await updateCoupon(normalizedCouponCode, 'Coupon could not be applied.')
+      setCouponCode('')
+      toast.success('Coupon applied.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Coupon could not be applied.'
+      setCouponError(message)
+      toast.error(message)
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
+
+  const removeCoupon = async () => {
+    setIsApplyingCoupon(true)
+    setCouponError(null)
+
+    try {
+      await updateCoupon(null, 'Coupon could not be removed.')
+      toast.success('Coupon removed.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Coupon could not be removed.'
+      setCouponError(message)
+      toast.error(message)
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
 
   const initiatePaymentIntent = async (paymentID: string) => {
     try {
@@ -303,8 +429,7 @@ export const CheckoutPage: React.FC = () => {
         )}
 
         <Suspense fallback={<React.Fragment />}>
-          {/* @ts-ignore */}
-          {paymentData && paymentData?.['clientSecret'] && (
+          {paymentData && Boolean(paymentData?.['clientSecret']) && (
             <div className="pb-16">
               <h2 className="font-medium text-3xl">Payment</h2>
               {error && <p>{`Error: ${error}`}</p>}
@@ -358,7 +483,7 @@ export const CheckoutPage: React.FC = () => {
       {!cartIsEmpty && (
         <div className="basis-full lg:basis-1/3 lg:pl-8 p-8 border-none bg-primary/5 flex flex-col gap-8 rounded-lg">
           <h2 className="text-3xl font-medium">Your cart</h2>
-          {cart?.items?.map((item, index) => {
+          {activeCart?.items?.map((item, index) => {
             if (typeof item.product === 'object' && item.product) {
               const product = item.product as Product
               const { meta, title, gallery } = product
@@ -373,9 +498,7 @@ export const CheckoutPage: React.FC = () => {
               let image = gallery?.[0]?.image || meta?.image
               const productPriceField = `priceIn${currency.code}` as keyof Product
               let price =
-                typeof product[productPriceField] === 'number'
-                  ? product[productPriceField]
-                  : null
+                typeof product[productPriceField] === 'number' ? product[productPriceField] : null
 
               const isVariant = Boolean(variant)
 
@@ -442,10 +565,91 @@ export const CheckoutPage: React.FC = () => {
             return null
           })}
           <hr />
-          <div className="flex justify-between items-center gap-2">
-            <span className="uppercase">Total</span>{' '}
-            <Price className="text-3xl font-medium" amount={cart.subtotal || 0} />
+          <div className="flex flex-col gap-3">
+            <Label htmlFor="couponCode">Coupon</Label>
+            {displayCouponCode ? (
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-3">
+                <span className="font-mono text-sm">{displayCouponCode}</span>
+                <Button
+                  disabled={Boolean(paymentData) || isApplyingCoupon}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    void removeCoupon()
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  disabled={Boolean(paymentData) || isApplyingCoupon}
+                  id="couponCode"
+                  name="couponCode"
+                  onChange={(e) => {
+                    setCouponCode(e.target.value)
+                    setCouponError(null)
+                  }}
+                  placeholder="Code"
+                  value={couponCode}
+                />
+                <Button
+                  disabled={!couponCode.trim() || Boolean(paymentData) || isApplyingCoupon}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    void applyCoupon()
+                  }}
+                  variant="outline"
+                >
+                  Apply
+                </Button>
+              </div>
+            )}
+            {couponError && <Message error={couponError} />}
           </div>
+          <hr />
+          {paymentSummary ? (
+            <div className="flex flex-col gap-3">
+              {paymentSummary.lines.map((line, index) => (
+                <div
+                  className="flex justify-between items-center gap-2"
+                  key={`${line.type}-${index}`}
+                >
+                  <span>{line.label}</span>
+                  <Price amount={line.amount} />
+                </div>
+              ))}
+              <div className="flex justify-between items-center gap-2 pt-2 border-t">
+                <span className="uppercase">Total</span>
+                <Price className="text-3xl font-medium" amount={paymentSummary.total} />
+              </div>
+            </div>
+          ) : (
+            <>
+              {displayCouponCode && couponDiscountAmount > 0 && couponTotal !== null && (
+                <div className="flex justify-between items-center gap-2">
+                  <span>Discount</span>
+                  <Price amount={couponDiscountAmount * -1} />
+                </div>
+              )}
+              <div className="flex justify-between items-center gap-2">
+                <span className="uppercase">Total</span>
+                {displayCouponCode && couponDiscountAmount > 0 && couponTotal !== null ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <Price
+                      className="text-sm line-through opacity-60"
+                      amount={activeCart.subtotal || 0}
+                    />
+                    <Price className="text-3xl font-medium" amount={couponTotal} />
+                  </div>
+                ) : (
+                  <Price className="text-3xl font-medium" amount={activeCart.subtotal || 0} />
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
