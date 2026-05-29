@@ -1,4 +1,5 @@
 import type { BeforeInitiatePaymentHook, Summary } from '@payloadcms/plugin-ecommerce/types'
+import { APIError } from 'payload'
 import type {
   CollectionBeforeChangeHook,
   CollectionBeforeValidateHook,
@@ -16,6 +17,8 @@ type CouponResolution = {
   coupon: Coupon
   total: number
 }
+
+const couponError = (message: string) => new APIError(message, 400)
 
 const getRelationID = (relation: RelationValue): string | undefined => {
   if (!relation) return undefined
@@ -88,7 +91,7 @@ export const resolveCouponCodeBeforeValidate: CollectionBeforeValidateHook = asy
   const coupon = await findCouponByCode({ code, req })
 
   if (!coupon) {
-    throw new Error('Coupon does not exist.')
+    throw couponError('Coupon does not exist.')
   }
 
   return {
@@ -179,12 +182,20 @@ const getEligibleProductSubtotal = async ({
 }
 
 const getCouponPurchasedCartCount = async ({
+  cartID,
   couponID,
   req,
 }: {
+  cartID?: DefaultDocumentIDType
   couponID: DefaultDocumentIDType
   req: PayloadRequest
 }): Promise<number> => {
+  const whereClauses = [
+    { appliedCoupon: { equals: couponID } },
+    { purchasedAt: { exists: true } },
+    ...(cartID ? [{ id: { not_equals: cartID } }] : []),
+  ]
+
   const result = await req.payload.find({
     collection: 'carts',
     depth: 0,
@@ -192,7 +203,7 @@ const getCouponPurchasedCartCount = async ({
     overrideAccess: true,
     req,
     where: {
-      and: [{ appliedCoupon: { equals: couponID } }, { purchasedAt: { exists: true } }],
+      and: whereClauses,
     },
   })
 
@@ -245,20 +256,20 @@ export const resolveCouponForPayment = async ({
   })
 
   if (!coupon) {
-    throw new Error('Coupon no longer exists.')
+    throw couponError('Coupon no longer exists.')
   }
 
   if (coupon.enabled === false) {
-    throw new Error('Coupon is no longer active.')
+    throw couponError('Coupon is no longer active.')
   }
 
   const now = Date.now()
   if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) {
-    throw new Error('Coupon is not valid yet.')
+    throw couponError('Coupon is not valid yet.')
   }
 
   if (coupon.endsAt && new Date(coupon.endsAt).getTime() < now) {
-    throw new Error('Coupon has expired.')
+    throw couponError('Coupon has expired.')
   }
 
   const eligibleCustomers = coupon.eligibleCustomers || []
@@ -269,20 +280,24 @@ export const resolveCouponForPayment = async ({
     )
 
     if (!isEligible) {
-      throw new Error('This coupon is not available for this customer.')
+      throw couponError('This coupon is not available for this customer.')
     }
   }
 
   const subtotal = getSummarySubtotal(summary)
 
   if (coupon.minimumSubtotal && subtotal < coupon.minimumSubtotal) {
-    throw new Error('Cart subtotal does not meet this coupon minimum.')
+    throw couponError('Cart subtotal does not meet this coupon minimum.')
   }
 
   if (coupon.maxRedemptions) {
-    const totalRedemptions = await getCouponPurchasedCartCount({ couponID: coupon.id, req })
+    const totalRedemptions = await getCouponPurchasedCartCount({
+      cartID: cart.id,
+      couponID: coupon.id,
+      req,
+    })
     if (totalRedemptions >= coupon.maxRedemptions) {
-      throw new Error('Coupon has reached its redemption limit.')
+      throw couponError('Coupon has reached its redemption limit.')
     }
   }
 
@@ -293,7 +308,7 @@ export const resolveCouponForPayment = async ({
       : subtotal
 
   if (discountBase <= 0) {
-    throw new Error('Coupon is not valid for the products in this cart.')
+    throw couponError('Coupon is not valid for the products in this cart.')
   }
 
   const fixedAmount = coupon[getFixedDiscountField(currency)]
@@ -305,7 +320,7 @@ export const resolveCouponForPayment = async ({
   })
 
   if (discount.amount <= 0) {
-    throw new Error('Coupon does not provide a discount for this cart.')
+    throw couponError('Coupon does not provide a discount for this cart.')
   }
 
   return { amount: discount.amount, coupon, total: discount.total }
@@ -313,6 +328,16 @@ export const resolveCouponForPayment = async ({
 
 export const applyCouponPreviewBeforeChange: CollectionBeforeChangeHook = async ({ data, req }) => {
   if (!data) return data
+
+  if (Array.isArray(data.items) && data.items.length === 0) {
+    return {
+      ...data,
+      appliedCoupon: null,
+      couponCode: null,
+      couponDiscountAmount: 0,
+      couponTotal: 0,
+    }
+  }
 
   const isUpdatingCouponCode = 'couponCode' in data
   const couponID = getRelationID(data.appliedCoupon)

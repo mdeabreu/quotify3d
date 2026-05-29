@@ -36,6 +36,23 @@ const apiKey = `${process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}`
 const stripe = loadStripe(apiKey)
 const normalizeCouponCode = (code: string): string => code.trim().toUpperCase()
 
+const getAPIErrorMessage = (data: unknown, fallbackError: string): string => {
+  if (!data || typeof data !== 'object') return fallbackError
+
+  const response = data as {
+    errors?: { message?: unknown }[]
+    message?: unknown
+  }
+  const nestedMessage = response.errors?.find(
+    (error): error is { message: string } => typeof error.message === 'string',
+  )?.message
+
+  if (nestedMessage) return nestedMessage
+  if (typeof response.message === 'string') return response.message
+
+  return fallbackError
+}
+
 type PaymentSummary = {
   currency: string
   lines: {
@@ -158,7 +175,7 @@ export const CheckoutPage: React.FC = () => {
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data?.message || data?.errors?.[0]?.message || fallbackError)
+      throw new Error(getAPIErrorMessage(data, fallbackError))
     }
 
     setPaymentData(null)
@@ -183,6 +200,14 @@ export const CheckoutPage: React.FC = () => {
     } finally {
       setIsApplyingCoupon(false)
     }
+  }
+
+  const handleCouponSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    if (!couponCode.trim() || paymentData || isApplyingCoupon) return
+
+    void applyCoupon()
   }
 
   const removeCoupon = async () => {
@@ -583,7 +608,7 @@ export const CheckoutPage: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <form className="flex gap-2" onSubmit={handleCouponSubmit}>
                 <Input
                   disabled={Boolean(paymentData) || isApplyingCoupon}
                   id="couponCode"
@@ -597,15 +622,12 @@ export const CheckoutPage: React.FC = () => {
                 />
                 <Button
                   disabled={!couponCode.trim() || Boolean(paymentData) || isApplyingCoupon}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    void applyCoupon()
-                  }}
+                  type="submit"
                   variant="outline"
                 >
                   Apply
                 </Button>
-              </div>
+              </form>
             )}
             {couponError && <Message error={couponError} />}
           </div>
