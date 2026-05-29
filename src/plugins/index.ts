@@ -3,9 +3,8 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
-import { Plugin } from 'payload'
+import { CollectionBeforeValidateHook, Plugin } from 'payload'
 
-import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
 import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
 import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { customerOnlyFieldAccess } from '@/access/customerOnlyFieldAccess'
@@ -15,13 +14,14 @@ import { sendOrderCreatedAdminEmail } from '@/collections/Orders/hooks/sendOrder
 import { sendOrderCreatedEmail } from '@/collections/Orders/hooks/sendOrderCreatedEmail'
 import { ProductsCollection } from '@/collections/Products'
 import { currenciesConfig } from '@/config/currencies'
-import { Page, Product } from '@/payload-types'
+import { Page, Product, Transaction } from '@/payload-types'
 import {
   applyCouponDiscount,
   applyCouponPreviewBeforeChange,
   resolveCouponCodeBeforeValidate,
 } from '@/utilities/coupons'
 import { getServerSideURL } from '@/utilities/getURL'
+import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
 
 const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
   return doc?.title ? `${doc.title} | Payload Ecommerce Template` : 'Payload Ecommerce Template'
@@ -31,6 +31,24 @@ const generateURL: GenerateURL<Product | Page> = ({ doc }) => {
   const url = getServerSideURL()
 
   return doc?.slug ? `${url}/${doc.slug}` : url
+}
+
+const regenerateTransactionItemIDs: CollectionBeforeValidateHook<Transaction> = ({
+  data,
+  operation,
+}) => {
+  if (operation !== 'create' || !Array.isArray(data?.items)) {
+    return data
+  }
+
+  return {
+    ...data,
+    items: data.items.map((item) => {
+      const { id: _id, ...itemWithoutID } = item
+
+      return itemWithoutID
+    }),
+  }
 }
 
 export const plugins: Plugin[] = [
@@ -204,6 +222,18 @@ export const plugins: Plugin[] = [
     },
     products: {
       productsCollectionOverride: ProductsCollection,
+    },
+    transactions: {
+      transactionsCollectionOverride: ({ defaultCollection }) => ({
+        ...defaultCollection,
+        hooks: {
+          ...defaultCollection.hooks,
+          beforeValidate: [
+            regenerateTransactionItemIDs,
+            ...(defaultCollection.hooks?.beforeValidate ?? []),
+          ],
+        },
+      }),
     },
   }),
 ]
