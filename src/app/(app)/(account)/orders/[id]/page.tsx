@@ -13,6 +13,7 @@ import { headers as getHeaders } from 'next/headers.js'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { OrderStatus } from '@/components/OrderStatus'
+import { OrderSummaryLines } from '@/components/OrderSummaryLines'
 import { AddressItem } from '@/components/addresses/AddressItem'
 
 export const dynamic = 'force-dynamic'
@@ -80,6 +81,7 @@ export default async function Order({ params, searchParams }: PageProps) {
         customerEmail: true,
         customer: true,
         status: true,
+        summary: true,
         createdAt: true,
         updatedAt: true,
         shippingAddress: true,
@@ -146,7 +148,13 @@ export default async function Order({ params, searchParams }: PageProps) {
 
           <div className="">
             <p className="font-mono uppercase text-primary/50 mb-1 text-sm">Total</p>
-            {order.amount && <Price className="text-lg" amount={order.amount} />}
+            {typeof order.amount === 'number' && (
+              <Price
+                className="text-lg"
+                amount={order.amount}
+                currencyCode={order.currency ?? undefined}
+              />
+            )}
           </div>
 
           {order.status && (
@@ -187,6 +195,8 @@ export default async function Order({ params, searchParams }: PageProps) {
             </ul>
           </div>
         )}
+
+        <OrderSummaryLines currencyCode={order.currency} summary={order.summary} />
 
         {order.shippingAddress && (
           <div>
