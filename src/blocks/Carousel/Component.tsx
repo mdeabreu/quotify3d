@@ -3,6 +3,7 @@ import type { Product, CarouselBlock as CarouselBlockProps } from '@/payload-typ
 import configPromise from '@payload-config'
 import { DefaultDocumentIDType, getPayload } from 'payload'
 import React from 'react'
+import { isPublicStorefrontProduct, publicStorefrontProductsWhere } from '@/utilities/products'
 
 import { CarouselClient } from './Component.client'
 
@@ -29,22 +30,32 @@ export const CarouselBlock: React.FC<
       collection: 'products',
       depth: 1,
       limit: limit || undefined,
-      ...(flattenedCategories && flattenedCategories.length > 0
-        ? {
-            where: {
-              categories: {
-                in: flattenedCategories,
-              },
-            },
-          }
-        : {}),
+      where: {
+        and: [
+          publicStorefrontProductsWhere(),
+          ...(flattenedCategories && flattenedCategories.length > 0
+            ? [
+                {
+                  categories: {
+                    in: flattenedCategories,
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
     })
 
     products = fetchedProducts.docs
   } else if (selectedDocs?.length) {
-    products = selectedDocs.map((post) => {
-      if (typeof post.value !== 'string') return post.value
-    }) as Product[]
+    products = selectedDocs
+      .map((post) => {
+        if (typeof post.value !== 'string') return post.value
+      })
+      .filter(
+        (product): product is Product =>
+          typeof product === 'object' && product !== null && isPublicStorefrontProduct(product),
+      )
   }
 
   if (!products?.length) return null

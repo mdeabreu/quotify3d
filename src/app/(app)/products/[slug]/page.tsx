@@ -5,6 +5,7 @@ import { GridTileImage } from '@/components/Grid/tile'
 import { Gallery } from '@/components/product/Gallery'
 import { ProductDescription } from '@/components/product/ProductDescription'
 import { getDefaultCurrencyCode, getDefaultPriceField } from '@/utilities/currency'
+import { isPublicStorefrontProduct } from '@/utilities/products'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -115,7 +116,10 @@ export default async function ProductPage({ params }: Args) {
   }
 
   const relatedProducts =
-    product.relatedProducts?.filter((relatedProduct) => typeof relatedProduct === 'object') ?? []
+    product.relatedProducts?.filter(
+      (relatedProduct): relatedProduct is Product =>
+        typeof relatedProduct === 'object' && isPublicStorefrontProduct(relatedProduct),
+    ) ?? []
 
   return (
     <React.Fragment>

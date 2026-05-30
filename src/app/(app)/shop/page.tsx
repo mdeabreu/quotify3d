@@ -1,6 +1,7 @@
 import { Grid } from '@/components/Grid'
 import { ProductGridItem } from '@/components/ProductGridItem'
 import { getDefaultPriceField } from '@/utilities/currency'
+import { publicStorefrontProductsWhere } from '@/utilities/products'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import React from 'react'
@@ -33,46 +34,7 @@ export default async function ShopPage({ searchParams }: Props) {
       [defaultPriceField]: true,
     },
     ...(sort ? { sort } : { sort: 'title' }),
-    ...(searchValue || category
-      ? {
-          where: {
-            and: [
-              {
-                _status: {
-                  equals: 'published',
-                },
-              },
-              ...(searchValue
-                ? [
-                    {
-                      or: [
-                        {
-                          title: {
-                            like: searchValue,
-                          },
-                        },
-                        {
-                          description: {
-                            like: searchValue,
-                          },
-                        },
-                      ],
-                    },
-                  ]
-                : []),
-              ...(category
-                ? [
-                    {
-                      categories: {
-                        contains: category,
-                      },
-                    },
-                  ]
-                : []),
-            ],
-          },
-        }
-      : {}),
+    where: publicStorefrontProductsWhere({ category, searchValue }),
   })
 
   const resultsText = products.docs.length > 1 ? 'results' : 'result'
