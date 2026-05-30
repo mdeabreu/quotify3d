@@ -94,6 +94,7 @@ export interface Config {
     spools: Spool;
     vendors: Vendor;
     coupons: Coupon;
+    'coupon-redemptions': CouponRedemption;
     forms: Form;
     'form-submissions': FormSubmission;
     addresses: Address;
@@ -150,6 +151,7 @@ export interface Config {
     spools: SpoolsSelect<false> | SpoolsSelect<true>;
     vendors: VendorsSelect<false> | VendorsSelect<true>;
     coupons: CouponsSelect<false> | CouponsSelect<true>;
+    'coupon-redemptions': CouponRedemptionsSelect<false> | CouponRedemptionsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     addresses: AddressesSelect<false> | AddressesSelect<true>;
@@ -1462,6 +1464,25 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coupon-redemptions".
+ */
+export interface CouponRedemption {
+  id: number;
+  coupon: number | Coupon;
+  order: number | Order;
+  transaction: number | Transaction;
+  cart?: (number | null) | Cart;
+  customer?: (number | null) | User;
+  customerEmail?: string | null;
+  couponCode: string;
+  discountAmount: number;
+  currency: 'CAD' | 'USD';
+  redeemedAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1661,6 +1682,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'coupons';
         value: number | Coupon;
+      } | null)
+    | ({
+        relationTo: 'coupon-redemptions';
+        value: number | CouponRedemption;
       } | null)
     | ({
         relationTo: 'forms';
@@ -2207,6 +2232,24 @@ export interface CouponsSelect<T extends boolean = true> {
   maxRedemptions?: T;
   startsAt?: T;
   endsAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "coupon-redemptions_select".
+ */
+export interface CouponRedemptionsSelect<T extends boolean = true> {
+  coupon?: T;
+  order?: T;
+  transaction?: T;
+  cart?: T;
+  customer?: T;
+  customerEmail?: T;
+  couponCode?: T;
+  discountAmount?: T;
+  currency?: T;
+  redeemedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

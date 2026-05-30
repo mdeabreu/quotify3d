@@ -18,6 +18,7 @@ import { Page, Product, Transaction } from '@/payload-types'
 import {
   applyCouponDiscount,
   applyCouponPreviewBeforeChange,
+  recordCouponRedemption,
   resolveCouponCodeBeforeValidate,
 } from '@/utilities/coupons'
 import { getServerSideURL } from '@/utilities/getURL'
@@ -210,6 +211,7 @@ export const plugins: Plugin[] = [
     },
     payments: {
       hooks: {
+        afterConfirmOrder: [recordCouponRedemption],
         beforeInitiatePayment: [applyCouponDiscount],
       },
       paymentMethods: [
