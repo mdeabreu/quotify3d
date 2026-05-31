@@ -1,6 +1,5 @@
 'use client'
 
-import { Media } from '@/components/Media'
 import { Message } from '@/components/Message'
 import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
@@ -27,6 +26,7 @@ import { CheckoutAddresses } from '@/components/checkout/CheckoutAddresses'
 import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
 import { Address, Cart, Product, Variant } from '@/payload-types'
 import { Checkbox } from '@/components/ui/checkbox'
+import { getProductFallbackImage } from '@/utilities/products'
 import { AddressItem } from '@/components/addresses/AddressItem'
 import { FormItem } from '@/components/forms/FormItem'
 import { toast } from 'sonner'
@@ -134,6 +134,7 @@ export const CheckoutPage: React.FC = () => {
           [priceField]: true,
           gallery: true,
           inventory: true,
+          quote: true,
           slug: true,
           title: true,
         },
@@ -520,7 +521,13 @@ export const CheckoutPage: React.FC = () => {
 
               if (!quantity) return null
 
-              let image = gallery?.[0]?.image || meta?.image
+              let image =
+                typeof gallery?.[0]?.image === 'object'
+                  ? gallery[0].image
+                  : typeof meta?.image === 'object'
+                    ? meta.image
+                    : undefined
+              const fallbackImage = getProductFallbackImage(product)
               const productPriceField = `priceIn${currency.code}` as keyof Product
               let price =
                 typeof product[productPriceField] === 'number' ? product[productPriceField] : null
@@ -549,7 +556,7 @@ export const CheckoutPage: React.FC = () => {
                   return hasMatch
                 })
 
-                if (imageVariant && typeof imageVariant.image !== 'string') {
+                if (imageVariant && typeof imageVariant.image === 'object') {
                   image = imageVariant.image
                 }
               }
@@ -558,9 +565,21 @@ export const CheckoutPage: React.FC = () => {
                 <div className="flex items-start gap-4" key={index}>
                   <div className="flex items-stretch justify-stretch h-20 w-20 p-2 rounded-lg border">
                     <div className="relative w-full h-full">
-                      {image && typeof image !== 'string' && (
-                        <Media className="" fill imgClassName="rounded-lg" resource={image} />
-                      )}
+                      {image?.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={image.alt || product.title || ''}
+                          className="h-full w-full rounded-lg object-cover"
+                          src={image.url}
+                        />
+                      ) : fallbackImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={product.title || ''}
+                          className="h-full w-full rounded-lg object-cover"
+                          src={fallbackImage}
+                        />
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex grow justify-between items-center">

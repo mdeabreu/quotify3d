@@ -1,9 +1,6 @@
-import { Media } from '@/components/Media'
-import { OrderStatus } from '@/components/OrderStatus'
 import { Price } from '@/components/Price'
-import { Button } from '@/components/ui/button'
-import { Media as MediaType, Order, Product, Variant } from '@/payload-types'
-import { formatDateTime } from '@/utilities/formatDateTime'
+import { Product, Variant } from '@/payload-types'
+import { getProductFallbackImage } from '@/utilities/products'
 import Link from 'next/link'
 
 type Props = {
@@ -19,7 +16,6 @@ type Props = {
 
 export const ProductItem: React.FC<Props> = ({
   product,
-  style = 'default',
   quantity,
   variant,
   currencyCode,
@@ -27,10 +23,10 @@ export const ProductItem: React.FC<Props> = ({
   const { title } = product
 
   const metaImage =
-    product.meta?.image && typeof product.meta?.image !== 'string' ? product.meta.image : undefined
+    product.meta?.image && typeof product.meta?.image === 'object' ? product.meta.image : undefined
 
   const firstGalleryImage =
-    typeof product.gallery?.[0]?.image !== 'string' ? product.gallery?.[0]?.image : undefined
+    typeof product.gallery?.[0]?.image === 'object' ? product.gallery?.[0]?.image : undefined
 
   let image = firstGalleryImage || metaImage
 
@@ -50,7 +46,7 @@ export const ProductItem: React.FC<Props> = ({
       return hasMatch
     })
 
-    if (imageVariant && typeof imageVariant.image !== 'string') {
+    if (imageVariant && typeof imageVariant.image === 'object') {
       image = imageVariant.image
     }
   }
@@ -69,14 +65,27 @@ export const ProductItem: React.FC<Props> = ({
   const itemPrice = variantPrice ?? productPrice
 
   const itemURL = `/products/${product.slug}${variant ? `?variant=${variant.id}` : ''}`
+  const fallbackImage = getProductFallbackImage(product)
 
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-stretch justify-stretch h-20 w-20 p-2 rounded-lg border">
         <div className="relative w-full h-full">
-          {image && typeof image !== 'string' && (
-            <Media className="" fill imgClassName="rounded-lg object-cover" resource={image} />
-          )}
+          {image?.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt={image.alt || product.title || ''}
+              className="h-full w-full rounded-lg object-cover"
+              src={image.url}
+            />
+          ) : fallbackImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt={product.title || ''}
+              className="h-full w-full rounded-lg object-cover"
+              src={fallbackImage}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex grow justify-between items-center">

@@ -1,6 +1,8 @@
 import type { Product } from '@/payload-types'
 import type { Where } from 'payload'
 
+export const QUOTE_PRODUCT_PLACEHOLDER_SRC = '/images/thumbnail-placeholder.png'
+
 const quoteSourceFilter: Where = {
   or: [
     {
@@ -64,3 +66,7 @@ export const publicStorefrontProductsWhere = ({
 }
 
 export const isPublicStorefrontProduct = (product: Product): boolean => !product.quote
+
+export const getProductFallbackImage = (product: Partial<Product>): string | null => {
+  return product.quote ? QUOTE_PRODUCT_PLACEHOLDER_SRC : null
+}

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { ProductsCollection } from '@/collections/Products'
-import { isPublicStorefrontProduct, publicStorefrontProductsWhere } from '@/utilities/products'
+import {
+  QUOTE_PRODUCT_PLACEHOLDER_SRC,
+  getProductFallbackImage,
+  isPublicStorefrontProduct,
+  publicStorefrontProductsWhere,
+} from '@/utilities/products'
 import type { Product } from '@/payload-types'
 
 describe('product storefront visibility', () => {
@@ -94,6 +99,13 @@ describe('product storefront visibility', () => {
     expect(isPublicStorefrontProduct({ id: 1, title: 'PLA spool' } as Product)).toBe(true)
     expect(isPublicStorefrontProduct({ id: 2, quote: 42, title: 'Custom print' } as Product)).toBe(
       false,
+    )
+  })
+
+  it('uses the quote placeholder as the fallback image for quote-sourced products only', () => {
+    expect(getProductFallbackImage({ id: 1, title: 'PLA spool' } as Product)).toBeNull()
+    expect(getProductFallbackImage({ id: 2, quote: 42, title: 'Custom print' } as Product)).toBe(
+      QUOTE_PRODUCT_PLACEHOLDER_SRC,
     )
   })
 })
