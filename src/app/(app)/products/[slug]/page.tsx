@@ -5,6 +5,7 @@ import { GridTileImage } from '@/components/Grid/tile'
 import { Gallery } from '@/components/product/Gallery'
 import { ProductDescription } from '@/components/product/ProductDescription'
 import { getDefaultCurrencyCode, getDefaultPriceField } from '@/utilities/currency'
+import { getProductFallbackImage, isPublicStorefrontProduct } from '@/utilities/products'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -115,7 +116,11 @@ export default async function ProductPage({ params }: Args) {
   }
 
   const relatedProducts =
-    product.relatedProducts?.filter((relatedProduct) => typeof relatedProduct === 'object') ?? []
+    product.relatedProducts?.filter(
+      (relatedProduct): relatedProduct is Product =>
+        typeof relatedProduct === 'object' && isPublicStorefrontProduct(relatedProduct),
+    ) ?? []
+  const fallbackImage = getProductFallbackImage(product)
 
   return (
     <React.Fragment>
@@ -139,7 +144,18 @@ export default async function ProductPage({ params }: Args) {
                 <div className="relative aspect-square h-full max-h-[550px] w-full overflow-hidden" />
               }
             >
-              {Boolean(gallery?.length) && <Gallery gallery={gallery} />}
+              {gallery?.length ? (
+                <Gallery gallery={gallery} />
+              ) : fallbackImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt={product.title}
+                  className="aspect-square h-full max-h-[550px] w-full rounded-lg border bg-background object-cover"
+                  src={fallbackImage}
+                />
+              ) : (
+                <div className="relative aspect-square h-full max-h-[550px] w-full overflow-hidden rounded-lg border bg-background" />
+              )}
             </Suspense>
           </div>
 

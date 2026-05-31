@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { QuoteDetailsWorkspace, shouldAutoRefreshQuote } from '@/components/QuoteDetailsWorkspace'
 
 const refresh = vi.fn()
+const ecommerceMocks = vi.hoisted(() => ({
+  addItem: vi.fn(async () => {}),
+}))
 
 afterEach(() => {
   cleanup()
@@ -25,6 +28,10 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@payloadcms/plugin-ecommerce/client/react', () => ({
+  useCart: () => ({
+    addItem: ecommerceMocks.addItem,
+    isLoading: false,
+  }),
   useCurrency: () => ({
     formatCurrency: (amount: number) => `$${amount.toFixed(2)}`,
     supportedCurrencies: [{ code: 'USD' }],
@@ -199,6 +206,10 @@ describe('shouldAutoRefreshQuote', () => {
 })
 
 describe('QuoteDetailsWorkspace material availability', () => {
+  beforeEach(() => {
+    ecommerceMocks.addItem.mockClear()
+  })
+
   it('shows refresh copy for unsliced line items that need a new estimate', () => {
     render(
       <QuoteDetailsWorkspace
@@ -264,6 +275,39 @@ describe('QuoteDetailsWorkspace material availability', () => {
     )
 
     expect(screen.getByText('Estimate in progress')).toBeTruthy()
+  })
+
+  it('keeps quote-linked products addable from the quote page', async () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        editable={false}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: 3600,
+            gcodePrice: 12,
+            gcodeStatus: 'sliced',
+            gcodeWeight: 25,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            productID: 99,
+            quantity: 2,
+            spoolId: '100',
+          },
+        ]}
+        quoteStatus="approved"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /add quote item to cart/i }))
+
+    expect(ecommerceMocks.addItem).toHaveBeenCalledWith({ product: 99 }, 2)
   })
 
   it('shows all active materials in the material step', () => {

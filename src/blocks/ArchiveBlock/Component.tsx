@@ -4,6 +4,7 @@ import configPromise from '@payload-config'
 import { DefaultDocumentIDType, getPayload } from 'payload'
 import React from 'react'
 import { RichText } from '@/components/RichText'
+import { isPublicStorefrontProduct, publicStorefrontProductsWhere } from '@/utilities/products'
 
 import { CollectionArchive } from '@/components/CollectionArchive'
 
@@ -31,25 +32,33 @@ export const ArchiveBlock: React.FC<
       collection: 'products',
       depth: 1,
       limit,
-      ...(flattenedCategories && flattenedCategories.length > 0
-        ? {
-            where: {
-              categories: {
-                in: flattenedCategories,
-              },
-            },
-          }
-        : {}),
+      where: {
+        and: [
+          publicStorefrontProductsWhere(),
+          ...(flattenedCategories && flattenedCategories.length > 0
+            ? [
+                {
+                  categories: {
+                    in: flattenedCategories,
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
     })
 
     posts = fetchedProducts.docs
   } else {
     if (selectedDocs?.length) {
-      const filteredSelectedPosts = selectedDocs.map((post) => {
-        if (typeof post.value === 'object') return post.value
-      }) as Product[]
-
-      posts = filteredSelectedPosts
+      posts = selectedDocs
+        .map((post) => {
+          if (typeof post.value === 'object') return post.value
+        })
+        .filter(
+          (product): product is Product =>
+            typeof product === 'object' && product !== null && isPublicStorefrontProduct(product),
+        )
     }
   }
 

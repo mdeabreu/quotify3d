@@ -34,6 +34,7 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
     gallery: true,
     inventory: true,
     meta: true,
+    quote: true,
   } as Record<string, unknown>
 
   defaultPopulate[defaultPriceField] = true

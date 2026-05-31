@@ -2,6 +2,7 @@ import type { Media, Product, ThreeItemGridBlock as ThreeItemGridBlockProps, Var
 
 import { GridTileImage } from '@/components/Grid/tile'
 import { getDefaultPriceField } from '@/utilities/currency'
+import { isPublicStorefrontProduct } from '@/utilities/products'
 import Link from 'next/link'
 import React from 'react'
 import type { DefaultDocumentIDType } from 'payload'
@@ -56,12 +57,18 @@ export const ThreeItemGridBlock: React.FC<
   if (!products || !products[0] || !products[1] || !products[2]) return null
 
   const [firstProduct, secondProduct, thirdProduct] = products
+  const publicProducts = [firstProduct, secondProduct, thirdProduct].filter(
+    (product): product is Product =>
+      typeof product === 'object' && product !== null && isPublicStorefrontProduct(product),
+  )
+
+  if (publicProducts.length < 3) return null
 
   return (
     <section className="container grid gap-4 pb-4 md:grid-cols-6 md:grid-rows-2">
-      <ThreeItemGridItem item={firstProduct as Product} priority size="full" />
-      <ThreeItemGridItem item={secondProduct as Product} priority size="half" />
-      <ThreeItemGridItem item={thirdProduct as Product} size="half" />
+      <ThreeItemGridItem item={publicProducts[0]} priority size="full" />
+      <ThreeItemGridItem item={publicProducts[1]} priority size="half" />
+      <ThreeItemGridItem item={publicProducts[2]} size="half" />
     </section>
   )
 }

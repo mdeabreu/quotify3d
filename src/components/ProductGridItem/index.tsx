@@ -4,6 +4,7 @@ import type { Product, Variant } from '@/payload-types'
 
 import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
+import { getProductFallbackImage } from '@/utilities/products'
 import { useCurrency } from '@payloadcms/plugin-ecommerce/client/react'
 import clsx from 'clsx'
 import Link from 'next/link'
@@ -38,24 +39,34 @@ export const ProductGridItem: React.FC<Props> = ({ product }) => {
   }
 
   const image =
-    product.gallery?.[0]?.image && typeof product.gallery[0]?.image !== 'string'
+    product.gallery?.[0]?.image && typeof product.gallery[0]?.image === 'object'
       ? product.gallery[0]?.image
       : false
+  const fallbackImage = getProductFallbackImage(product)
 
   return (
     <Link className="relative inline-block h-full w-full group" href={`/products/${product.slug}`}>
-      {image ? (
-        <Media
-          className={clsx(
-            'relative aspect-square object-cover border rounded-2xl p-8 bg-primary-foreground',
-          )}
-          height={80}
-          imgClassName={clsx('h-full w-full object-cover rounded-2xl', {
-            'transition duration-300 ease-in-out group-hover:scale-102': true,
-          })}
-          resource={image}
-          width={80}
-        />
+      {image || fallbackImage ? (
+        <div className="relative aspect-square overflow-hidden rounded-2xl border bg-primary-foreground p-8">
+          {image ? (
+            <Media
+              className="relative h-full w-full object-cover"
+              height={80}
+              imgClassName={clsx('h-full w-full object-cover rounded-2xl', {
+                'transition duration-300 ease-in-out group-hover:scale-102': true,
+              })}
+              resource={image}
+              width={80}
+            />
+          ) : fallbackImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt={product.title || ''}
+              className="h-full w-full rounded-2xl object-cover"
+              src={fallbackImage}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       <div className="font-mono text-primary/50 group-hover:text-primary flex justify-between items-center mt-4">
