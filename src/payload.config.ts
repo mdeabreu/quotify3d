@@ -267,7 +267,6 @@ export default buildConfig({
       {
         slug: 'sliceGcode',
         queue: 'slicing',
-        retries: 5,
         inputSchema: [
           {
             name: 'gcodeId',
