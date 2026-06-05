@@ -64,39 +64,44 @@ type FilamentSelectionOption = {
     vendor: string
 }
 
-const FILAMENT_CLI_DEFAULTS: Record<string, string[]> = {
-    filament_extruder_variant: ['Direct Drive Standard'],
-    filament_retraction_length: ['nil'],
-    filament_z_hop: ['nil'],
-    filament_z_hop_types: ['nil'],
-    filament_retract_lift_above: ['nil'],
-    filament_retract_lift_below: ['nil'],
-    filament_retract_lift_enforce: ['nil'],
-    filament_retract_restart_extra: ['nil'],
-    filament_retraction_speed: ['nil'],
-    filament_deretraction_speed: ['nil'],
-    filament_retraction_minimum_travel: ['nil'],
-    filament_retract_when_changing_layer: ['nil'],
-    filament_wipe: ['nil'],
-    filament_wipe_distance: ['nil'],
-    filament_retract_before_wipe: ['nil'],
-    filament_long_retractions_when_cut: ['nil'],
-    filament_retraction_distances_when_cut: ['nil'],
-    long_retractions_when_ec: ['0'],
-    retraction_distances_when_ec: ['10'],
-    filament_flush_volumetric_speed: ['0'],
-    filament_flush_temp: ['0'],
-    volumetric_speed_coefficients: [''],
-    filament_adaptive_volumetric_speed: ['0'],
-    filament_ironing_flow: ['nil'],
-    filament_ironing_spacing: ['nil'],
-    filament_ironing_inset: ['nil'],
-    filament_ironing_speed: ['nil'],
-    activate_air_filtration: ['0'],
-    activate_air_filtration_during_print: ['1'],
-    activate_air_filtration_on_completion: ['1'],
-    during_print_exhaust_fan_speed: ['60'],
-    complete_print_exhaust_fan_speed: ['80'],
+const CLI_DEFAULTS_BY_TYPE: Partial<Record<OrcaConfigType, Record<string, unknown>>> = {
+    filament: {
+        filament_extruder_variant: ['Direct Drive Standard'],
+        filament_retraction_length: ['nil'],
+        filament_z_hop: ['nil'],
+        filament_z_hop_types: ['nil'],
+        filament_retract_lift_above: ['nil'],
+        filament_retract_lift_below: ['nil'],
+        filament_retract_lift_enforce: ['nil'],
+        filament_retract_restart_extra: ['nil'],
+        filament_retraction_speed: ['nil'],
+        filament_deretraction_speed: ['nil'],
+        filament_retraction_minimum_travel: ['nil'],
+        filament_retract_when_changing_layer: ['nil'],
+        filament_wipe: ['nil'],
+        filament_wipe_distance: ['nil'],
+        filament_retract_before_wipe: ['nil'],
+        filament_long_retractions_when_cut: ['nil'],
+        filament_retraction_distances_when_cut: ['nil'],
+        long_retractions_when_ec: ['0'],
+        retraction_distances_when_ec: ['10'],
+        filament_flush_volumetric_speed: ['0'],
+        filament_flush_temp: ['0'],
+        volumetric_speed_coefficients: [''],
+        filament_adaptive_volumetric_speed: ['0'],
+        filament_ironing_flow: ['nil'],
+        filament_ironing_spacing: ['nil'],
+        filament_ironing_inset: ['nil'],
+        filament_ironing_speed: ['nil'],
+        activate_air_filtration: ['0'],
+        activate_air_filtration_during_print: ['1'],
+        activate_air_filtration_on_completion: ['1'],
+        during_print_exhaust_fan_speed: ['60'],
+        complete_print_exhaust_fan_speed: ['80'],
+    },
+    process: {
+        raft_first_layer_expansion: '2',
+    },
 }
 
 export function printHelp(): void {
@@ -500,9 +505,12 @@ function applyCliDefaults(
     type: OrcaConfigType,
     applyMissingCliDefaults: boolean,
 ): Record<string, unknown> {
-    if (!applyMissingCliDefaults || type !== 'filament') return configContents
+    if (!applyMissingCliDefaults) return configContents
 
-    for (const [key, value] of Object.entries(FILAMENT_CLI_DEFAULTS)) {
+    const defaults = CLI_DEFAULTS_BY_TYPE[type]
+    if (!defaults) return configContents
+
+    for (const [key, value] of Object.entries(defaults)) {
         if (configContents[key] === undefined) {
             configContents[key] = value
         }
@@ -1051,11 +1059,11 @@ async function shouldMarkCatalogItemsActive(): Promise<boolean | undefined> {
 }
 
 async function shouldApplyMissingCliDefaults(configs: ConfigType[]): Promise<boolean | undefined> {
-    const hasFilaments = configs.some((config) => config.type === 'filament')
-    if (!hasFilaments) return false
+    const hasSupportedDefaults = configs.some((config) => config.type in CLI_DEFAULTS_BY_TYPE)
+    if (!hasSupportedDefaults) return false
 
     const result = await p.confirm({
-        message: 'Apply Orca CLI fallback defaults for missing filament keys?',
+        message: 'Apply Orca CLI fallback defaults for missing config keys?',
         initialValue: true,
     })
 
