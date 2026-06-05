@@ -234,12 +234,15 @@ export const sliceModel = async ({
 
   const args = [
     '--info',
+    /*
     '--arrange',
     '1',
     '--orient',
     '1',
     '--slice',
     '0',
+    '--ensure-on-bed',
+    */
     '--allow-newer-file',
     '--load-filaments',
     filamentConfigPath,
