@@ -6,6 +6,7 @@ import { adminOnly } from '@/access/adminOnly'
 import { gcodeStatusOptions } from '@/collections/constants/gcodeStatusOptions'
 import { queueSliceWorkflow } from '@/collections/Gcodes/hooks/queueSliceWorkflow'
 import { sendGcodeSlicingFailedAdminEmail } from '@/collections/Gcodes/hooks/sendGcodeSlicingFailedAdminEmail'
+import { recalculatePriceOverrideFromMetricOverrides } from '@/collections/Gcodes/hooks/recalculatePriceOverrideFromMetricOverrides'
 import { syncOwningQuote } from '@/collections/Gcodes/hooks/syncOwningQuote'
 import { currenciesConfig } from '@/config/currencies'
 
@@ -256,6 +257,7 @@ export const Gcodes: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeChange: [recalculatePriceOverrideFromMetricOverrides],
     afterChange: [queueSliceWorkflow, sendGcodeSlicingFailedAdminEmail, syncOwningQuote],
   },
 }
