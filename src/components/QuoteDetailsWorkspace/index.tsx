@@ -651,6 +651,17 @@ export const QuoteDetailsWorkspace = ({
         </div>
       )}
 
+      {editable && hasFailedItems ? (
+        <div className="rounded-md border bg-background px-4 py-3 text-sm text-primary/70">
+          <p className="font-medium text-primary">Some files need manual review</p>
+          <p className="mt-1">
+            The instant quote may not be accurate for models that could not be sliced
+            automatically. Send this quote for review and we will calculate the correct price for
+            those files.
+          </p>
+        </div>
+      ) : null}
+
       {editable ? (
         <div className="flex flex-wrap justify-end gap-3 border-t pt-4">
           {shouldAutoRefresh ? (
