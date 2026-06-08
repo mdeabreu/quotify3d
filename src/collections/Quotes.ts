@@ -1,9 +1,11 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, FieldAccess } from 'payload'
 
 import { amountField, currencyField } from '@payloadcms/plugin-ecommerce'
 
+import { adminOnlyFieldAccess } from '@/access/adminOnlyFieldAccess'
 import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
 import { publicAccess } from '@/access/publicAccess'
+import { checkRole } from '@/access/utilities'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
@@ -15,6 +17,12 @@ import { sendQuoteReadyForReviewAdminEmail } from '@/collections/Quotes/hooks/se
 import { syncOwnedGcodesForQuote } from '@/collections/Quotes/hooks/syncOwnedGcodesForQuote'
 import { currenciesConfig } from '@/config/currencies'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
+
+export const adminNotesReadAccess: FieldAccess = ({ doc, req: { user } }) => {
+  if (checkRole(['admin'], user)) return true
+
+  return doc?.status === 'approved'
+}
 
 export const Quotes: CollectionConfig = {
   slug: 'quotes',
@@ -120,6 +128,24 @@ export const Quotes: CollectionConfig = {
               admin: {
                 description:
                   'Optional requirements, deadlines, or context provided by the requester.',
+              },
+            },
+          ],
+        },
+        {
+          label: 'Admin response',
+          fields: [
+            {
+              name: 'adminNotes',
+              type: 'textarea',
+              access: {
+                create: adminOnlyFieldAccess,
+                read: adminNotesReadAccess,
+                update: adminOnlyFieldAccess,
+              },
+              admin: {
+                description:
+                  'Optional customer-facing notes shown on approved quotes, such as pricing changes or printability context.',
               },
             },
           ],

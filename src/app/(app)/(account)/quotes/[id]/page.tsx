@@ -7,6 +7,7 @@ import { AddAllQuoteItemsToCartButton } from '@/components/QuoteActions/AddAllQu
 import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
+import { getVisibleAdminNotes } from '@/utilities/quotes/getVisibleAdminNotes'
 import { buildAvailableSpoolOptions, uniqueOptions } from '@/lib/spoolAvailability'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
@@ -223,6 +224,7 @@ const findAccessibleQuote = async ({
       createdAt: true,
       updatedAt: true,
       notes: true,
+      adminNotes: true,
     },
   })
 
@@ -276,6 +278,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
   const editable = isEditableQuoteStatus(quote.status)
   const readOnlyMessage = !editable ? getReadOnlyQuoteMessage(quote.status) : null
+  const visibleAdminNotes = getVisibleAdminNotes(quote)
 
   const optionQuery = {
     depth: 1,
@@ -855,6 +858,13 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           <div>
             <h2 className="mb-4 text-sm font-mono uppercase text-primary/50">Notes</h2>
             <p className="whitespace-pre-wrap">{quote.notes}</p>
+          </div>
+        ) : null}
+
+        {visibleAdminNotes ? (
+          <div>
+            <h2 className="mb-4 text-sm font-mono uppercase text-primary/50">Admin notes</h2>
+            <p className="whitespace-pre-wrap">{visibleAdminNotes}</p>
           </div>
         ) : null}
       </div>
