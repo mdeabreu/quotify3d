@@ -59,9 +59,9 @@ export function CartModal() {
             <p className="text-center text-2xl font-bold">Your cart is empty.</p>
           </div>
         ) : (
-          <div className="grow flex px-4">
-            <div className="flex flex-col justify-between w-full">
-              <ul className="grow overflow-auto py-4">
+          <div className="flex min-h-0 grow px-4">
+            <div className="flex min-h-0 w-full flex-col justify-between">
+              <ul className="min-h-0 flex-1 overflow-y-auto py-4" data-testid="cart-items">
                 {cart?.items?.map((item, i) => {
                   const product = item.product
                   const variant = item.variant
@@ -181,7 +181,7 @@ export function CartModal() {
                 })}
               </ul>
 
-              <div className="px-4">
+              <div className="shrink-0 px-4">
                 <div className="py-4 text-sm text-neutral-500 dark:text-neutral-400">
                   {typeof cart?.subtotal === 'number' && (
                     <div className="mb-3 flex items-center justify-between border-b border-neutral-200 pb-1 pt-1 dark:border-neutral-700">

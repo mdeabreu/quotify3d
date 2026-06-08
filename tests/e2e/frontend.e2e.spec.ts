@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test'
+import { expect, Page, test, type APIRequestContext } from '@playwright/test'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -109,6 +109,52 @@ test.describe.skip('Frontend', () => {
 
     const productInCart = page.getByRole('dialog').getByText('Test Product')
     await expect(productInCart).toBeVisible()
+  })
+
+  test('keeps checkout visible when the cart has many items', async ({ page, request }) => {
+    await request.post(`${baseURL}/api/users/login`, {
+      data: {
+        email: adminEmail,
+        password: adminPassword,
+      },
+    })
+
+    await page.setViewportSize({ width: 390, height: 520 })
+
+    const products = await createOverflowProducts(request, 10)
+
+    for (const product of products) {
+      await page.goto(`${baseURL}/products/${product.slug}`)
+      const addToCartButton = page.getByRole('button', { name: 'Add to Cart' })
+      await expect(addToCartButton).toBeVisible()
+      await addToCartButton.click()
+    }
+
+    const cartCount = page.locator('button[data-slot="sheet-trigger"] span').last()
+    await expect(cartCount).toHaveText(String(products.length))
+    await cartCount.click()
+
+    const dialog = page.getByRole('dialog')
+    const cartItems = page.getByTestId('cart-items')
+    const checkoutLink = page.getByRole('link', { name: 'Proceed to Checkout' })
+
+    await expect(checkoutLink).toBeVisible()
+    await checkoutLink.click({ trial: true })
+
+    await expect
+      .poll(async () =>
+        cartItems.evaluate((element) => element.scrollHeight > element.clientHeight),
+      )
+      .toBe(true)
+
+    const dialogBox = await dialog.boundingBox()
+    const checkoutBox = await checkoutLink.boundingBox()
+
+    expect(dialogBox).not.toBeNull()
+    expect(checkoutBox).not.toBeNull()
+    expect(dialogBox!.y).toBeGreaterThanOrEqual(0)
+    expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(520)
+    expect(checkoutBox!.y + checkoutBox!.height).toBeLessThanOrEqual(520)
   })
 
   test('can view and sort via search page', async ({ page }) => {
@@ -521,6 +567,32 @@ test.describe.skip('Frontend', () => {
         priceInUSD: 1000,
       },
     })
+  }
+
+  async function createOverflowProducts(request: APIRequestContext, count: number) {
+    const runID = Date.now()
+
+    return Promise.all(
+      Array.from({ length: count }, async (_, index) => {
+        const title = `Overflow Cart Product ${runID}-${index + 1}`
+        const slug = `overflow-cart-product-${runID}-${index + 1}`
+        const response = await request.post(`${baseURL}/api/products`, {
+          data: {
+            title,
+            slug,
+            inventory: 100,
+            _status: 'published',
+            layout: [],
+            priceInUSDEnabled: true,
+            priceInUSD: 1000,
+          },
+        })
+
+        expect(response.ok()).toBe(true)
+
+        return { slug, title }
+      }),
+    )
   }
 
   async function logoutAndExpectSuccess(page: Page) {
