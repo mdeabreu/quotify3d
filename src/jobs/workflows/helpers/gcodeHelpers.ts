@@ -14,6 +14,30 @@ const ORCA_BINARY = '/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer'
 const FILAMENT_REGEX = /; filament used \[g\]\s*=\s*([^\r\n]+)/i
 const DURATION_LINE_REGEX = /; total estimated time:\s*([^\r\n]+)/i
 const DURATION_TOKEN_REGEX = /(\d+)\s*([hms])/gi
+const SLICER_ATTEMPT_OUTPUT_MAX_LENGTH = 2000
+
+type SlicerAttempt = {
+  label: string
+  repairArgs: string[]
+}
+
+type FailedSlicerAttempt = {
+  label: string
+  commandString: string
+  message: string
+  output?: string
+}
+
+const SLICER_ATTEMPTS: SlicerAttempt[] = [
+  { label: 'as-uploaded', repairArgs: [] },
+  { label: 'ensure-on-bed', repairArgs: ['--ensure-on-bed'] },
+  { label: 'arrange', repairArgs: ['--ensure-on-bed', '--arrange', '1'] },
+  { label: 'orient', repairArgs: ['--ensure-on-bed', '--orient', '1'] },
+  {
+    label: 'full-auto-repair',
+    repairArgs: ['--ensure-on-bed', '--arrange', '1', '--orient', '1'],
+  },
+]
 
 const isObject = (value: unknown): value is JSONObject => {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
@@ -24,6 +48,76 @@ const writeConfigFile = async (dir: string, filename: string, payload: JSONObjec
   const fullPath = path.join(dir, filename)
   await fs.writeFile(fullPath, JSON.stringify(payload, null, 2), 'utf-8')
   return fullPath
+}
+
+const getSlicerOutput = (stdout?: string | Buffer | null, stderr?: string | Buffer | null) => {
+  return [stdout, stderr]
+    .filter((output): output is string | Buffer => Boolean(output))
+    .map((output) => output.toString())
+    .join('\n')
+    .trim()
+}
+
+const truncateSlicerOutput = (output?: string) => {
+  if (!output) return undefined
+  if (output.length <= SLICER_ATTEMPT_OUTPUT_MAX_LENGTH) return output
+
+  return `${output.slice(0, SLICER_ATTEMPT_OUTPUT_MAX_LENGTH)}...`
+}
+
+const formatSlicerCommand = (args: string[]) => {
+  return [ORCA_BINARY, ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ')
+}
+
+const buildSlicerArgs = ({
+  attempt,
+  modelPath,
+  outputDir,
+  filamentConfigPath,
+  processConfigPath,
+  machineConfigPath,
+}: {
+  attempt: SlicerAttempt
+  modelPath: string
+  outputDir: string
+  filamentConfigPath: string
+  processConfigPath: string
+  machineConfigPath: string
+}) => {
+  return [
+    '--info',
+    ...attempt.repairArgs,
+    '--slice',
+    '0',
+    '--allow-newer-file',
+    '--load-filaments',
+    filamentConfigPath,
+    '--load-settings',
+    processConfigPath,
+    '--load-settings',
+    machineConfigPath,
+    '--outputdir',
+    outputDir,
+    modelPath,
+  ]
+}
+
+const formatFailedSlicerAttempts = (attempts: FailedSlicerAttempt[]) => {
+  return attempts
+    .map((attempt, index) => {
+      const parts = [
+        `${index + 1}. ${attempt.label}`,
+        `Command: ${attempt.commandString}`,
+        `Error: ${attempt.message}`,
+      ]
+
+      if (attempt.output) {
+        parts.push(`Output: ${attempt.output}`)
+      }
+
+      return parts.join('\n')
+    })
+    .join('\n\n')
 }
 
 export const cleanSlicingWorkspace = async (gcodeId: string | number) => {
@@ -230,59 +324,70 @@ export const sliceModel = async ({
   processConfigPath: string
   machineConfigPath: string
 }) => {
-  await fs.mkdir(outputDir, { recursive: true })
+  const failedAttempts: FailedSlicerAttempt[] = []
 
-  const args = [
-    '--info',
-    '--arrange',
-    '1',
-    '--orient',
-    '1',
-    '--slice',
-    '0',
-    '--allow-newer-file',
-    '--load-filaments',
-    filamentConfigPath,
-    '--load-settings',
-    `${processConfigPath}`,
-    '--load-settings',
-    `${machineConfigPath}`,
-    '--outputdir',
-    outputDir,
-    modelPath,
-  ]
+  for (const attempt of SLICER_ATTEMPTS) {
+    console.info(`[sliceModel] Trying OrcaSlicer attempt: ${attempt.label}`)
 
-  const commandString = [
-    ORCA_BINARY,
-    ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)),
-  ].join(' ')
+    await fs.rm(outputDir, { recursive: true, force: true })
+    await fs.mkdir(outputDir, { recursive: true })
 
-  let slicerOutput = ''
-  try {
-    const { stdout, stderr } = await execFileAsync(ORCA_BINARY, args, {
-      maxBuffer: 10 * 1024 * 1024,
+    const args = buildSlicerArgs({
+      attempt,
+      modelPath,
+      outputDir,
+      filamentConfigPath,
+      processConfigPath,
+      machineConfigPath,
     })
-    slicerOutput = [stdout, stderr].filter(Boolean).join('\n').trim()
-  } catch (error) {
-    const err = error as Error & { stdout?: string; stderr?: string }
-    const combinedOutput = [err.stdout, err.stderr].filter(Boolean).join('\n').trim()
-    const message = combinedOutput ? `${err.message} | Output: ${combinedOutput}` : err.message
-    throw new Error(`sliceModel: failed to execute OrcaSlicer: ${message}`)
+    const commandString = formatSlicerCommand(args)
+
+    let slicerOutput = ''
+    try {
+      const { stdout, stderr } = await execFileAsync(ORCA_BINARY, args, {
+        maxBuffer: 10 * 1024 * 1024,
+      })
+      slicerOutput = getSlicerOutput(stdout, stderr)
+    } catch (error) {
+      const err = error as Error & { stdout?: string | Buffer; stderr?: string | Buffer }
+      failedAttempts.push({
+        label: attempt.label,
+        commandString,
+        message: err.message,
+        output: truncateSlicerOutput(getSlicerOutput(err.stdout, err.stderr)),
+      })
+      console.warn(`[sliceModel] OrcaSlicer attempt failed: ${attempt.label}`)
+      continue
+    }
+
+    const files = await fs.readdir(outputDir)
+    const gcodeFiles = files.filter((file) => file.toLowerCase().endsWith('.gcode'))
+    if (gcodeFiles.length === 0) {
+      failedAttempts.push({
+        label: attempt.label,
+        commandString,
+        message: 'Sliced G-code not found in output directory',
+        output: truncateSlicerOutput(slicerOutput),
+      })
+      console.warn(`[sliceModel] OrcaSlicer attempt produced no G-code: ${attempt.label}`)
+      continue
+    }
+
+    const slicedGcodePaths = gcodeFiles.map((file) => path.join(outputDir, file))
+    console.info(
+      `[sliceModel] OrcaSlicer attempt succeeded: ${attempt.label} (${slicedGcodePaths.length} file${slicedGcodePaths.length === 1 ? '' : 's'})`,
+    )
+
+    return {
+      slicerOutput,
+      gcodePaths: slicedGcodePaths,
+      commandString,
+    }
   }
 
-  const files = await fs.readdir(outputDir)
-  const gcodeFiles = files.filter((file) => file.toLowerCase().endsWith('.gcode'))
-  if (gcodeFiles.length === 0) {
-    throw new Error('sliceModel: sliced G-code not found in output directory')
-  }
-
-  const slicedGcodePaths = gcodeFiles.map((file) => path.join(outputDir, file))
-
-  return {
-    slicerOutput,
-    gcodePaths: slicedGcodePaths,
-    commandString,
-  }
+  throw new Error(
+    `sliceModel: all OrcaSlicer attempts failed\n\n${formatFailedSlicerAttempts(failedAttempts)}`,
+  )
 }
 
 export const parseGcodeOutputs = async (gcodePaths: string[]) => {

@@ -111,6 +111,23 @@ const spoolOptions = [
   },
 ]
 
+const failedItem = {
+  colourId: '10',
+  colourLabel: 'Red',
+  filamentId: '1',
+  filamentLabel: 'PLA',
+  gcodeDuration: null,
+  gcodePrice: null,
+  gcodeStatus: 'failed',
+  gcodeWeight: null,
+  id: 'item-1',
+  modelLabel: 'benchy.stl',
+  processId: '20',
+  processLabel: 'Standard',
+  quantity: 1,
+  spoolId: '100',
+}
+
 describe('QuoteDetailsWorkspace auto refresh', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -202,6 +219,38 @@ describe('shouldAutoRefreshQuote', () => {
         quoteStatus: 'queued',
       }),
     ).toBe(false)
+  })
+})
+
+describe('QuoteDetailsWorkspace failed slice notice', () => {
+  it('shows manual-review guidance for editable quotes with failed items', () => {
+    render(<QuoteDetailsWorkspace {...baseProps} hasFailedItems items={[failedItem]} />)
+
+    expect(screen.getByText('Some files need manual review')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'The instant quote may not be accurate for models that could not be sliced automatically. Send this quote for review and we will calculate the correct price for those files.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('does not show manual-review guidance when there are no failed items', () => {
+    render(<QuoteDetailsWorkspace {...baseProps} />)
+
+    expect(screen.queryByText('Some files need manual review')).toBeNull()
+  })
+
+  it('does not show manual-review guidance for non-editable quotes', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        editable={false}
+        hasFailedItems
+        items={[failedItem]}
+      />,
+    )
+
+    expect(screen.queryByText('Some files need manual review')).toBeNull()
   })
 })
 

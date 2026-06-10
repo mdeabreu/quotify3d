@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 type LogSentEmailArgs = {
   emailType: string
+  gcodeID?: number | string
   logger: Payload['logger']
   orderID?: number | string
   quoteID?: number | string
@@ -34,6 +35,7 @@ export const getLoggedEmailURL = (url: string) => {
 
 export const logSentEmail = ({
   emailType,
+  gcodeID,
   logger,
   orderID,
   quoteID,
@@ -42,6 +44,7 @@ export const logSentEmail = ({
 }: LogSentEmailArgs) => {
   logger.info({
     emailType,
+    gcodeID,
     msg: 'Sent email',
     orderID,
     quoteID,
