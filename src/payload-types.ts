@@ -1010,6 +1010,10 @@ export interface Quote {
    * Optional requirements, deadlines, or context provided by the requester.
    */
   notes?: string | null;
+  /**
+   * Optional customer-facing notes shown on approved quotes, such as pricing changes or printability context.
+   */
+  adminNotes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2145,6 +2149,7 @@ export interface QuotesSelect<T extends boolean = true> {
         id?: T;
       };
   notes?: T;
+  adminNotes?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -2,7 +2,11 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { QuoteDetailsWorkspace, shouldAutoRefreshQuote } from '@/components/QuoteDetailsWorkspace'
+import {
+  QuoteCustomerNotesForm,
+  QuoteDetailsWorkspace,
+  shouldAutoRefreshQuote,
+} from '@/components/QuoteDetailsWorkspace'
 
 const refresh = vi.fn()
 const ecommerceMocks = vi.hoisted(() => ({
@@ -471,5 +475,23 @@ describe('QuoteDetailsWorkspace material availability', () => {
     fireEvent.click(screen.getByRole('button', { name: /Black/ }))
 
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(false)
+  })
+})
+
+describe('QuoteCustomerNotesForm', () => {
+  it('shows an editable customer note field with the current note', () => {
+    render(
+      <QuoteCustomerNotesForm
+        quoteID={42}
+        quoteNotes="Please print this extra sturdy."
+        saveNotesAction={async () => {}}
+      />,
+    )
+
+    const notes = screen.getByLabelText('Notes for our team') as HTMLTextAreaElement
+
+    expect(notes).toBeTruthy()
+    expect(notes.value).toBe('Please print this extra sturdy.')
+    expect(screen.getByRole('button', { name: 'Save note' })).toBeTruthy()
   })
 })
