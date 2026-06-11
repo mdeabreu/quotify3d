@@ -12,6 +12,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { findSpoolForPair, uniqueOptions, type AvailableSpoolOption } from '@/lib/spoolAvailability'
 import { cn } from '@/utilities/cn'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
@@ -417,6 +419,47 @@ const QuoteItemEditorDialog = ({
     </Dialog>
   )
 }
+
+export const QuoteCustomerNotesForm = ({
+  accessToken = '',
+  email = '',
+  quoteID,
+  quoteNotes,
+  saveNotesAction,
+}: {
+  accessToken?: string
+  email?: string
+  quoteID: number
+  quoteNotes?: string | null
+  saveNotesAction: (formData: FormData) => void | Promise<void>
+}) => (
+  <form action={saveNotesAction} className="rounded-xl border bg-card p-4">
+    <input name="quoteID" type="hidden" value={quoteID} />
+    {email ? <input name="email" type="hidden" value={email} /> : null}
+    {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
+
+    <div className="space-y-3">
+      <div>
+        <Label htmlFor="quote-notes">Notes for our team</Label>
+        <p className="mt-1 text-sm text-primary/60">
+          Add requirements, deadlines, or anything else we should know before review.
+        </p>
+      </div>
+      <Textarea
+        defaultValue={quoteNotes ?? ''}
+        id="quote-notes"
+        name="notes"
+        placeholder="Tell us anything that would help with this quote."
+        rows={4}
+      />
+      <div className="flex justify-end">
+        <Button size="sm" type="submit" variant="outline">
+          Save note
+        </Button>
+      </div>
+    </div>
+  </form>
+)
 
 export const QuoteDetailsWorkspace = ({
   addModelsAction,

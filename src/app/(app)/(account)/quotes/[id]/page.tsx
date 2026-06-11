@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import type { Quote, QuoteStatus } from '@/payload-types'
 
-import { QuoteDetailsWorkspace } from '@/components/QuoteDetailsWorkspace'
+import { QuoteCustomerNotesForm, QuoteDetailsWorkspace } from '@/components/QuoteDetailsWorkspace'
 import { Price } from '@/components/Price'
 import { AddAllQuoteItemsToCartButton } from '@/components/QuoteActions/AddAllQuoteItemsToCartButton'
 import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
@@ -600,6 +600,56 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
     redirect(getQuotePath(quoteID, customerEmail, accessToken))
   }
 
+  const saveNotesAction = async (formData: FormData) => {
+    'use server'
+
+    const payload = await getPayload({ config: configPromise })
+    const headers = await getHeaders()
+    const { user } = await payload.auth({ headers })
+
+    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
+    const customerEmail = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
+    const accessToken = String(formData.get('accessToken') ?? '').trim()
+    const notes = String(formData.get('notes') ?? '').trim()
+
+    if (!Number.isInteger(quoteID) || quoteID < 1) return
+
+    const accessibleQuote = await findAccessibleQuote({
+      accessToken,
+      customerEmail,
+      payloadInstance: payload,
+      quoteID,
+      quoteUser: user,
+    })
+
+    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
+
+    const data = {
+      notes: notes.length > 0 ? notes : null,
+    }
+
+    if (user) {
+      await payload.update({
+        collection: 'quotes',
+        id: quoteID,
+        user,
+        overrideAccess: false,
+        data,
+      })
+    } else {
+      await payload.update({
+        collection: 'quotes',
+        id: quoteID,
+        overrideAccess: true,
+        data,
+      })
+    }
+
+    redirect(getQuotePath(quoteID, customerEmail, accessToken))
+  }
+
   const addModelsAction = async (formData: FormData) => {
     'use server'
 
@@ -822,7 +872,23 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           <div className="rounded-md border bg-background px-4 py-3 text-sm text-primary/70">
             <p className="font-medium text-primary">{readOnlyMessage?.title}</p>
             <p className="mt-1">{readOnlyMessage?.body}</p>
+            {visibleAdminNotes ? (
+              <div className="mt-3 border-l-2 border-primary/20 pl-3">
+                <p className="text-xs font-mono uppercase text-primary/50">A note from our team</p>
+                <p className="mt-1 whitespace-pre-wrap">{visibleAdminNotes}</p>
+              </div>
+            ) : null}
           </div>
+        ) : null}
+
+        {editable ? (
+          <QuoteCustomerNotesForm
+            accessToken={accessToken}
+            email={email}
+            quoteID={quote.id}
+            quoteNotes={quote.notes}
+            saveNotesAction={saveNotesAction}
+          />
         ) : null}
 
         <div>
@@ -854,19 +920,13 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           />
         </div>
 
-        {quote.notes ? (
+        {!editable && quote.notes ? (
           <div>
             <h2 className="mb-4 text-sm font-mono uppercase text-primary/50">Notes</h2>
             <p className="whitespace-pre-wrap">{quote.notes}</p>
           </div>
         ) : null}
 
-        {visibleAdminNotes ? (
-          <div>
-            <h2 className="mb-4 text-sm font-mono uppercase text-primary/50">Admin notes</h2>
-            <p className="whitespace-pre-wrap">{visibleAdminNotes}</p>
-          </div>
-        ) : null}
       </div>
     </div>
   )
