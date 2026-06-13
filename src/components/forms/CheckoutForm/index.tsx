@@ -15,6 +15,19 @@ type Props = {
   setProcessingPayment: React.Dispatch<React.SetStateAction<boolean>>
 }
 
+export const buildStripeReturnURL = (customerEmail?: string) => {
+  const returnURL = new URL(
+    '/checkout/confirm-order',
+    process.env.NEXT_PUBLIC_SERVER_URL || window.location.origin,
+  )
+
+  if (customerEmail) {
+    returnURL.searchParams.set('email', customerEmail)
+  }
+
+  return returnURL.toString()
+}
+
 export const CheckoutForm: React.FC<Props> = ({
   customerEmail,
   billingAddress,
@@ -35,7 +48,7 @@ export const CheckoutForm: React.FC<Props> = ({
 
     if (stripe && elements) {
       try {
-        const returnUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}/checkout/confirm-order${customerEmail ? `?email=${customerEmail}` : ''}`
+        const returnUrl = buildStripeReturnURL(customerEmail)
 
         const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
           confirmParams: {
