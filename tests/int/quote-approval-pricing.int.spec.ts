@@ -26,7 +26,7 @@ const callHook = async ({
         findByID,
       },
     },
-  } as Parameters<typeof ensurePricedItemsBeforeApproval>[0])
+  } as unknown as Parameters<typeof ensurePricedItemsBeforeApproval>[0])
 }
 
 describe('getApprovedPrice', () => {
