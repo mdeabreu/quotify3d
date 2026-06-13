@@ -29,10 +29,10 @@ export default async function CreateAccount() {
 }
 
 export const metadata: Metadata = {
-  description: 'Create an account or log in to your existing account.',
+  description: 'Create an account to save quote requests, track orders, and check out faster.',
   openGraph: mergeOpenGraph({
-    title: 'Account',
-    url: '/account',
+    title: 'Create Account',
+    url: '/create-account',
   }),
-  title: 'Account',
+  title: 'Create Account',
 }
