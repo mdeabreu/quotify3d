@@ -49,6 +49,66 @@ const catalogCollections = [Colours, Filaments, Machines, Processes]
 const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Spools, Vendors]
 
+const requiredSMTPEnv = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as const
+
+const getEnv = (key: string) => process.env[key]?.trim()
+
+const parseSMTPSecure = () => {
+  const value = getEnv('SMTP_SECURE')?.toLowerCase()
+
+  if (!value) {
+    return undefined
+  }
+
+  if (value === 'true') {
+    return true
+  }
+
+  if (value === 'false') {
+    return false
+  }
+
+  throw new Error('SMTP_SECURE must be either "true" or "false" when provided.')
+}
+
+const getEmailAdapter = () => {
+  const smtpEnv = Object.fromEntries(requiredSMTPEnv.map((key) => [key, getEnv(key)])) as Record<
+    (typeof requiredSMTPEnv)[number],
+    string | undefined
+  >
+  const hasSMTPConfig = Object.values(smtpEnv).some(Boolean)
+
+  if (!hasSMTPConfig) {
+    return nodemailerAdapter()
+  }
+
+  const missingEnv = requiredSMTPEnv.filter((key) => !smtpEnv[key])
+
+  if (missingEnv.length > 0) {
+    throw new Error(`SMTP configuration is incomplete. Missing: ${missingEnv.join(', ')}`)
+  }
+
+  const port = Number(smtpEnv.SMTP_PORT)
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error('SMTP_PORT must be a positive integer.')
+  }
+
+  return nodemailerAdapter({
+    defaultFromAddress: getEnv('FROM_ADDRESS') || 'noreply@quotify3d.com',
+    defaultFromName: getEnv('FROM_NAME') || 'Quotify3D',
+    transportOptions: {
+      auth: {
+        pass: smtpEnv.SMTP_PASS,
+        user: smtpEnv.SMTP_USER,
+      },
+      host: smtpEnv.SMTP_HOST,
+      port,
+      secure: parseSMTPSecure(),
+    },
+  })
+}
+
 export default buildConfig({
   admin: {
     components: {
@@ -119,21 +179,7 @@ export default buildConfig({
       ]
     },
   }),
-  email: nodemailerAdapter(),
-  /*
-  email: nodemailerAdapter({
-    defaultFromAddress: process.env.FROM_ADDRESS || 'noreply@quotify3d',
-    defaultFromName: process.env.FROM_NAME || 'quotify3d',
-    transportOptions: {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMPT_PORT,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMPT_PASSWORD,
-      },
-    },
-  }),
-  */
+  email: getEmailAdapter(),
   endpoints: [],
   globals: [Header, Footer],
   plugins,
