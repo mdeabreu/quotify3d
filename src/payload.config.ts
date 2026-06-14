@@ -53,11 +53,11 @@ const requiredSMTPEnv = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as 
 
 const getEnv = (key: string) => process.env[key]?.trim()
 
-const parseSMTPSecure = () => {
-  const value = getEnv('SMTP_SECURE')?.toLowerCase()
+const parseBooleanEnv = (key: string) => {
+  const value = getEnv(key)?.toLowerCase()
 
   if (!value) {
-    return undefined
+    return false
   }
 
   if (value === 'true') {
@@ -68,7 +68,11 @@ const parseSMTPSecure = () => {
     return false
   }
 
-  throw new Error('SMTP_SECURE must be either "true" or "false" when provided.')
+  throw new Error(`${key} must be either "true" or "false" when provided.`)
+}
+
+const parseSMTPSecure = () => {
+  return getEnv('SMTP_SECURE') ? parseBooleanEnv('SMTP_SECURE') : undefined
 }
 
 const getEmailAdapter = () => {
@@ -79,7 +83,7 @@ const getEmailAdapter = () => {
   const hasSMTPConfig = Object.values(smtpEnv).some(Boolean)
 
   if (!hasSMTPConfig) {
-    return nodemailerAdapter()
+    return parseBooleanEnv('ENABLE_MOCK_EMAIL') ? nodemailerAdapter() : undefined
   }
 
   const missingEnv = requiredSMTPEnv.filter((key) => !smtpEnv[key])
@@ -108,6 +112,8 @@ const getEmailAdapter = () => {
     },
   })
 }
+
+const emailAdapter = getEmailAdapter()
 
 export default buildConfig({
   admin: {
@@ -171,7 +177,7 @@ export default buildConfig({
       ]
     },
   }),
-  email: getEmailAdapter(),
+  ...(emailAdapter ? { email: emailAdapter } : {}),
   endpoints: [],
   globals: [Header, Footer],
   plugins,
