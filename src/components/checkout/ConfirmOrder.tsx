@@ -22,8 +22,10 @@ export const ConfirmOrder: React.FC = () => {
   const isConfirming = useRef(false)
   const paymentIntentID = searchParams.get('payment_intent')
   const email = searchParams.get('email')
+  const isCartLoaded = Boolean(cart)
   const hasCartItems = Boolean(cart?.items?.length)
-  const missingCartError = paymentIntentID && !hasCartItems ? recoverableConfirmationMessage : null
+  const missingCartError =
+    paymentIntentID && isCartLoaded && !hasCartItems ? recoverableConfirmationMessage : null
   const error = missingCartError || confirmationError
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export const ConfirmOrder: React.FC = () => {
       return
     }
 
-    if (!hasCartItems) {
+    if (!isCartLoaded || !hasCartItems) {
       return
     }
 
@@ -71,7 +73,7 @@ export const ConfirmOrder: React.FC = () => {
         }
       })()
     }
-  }, [confirmOrder, email, hasCartItems, paymentIntentID, router])
+  }, [confirmOrder, email, hasCartItems, isCartLoaded, paymentIntentID, router])
 
   if (error) {
     return (

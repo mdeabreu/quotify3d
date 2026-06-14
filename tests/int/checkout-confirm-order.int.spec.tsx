@@ -84,6 +84,16 @@ describe('checkout confirmation recovery', () => {
     expect(confirmOrder).not.toHaveBeenCalled()
   })
 
+  it('waits for cart hydration before showing the missing-cart recovery UI', () => {
+    cart = undefined
+
+    render(<ConfirmOrder />)
+
+    expect(screen.getByText('Confirming Order')).toBeTruthy()
+    expect(screen.queryByText('Order confirmation needs attention')).toBeNull()
+    expect(confirmOrder).not.toHaveBeenCalled()
+  })
+
   it('shows recovery UI when order confirmation rejects', async () => {
     confirmOrder.mockRejectedValue(new Error('Payment not completed.'))
 
