@@ -25,7 +25,7 @@ import { getServerSideURL } from '@/utilities/getURL'
 import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
 
 const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
-  return doc?.title ? `${doc.title} | Payload Ecommerce Template` : 'Payload Ecommerce Template'
+  return doc?.title ? `${doc.title} | Quotify3D` : 'Quotify3D'
 }
 
 const generateURL: GenerateURL<Product | Page> = ({ doc }) => {

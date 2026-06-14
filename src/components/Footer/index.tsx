@@ -55,11 +55,6 @@ export async function Footer() {
           </p>
           <hr className="mx-4 hidden h-4 w-px border-l border-neutral-400 md:inline-block" />
           <p>Designed in Michigan</p>
-          <p className="md:ml-auto">
-            <a className="text-black dark:text-white" href="https://payloadcms.com">
-              Crafted by Payload
-            </a>
-          </p>
         </div>
       </div>
     </footer>

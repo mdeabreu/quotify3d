@@ -1,6 +1,7 @@
-import type { CollectionAfterChangeHook, RequiredDataFromCollectionSlug } from 'payload'
+import { APIError, type CollectionAfterChangeHook, type RequiredDataFromCollectionSlug } from 'payload'
 
 import { currenciesConfig } from '@/config/currencies'
+import { getApprovedPrice } from '@/collections/Quotes/hooks/ensurePricedItemsBeforeApproval'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
@@ -288,12 +289,7 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
         : null,
     ])
 
-    const approvedPrice =
-      typeof gcode.priceOverride === 'number'
-        ? gcode.priceOverride
-        : typeof gcode.estimatedPrice === 'number'
-          ? gcode.estimatedPrice
-          : undefined
+    const approvedPrice = getApprovedPrice(gcode)
     const effectiveDuration =
       typeof gcode.durationOverride === 'number'
         ? gcode.durationOverride
@@ -349,11 +345,13 @@ export const createProductsOnApproval: CollectionAfterChangeHook = async ({
       }),
     }
 
-    if (typeof approvedPrice === 'number') {
-      const mutableProductData = productData as Record<string, unknown>
-      mutableProductData[priceField] = approvedPrice
-      mutableProductData[priceEnabledField] = true
+    if (typeof approvedPrice !== 'number') {
+      throw new APIError(`Cannot create product for quote line ${lineNumber} without a price.`, 400)
     }
+
+    const mutableProductData = productData as Record<string, unknown>
+    mutableProductData[priceField] = approvedPrice
+    mutableProductData[priceEnabledField] = true
 
     await req.payload.create({
       collection: 'products',
