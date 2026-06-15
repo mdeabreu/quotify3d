@@ -32,6 +32,10 @@ RUN mkdir -p data
 # ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN \
+  if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm --filter @payloadcms/plugin-ecommerce build; \
+  fi
+
+RUN \
   if [ -f yarn.lock ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true yarn run build; \
   elif [ -f package-lock.json ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true npm run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && CI=true PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true pnpm run build; \
