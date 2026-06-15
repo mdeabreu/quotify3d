@@ -9,7 +9,9 @@ import { resolveRelationID } from '@/utilities/resolveRelationID'
 type JSONObject = Record<string, unknown>
 
 const execFileAsync = promisify(execFile)
-const ORCA_BINARY = '/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer'
+const DEFAULT_ORCA_BINARY = '/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer'
+
+const getOrcaBinary = () => process.env.SLICER_BINARY_PATH || DEFAULT_ORCA_BINARY
 
 const FILAMENT_REGEX = /; filament used \[g\]\s*=\s*([^\r\n]+)/i
 const DURATION_LINE_REGEX = /; total estimated time:\s*([^\r\n]+)/i
@@ -66,7 +68,7 @@ const truncateSlicerOutput = (output?: string) => {
 }
 
 const formatSlicerCommand = (args: string[]) => {
-  return [ORCA_BINARY, ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ')
+  return [getOrcaBinary(), ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ')
 }
 
 const buildSlicerArgs = ({
@@ -344,7 +346,7 @@ export const sliceModel = async ({
 
     let slicerOutput = ''
     try {
-      const { stdout, stderr } = await execFileAsync(ORCA_BINARY, args, {
+      const { stdout, stderr } = await execFileAsync(getOrcaBinary(), args, {
         maxBuffer: 10 * 1024 * 1024,
       })
       slicerOutput = getSlicerOutput(stdout, stderr)
