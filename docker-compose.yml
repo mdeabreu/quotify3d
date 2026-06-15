@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ghcr.io/mdeabreu/quotify3d:latest
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:./data/ecommerce.db
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
