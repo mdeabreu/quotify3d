@@ -1,16 +1,21 @@
 import type { Metadata } from 'next'
 
+import { getDefaultBranding } from './branding'
+import { getServerSideURL } from './getURL'
+
+const defaultBranding = getDefaultBranding()
+
 const defaultOpenGraph: Metadata['openGraph'] = {
   type: 'website',
   description:
     'Upload a 3D model, compare material and finish options, and request a print quote online.',
   images: [
     {
-      url: 'https://payloadcms.com/images/og-image.jpg',
+      url: `${getServerSideURL()}/images/thumbnail-placeholder.png`,
     },
   ],
-  siteName: 'Quotify3D',
-  title: 'Quotify3D',
+  siteName: defaultBranding.siteName,
+  title: defaultBranding.siteName,
 }
 
 export const mergeOpenGraph = (og?: Partial<Metadata['openGraph']>): Metadata['openGraph'] => {

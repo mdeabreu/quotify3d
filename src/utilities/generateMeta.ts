@@ -2,11 +2,16 @@ import type { Metadata } from 'next'
 
 import type { Page, Product } from '../payload-types'
 
+import { resolveBranding } from './branding'
 import { getServerSideURL } from './getURL'
+import { getCachedGlobal } from './getGlobals'
 import { mergeOpenGraph } from './mergeOpenGraph'
 
 export const generateMeta = async (args: { doc: Page | Product }): Promise<Metadata> => {
   const { doc } = args || {}
+  const siteSettings = await getCachedGlobal('siteSettings', 1)()
+  const branding = resolveBranding(siteSettings)
+  const title = doc?.meta?.title || doc?.title || branding.siteName
 
   const ogImage =
     typeof doc?.meta?.image === 'object' &&
@@ -29,9 +34,10 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
             },
           ]
         : undefined,
-      title: doc?.meta?.title || doc?.title || 'Quotify3D',
+      siteName: branding.siteName,
+      title,
       url: Array.isArray(doc?.slug) ? doc?.slug.join('/') : '/',
     }),
-    title: doc?.meta?.title || doc?.title || 'Quotify3D',
+    title,
   }
 }

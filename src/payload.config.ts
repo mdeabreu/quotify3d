@@ -34,6 +34,7 @@ import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { SiteSettings } from '@/globals/SiteSettings'
 import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
 import { extractSlicerMetricsTask } from '@/jobs/tasks/extractSlicerMetricsTask'
 import { sliceModelTask } from '@/jobs/tasks/sliceModelTask'
@@ -179,7 +180,7 @@ export default buildConfig({
   }),
   ...(emailAdapter ? { email: emailAdapter } : {}),
   endpoints: [],
-  globals: [Header, Footer],
+  globals: [Header, Footer, SiteSettings],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
   jobs: {
