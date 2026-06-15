@@ -9,6 +9,7 @@ import { checkRole } from '@/access/utilities'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
+import { ensurePricedItemsBeforeApproval } from '@/collections/Quotes/hooks/ensurePricedItemsBeforeApproval'
 import { normalizeQuoteItemSpools } from '@/collections/Quotes/hooks/normalizeQuoteItemSpools'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
 import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
@@ -155,7 +156,11 @@ export const Quotes: CollectionConfig = {
   ],
   hooks: {
     beforeValidate: [normalizeQuoteItemSpools, applyDefaultMachine],
-    beforeChange: [normalizeCustomerOrEmail, resetStatusWhenSlicedQuoteChanges],
+    beforeChange: [
+      normalizeCustomerOrEmail,
+      resetStatusWhenSlicedQuoteChanges,
+      ensurePricedItemsBeforeApproval,
+    ],
     afterChange: [
       syncOwnedGcodesForQuote,
       createProductsOnApproval,

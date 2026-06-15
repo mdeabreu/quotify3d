@@ -2,16 +2,22 @@ import type { Metadata } from 'next'
 
 import type { Page, Product } from '../payload-types'
 
+import { resolveBranding } from './branding'
+import { getServerSideURL } from './getURL'
+import { getCachedGlobal } from './getGlobals'
 import { mergeOpenGraph } from './mergeOpenGraph'
 
 export const generateMeta = async (args: { doc: Page | Product }): Promise<Metadata> => {
   const { doc } = args || {}
+  const siteSettings = await getCachedGlobal('siteSettings', 1)()
+  const branding = resolveBranding(siteSettings)
+  const title = doc?.meta?.title || doc?.title || branding.siteName
 
   const ogImage =
     typeof doc?.meta?.image === 'object' &&
     doc.meta.image !== null &&
     'url' in doc.meta.image &&
-    `${process.env.NEXT_PUBLIC_SERVER_URL}${doc.meta.image.url}`
+    `${getServerSideURL()}${doc.meta.image.url}`
 
   return {
     description: doc?.meta?.description,
@@ -28,9 +34,10 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
             },
           ]
         : undefined,
-      title: doc?.meta?.title || doc?.title || 'Payload Ecommerce Template',
+      siteName: branding.siteName,
+      title,
       url: Array.isArray(doc?.slug) ? doc?.slug.join('/') : '/',
     }),
-    title: doc?.meta?.title || doc?.title || 'Payload Ecommerce Template',
+    title,
   }
 }

@@ -4,7 +4,7 @@ import React from 'react'
 export function LogoIcon(props: React.ComponentProps<'svg'>) {
   return (
     <svg
-      aria-label={`Payload logo`}
+      aria-label="Site logo"
       viewBox="0 0 25 28"
       xmlns="http://www.w3.org/2000/svg"
       {...props}

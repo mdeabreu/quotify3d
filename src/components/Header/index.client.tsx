@@ -1,22 +1,27 @@
 'use client'
 import { CMSLink } from '@/components/Link'
 import { Cart } from '@/components/Cart'
+import { Media } from '@/components/Media'
 import { OpenCartButton } from '@/components/Cart/OpenCart'
 import Link from 'next/link'
 import React, { Suspense } from 'react'
 
 import { MobileMenu } from './MobileMenu'
-import type { Header } from 'src/payload-types'
+import type { Header, Media as MediaType } from 'src/payload-types'
 
 import { LogoIcon } from '@/components/icons/logo'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/utilities/cn'
 
 type Props = {
+  branding: {
+    logo: MediaType | null
+    siteName: string
+  }
   header: Header
 }
 
-export function HeaderClient({ header }: Props) {
+export function HeaderClient({ branding, header }: Props) {
   const menu = header.navItems || []
   const pathname = usePathname()
 
@@ -30,8 +35,21 @@ export function HeaderClient({ header }: Props) {
         </div>
         <div className="flex w-full items-end justify-between">
           <div className="flex w-full items-end gap-6 md:w-1/3">
-            <Link className="flex w-full items-center justify-center pt-4 pb-4 md:w-auto" href="/">
-              <LogoIcon className="w-6 h-auto" />
+            <Link
+              aria-label={branding.siteName}
+              className="flex w-full items-center justify-center pt-4 pb-4 md:w-auto"
+              href="/"
+            >
+              {branding.logo ? (
+                <Media
+                  htmlElement={null}
+                  imgClassName="h-6 w-auto object-contain"
+                  resource={branding.logo}
+                  size="96px"
+                />
+              ) : (
+                <LogoIcon aria-label={`${branding.siteName} logo`} className="w-6 h-auto" />
+              )}
             </Link>
             {menu.length ? (
               <ul className="hidden gap-4 text-sm md:flex md:items-center">

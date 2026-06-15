@@ -4,6 +4,7 @@ import { FindQuoteForm } from '@/components/forms/FindQuoteForm'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers.js'
+import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import React from 'react'
 
@@ -12,9 +13,13 @@ export default async function FindQuotePage() {
   const payload = await getPayload({ config: configPromise })
   const { user } = await payload.auth({ headers })
 
+  if (user) {
+    redirect('/quotes')
+  }
+
   return (
     <div className="container py-16">
-      <FindQuoteForm initialEmail={user?.email} />
+      <FindQuoteForm />
     </div>
   )
 }

@@ -34,6 +34,7 @@ import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { SiteSettings } from '@/globals/SiteSettings'
 import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
 import { extractSlicerMetricsTask } from '@/jobs/tasks/extractSlicerMetricsTask'
 import { sliceModelTask } from '@/jobs/tasks/sliceModelTask'
@@ -49,16 +50,74 @@ const catalogCollections = [Colours, Filaments, Machines, Processes]
 const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Spools, Vendors]
 
+const requiredSMTPEnv = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as const
+
+const getEnv = (key: string) => process.env[key]?.trim()
+
+const parseBooleanEnv = (key: string) => {
+  const value = getEnv(key)?.toLowerCase()
+
+  if (!value) {
+    return false
+  }
+
+  if (value === 'true') {
+    return true
+  }
+
+  if (value === 'false') {
+    return false
+  }
+
+  throw new Error(`${key} must be either "true" or "false" when provided.`)
+}
+
+const parseSMTPSecure = () => {
+  return getEnv('SMTP_SECURE') ? parseBooleanEnv('SMTP_SECURE') : undefined
+}
+
+const getEmailAdapter = () => {
+  const smtpEnv = Object.fromEntries(requiredSMTPEnv.map((key) => [key, getEnv(key)])) as Record<
+    (typeof requiredSMTPEnv)[number],
+    string | undefined
+  >
+  const hasSMTPConfig = Object.values(smtpEnv).some(Boolean)
+
+  if (!hasSMTPConfig) {
+    return parseBooleanEnv('ENABLE_MOCK_EMAIL') ? nodemailerAdapter() : undefined
+  }
+
+  const missingEnv = requiredSMTPEnv.filter((key) => !smtpEnv[key])
+
+  if (missingEnv.length > 0) {
+    throw new Error(`SMTP configuration is incomplete. Missing: ${missingEnv.join(', ')}`)
+  }
+
+  const port = Number(smtpEnv.SMTP_PORT)
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error('SMTP_PORT must be a positive integer.')
+  }
+
+  return nodemailerAdapter({
+    defaultFromAddress: getEnv('FROM_ADDRESS') || 'noreply@quotify3d.com',
+    defaultFromName: getEnv('FROM_NAME') || 'Quotify3D',
+    transportOptions: {
+      auth: {
+        pass: smtpEnv.SMTP_PASS,
+        user: smtpEnv.SMTP_USER,
+      },
+      host: smtpEnv.SMTP_HOST,
+      port,
+      secure: parseSMTPSecure(),
+    },
+  })
+}
+
+const emailAdapter = getEmailAdapter()
+
 export default buildConfig({
   admin: {
-    components: {
-      // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below and the import `BeforeLogin` statement on line 15.
-      beforeLogin: ['@/components/BeforeLogin#BeforeLogin'],
-      // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below and the import `BeforeDashboard` statement on line 15.
-      beforeDashboard: ['@/components/BeforeDashboard#BeforeDashboard'],
-    },
     user: Users.slug,
   },
   bin: [
@@ -119,23 +178,9 @@ export default buildConfig({
       ]
     },
   }),
-  email: nodemailerAdapter(),
-  /*
-  email: nodemailerAdapter({
-    defaultFromAddress: process.env.FROM_ADDRESS || 'noreply@quotify3d',
-    defaultFromName: process.env.FROM_NAME || 'quotify3d',
-    transportOptions: {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMPT_PORT,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMPT_PASSWORD,
-      },
-    },
-  }),
-  */
+  ...(emailAdapter ? { email: emailAdapter } : {}),
   endpoints: [],
-  globals: [Header, Footer],
+  globals: [Header, Footer, SiteSettings],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
   jobs: {
