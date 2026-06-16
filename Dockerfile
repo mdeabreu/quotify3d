@@ -1,12 +1,10 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.js file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:22.17.0-alpine AS base
+FROM node:22.18.0-trixie-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -46,14 +44,57 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
+ARG ORCASLICER_VERSION=v2.3.2
+ARG ORCASLICER_SHA256=c64336ceec37d941766e675cbaaaf5124e184402bf18177fbf81ba5102734ad8
+ARG TARGETARCH
+
 ENV NODE_ENV=production
 ENV DATABASE_URL=file:./data/ecommerce.db
+ENV SLICER_BINARY_PATH=/opt/orcaslicer/AppRun
 # Uncomment the following line in case you want to disable telemetry during runtime.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-RUN apk add --no-cache su-exec
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs
+RUN if [ "${TARGETARCH}" != "amd64" ]; then \
+    echo "OrcaSlicer AppImage install currently supports linux/amd64 only; got linux/${TARGETARCH}." >&2; \
+    exit 1; \
+  fi
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    ca-certificates \
+    curl \
+    gosu \
+    gstreamer1.0-gl \
+    gstreamer1.0-gtk3 \
+    gstreamer1.0-libav \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-pulseaudio \
+    gstreamer1.0-qt5 \
+    gstreamer1.0-tools \
+    gstreamer1.0-x \
+    libgtk-3-0 \
+    libglu1-mesa \
+    libmspack0 \
+    libopengl0 \
+    libwebkit2gtk-4.1-0 \
+    libwxgtk3.2-1t64 \
+    locales \
+    squashfs-tools && \
+  rm -rf /var/lib/apt/lists/*
+RUN ORCASLICER_DOWNLOAD_URL="https://github.com/OrcaSlicer/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_AppImage_Ubuntu2404_V${ORCASLICER_VERSION#v}.AppImage" && \
+  curl -fsSL "${ORCASLICER_DOWNLOAD_URL}" -o /tmp/orca.app && \
+  echo "${ORCASLICER_SHA256}  /tmp/orca.app" | sha256sum -c - && \
+  ORCASLICER_SQUASHFS_OFFSET="$(grep -aobU 'hsqs' /tmp/orca.app | tail -n1 | cut -d: -f1)" && \
+  test -n "${ORCASLICER_SQUASHFS_OFFSET}" && \
+  tail -c +"$((ORCASLICER_SQUASHFS_OFFSET + 1))" /tmp/orca.app > /tmp/orca.squashfs && \
+  unsquashfs -q -d /opt/orcaslicer /tmp/orca.squashfs && \
+  test -x /opt/orcaslicer/AppRun && \
+  rm -rf /tmp/orca.app /tmp/orca.squashfs && \
+  localedef -i en_US -f UTF-8 en_US.UTF-8
 
 # Remove this line if you do not have this folder
 COPY --from=builder /app/public ./public

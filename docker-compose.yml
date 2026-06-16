@@ -1,6 +1,7 @@
 services:
   app:
     image: ghcr.io/mdeabreu/quotify3d:latest
+    platform: linux/amd64
     build:
       context: .
     env_file:
@@ -9,6 +10,7 @@ services:
       DATABASE_URL: file:./data/ecommerce.db
       NODE_ENV: production
       PORT: 3000
+      SLICER_BINARY_PATH: /opt/orcaslicer/AppRun
     ports:
       - '3000:3000'
     restart: unless-stopped

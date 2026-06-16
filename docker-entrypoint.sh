@@ -6,4 +6,4 @@ chown -R nextjs:nodejs /app/data
 
 export HOSTNAME="${HOSTNAME:-0.0.0.0}"
 
-exec su-exec nextjs:nodejs "$@"
+exec gosu nextjs:nodejs "$@"
