@@ -9,9 +9,12 @@ import { resolveRelationID } from '@/utilities/resolveRelationID'
 type JSONObject = Record<string, unknown>
 
 const execFileAsync = promisify(execFile)
-const DEFAULT_ORCA_BINARY = '/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer'
+const CONTAINER_ORCA_BINARY = '/opt/orcaslicer/AppRun'
+const MAC_ORCA_BINARY = '/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer'
 
-const getOrcaBinary = () => process.env.SLICER_BINARY_PATH || DEFAULT_ORCA_BINARY
+const getOrcaBinary = () =>
+  process.env.SLICER_BINARY_PATH ||
+  (process.platform === 'darwin' ? MAC_ORCA_BINARY : CONTAINER_ORCA_BINARY)
 
 const FILAMENT_REGEX = /; filament used \[g\]\s*=\s*([^\r\n]+)/i
 const DURATION_LINE_REGEX = /; total estimated time:\s*([^\r\n]+)/i
