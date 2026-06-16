@@ -39,6 +39,7 @@ import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
 import { extractSlicerMetricsTask } from '@/jobs/tasks/extractSlicerMetricsTask'
 import { sliceModelTask } from '@/jobs/tasks/sliceModelTask'
 import { sliceGcodeWorkflow } from '@/jobs/workflows/sliceGcode'
+import { migrations } from '@/migrations'
 import { plugins } from './plugins'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
@@ -49,6 +50,12 @@ const configCollections = [ProcessConfigs, MachineConfigs, FilamentConfigs]
 const catalogCollections = [Colours, Filaments, Machines, Processes]
 const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Spools, Vendors]
+
+const isNextBuild =
+  process.env.NEXT_PHASE === 'phase-production-build' || process.env.npm_lifecycle_event === 'build'
+const shouldRunProdMigrations =
+  process.env.NODE_ENV === 'production' &&
+  (!isNextBuild || process.env.PAYLOAD_MIGRATE_DURING_BUILD === 'true')
 
 const requiredSMTPEnv = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as const
 
@@ -142,6 +149,7 @@ export default buildConfig({
     client: {
       url: process.env.DATABASE_URL || '',
     },
+    prodMigrations: shouldRunProdMigrations ? migrations : undefined,
   }),
   editor: lexicalEditor({
     features: () => {
