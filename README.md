@@ -317,7 +317,15 @@ docker compose up -d
 
 The Compose file mounts `./data` to `/app/data`. Keep that directory backed up; it contains the SQLite database, uploads, uploaded models, and slicing work files.
 
-The slicing workflow uses `SLICER_BINARY_PATH`. The default in `.env.example` points to the macOS OrcaSlicer app. A future Linux container image can set this to the OrcaSlicer binary inside the container.
+The slicing workflow uses `SLICER_BINARY_PATH`. Docker images install OrcaSlicer from the official Linux AppImage, extract it to `/opt/orcaslicer`, and run it through `/opt/orcaslicer/AppRun`. The Compose file sets this path explicitly so a local macOS slicer path from `.env` is not used inside the container.
+
+The official AppImage used by the Docker image is x86_64, so Compose builds and runs the app as `linux/amd64`.
+
+For non-Docker local development, set `SLICER_BINARY_PATH` to your local OrcaSlicer binary. On macOS, the default example is:
+
+```bash
+SLICER_BINARY_PATH=/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+```
 
 ### Seed
 
