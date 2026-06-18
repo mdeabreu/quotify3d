@@ -60,6 +60,7 @@ export const confirmOrder: (props: Props) => NonNullable<PaymentAdapter>['confir
       // Find our existing transaction by the payment intent ID
       const transactionsResults = await payload.find({
         collection: transactionsSlug,
+        depth: 0,
         req,
         where: {
           'stripe.paymentIntentID': {

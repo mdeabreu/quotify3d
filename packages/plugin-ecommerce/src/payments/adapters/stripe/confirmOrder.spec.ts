@@ -171,6 +171,13 @@ describe('confirmOrder - payment status check', () => {
       req: createMockReq(mockPayload),
     })
 
+    expect(mockPayload.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'transactions',
+        depth: 0,
+      }),
+    )
+
     expect(mockPayload.create).toHaveBeenCalledWith(
       expect.objectContaining({
         collection: 'orders',
