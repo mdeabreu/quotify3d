@@ -1,7 +1,7 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.js file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:22.18.0-trixie-slim AS base
+FROM --platform=$TARGETPLATFORM node:22.18.0-trixie-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
