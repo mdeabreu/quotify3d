@@ -18,6 +18,7 @@ concurrency:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
+  IMPORTER_IMAGE_NAME: ghcr.io/${{ github.repository }}-importer
 
 jobs:
   build:
@@ -44,13 +45,35 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag
 
+      - name: Extract importer metadata
+        id: importer-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMPORTER_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+
       - name: Build and publish image
         uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
+          target: runner
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and publish importer image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          target: importer
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.importer-meta.outputs.tags }}
+          labels: ${{ steps.importer-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

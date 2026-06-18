@@ -321,6 +321,14 @@ The slicing workflow uses `SLICER_BINARY_PATH`. Docker images install OrcaSlicer
 
 The official AppImage used by the Docker image is x86_64, so Compose builds and runs the app as `linux/amd64`.
 
+To import OrcaSlicer configuration profiles into the mounted Docker database, run the interactive importer:
+
+```bash
+docker compose run --rm importer
+```
+
+The importer uses the same `./data:/app/data` mount as the app and defaults its first prompt to the OrcaSlicer profiles included in the image at `/opt/orcaslicer/resources/profiles`. Back up `data/ecommerce.db` before importing, and prefer running the importer during a quiet or maintenance window.
+
 For non-Docker local development, set `SLICER_BINARY_PATH` to your local OrcaSlicer binary. On macOS, the default example is:
 
 ```bash

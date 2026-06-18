@@ -122,3 +122,24 @@ ENV PORT=3000
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "server.js"]
+
+FROM runner AS importer
+
+ENV ORCASLICER_PROFILES_DIR=/opt/orcaslicer/resources/profiles
+ENV COREPACK_HOME=/app/.cache/node/corepack
+
+RUN mkdir -p "${COREPACK_HOME}" && \
+  corepack enable pnpm && \
+  corepack prepare pnpm@11.7.0 --activate && \
+  chown nextjs:nodejs /app && \
+  chown -R nextjs:nodejs /app/.cache && \
+  test -d "${ORCASLICER_PROFILES_DIR}"
+
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/tsconfig.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/src ./src
+COPY --from=builder --chown=nextjs:nodejs /app/emails ./emails
+COPY --from=builder --chown=nextjs:nodejs /app/packages ./packages
+
+ENTRYPOINT ["./docker-entrypoint.sh", "node_modules/.bin/payload", "import-configs"]
+CMD []

@@ -16,3 +16,22 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+
+  importer:
+    image: ghcr.io/mdeabreu/quotify3d-importer:latest
+    platform: linux/amd64
+    build:
+      context: .
+      target: importer
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: file:./data/ecommerce.db
+      NODE_ENV: production
+      ORCASLICER_PROFILES_DIR: /opt/orcaslicer/resources/profiles
+    profiles:
+      - tools
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/app/data

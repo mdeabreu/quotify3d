@@ -125,6 +125,11 @@ type ProfilesDirDefaults = {
 }
 
 function getProfilesDirDefaults(): ProfilesDirDefaults {
+    const profilesDirEnv = process.env.ORCASLICER_PROFILES_DIR?.trim()
+    if (profilesDirEnv) {
+        return { placeholder: profilesDirEnv, defaultValue: profilesDirEnv }
+    }
+
     // Detect OS (OrcaSlicer only for now)
     switch (process.platform) {
         case 'darwin': {
@@ -1209,8 +1214,6 @@ async function createCatalogItems(
 }
 
 export const script = async (config: SanitizedConfig) => {
-    await payload.init({ config })
-
     const args = arg(
         {
             '--help': Boolean,
@@ -1225,6 +1228,8 @@ export const script = async (config: SanitizedConfig) => {
         printHelp()
         process.exit(0)
     }
+
+    await payload.init({ config })
 
     p.intro(chalk.bgCyan(chalk.black(' import-configs ')))
     p.note('Welcome to the config importer!')
