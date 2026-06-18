@@ -4,6 +4,9 @@ services:
     platform: linux/amd64
     build:
       context: .
+      target: runner
+      platforms:
+        - linux/amd64
     env_file:
       - .env
     environment:
@@ -23,6 +26,8 @@ services:
     build:
       context: .
       target: importer
+      platforms:
+        - linux/amd64
     env_file:
       - .env
     environment:
