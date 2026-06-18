@@ -38,7 +38,7 @@ const createMockPaymentIntent = (status: string) => ({
 const createMockPayload = () => ({
   create: vi.fn().mockResolvedValue({ id: 'order-123' }),
   find: vi.fn().mockResolvedValue({
-    docs: [{ id: 'txn-123' }],
+    docs: [{ id: 'txn-123', items: [{ id: 'transaction-item-1', product: 1, quantity: 1 }] }],
     totalDocs: 1,
   }),
   logger: { error: vi.fn() },
@@ -151,6 +151,32 @@ describe('confirmOrder - payment status check', () => {
       expect.objectContaining({
         orderID: 'order-123',
         transactionID: 'txn-123',
+      }),
+    )
+  })
+
+  it('should use transaction items when cartItemsSnapshot metadata is omitted', async () => {
+    mockPaymentIntentsRetrieve.mockResolvedValue({
+      ...createMockPaymentIntent('succeeded'),
+      metadata: {
+        cartID: 'cart-123',
+      },
+    })
+
+    const mockPayload = createMockPayload()
+    const handler = confirmOrder({ secretKey })
+
+    await handler({
+      data: { customerEmail: 'test@test.com', paymentIntentID: 'pi_123' },
+      req: createMockReq(mockPayload),
+    })
+
+    expect(mockPayload.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'orders',
+        data: expect.objectContaining({
+          items: [{ id: 'transaction-item-1', product: 1, quantity: 1 }],
+        }),
       }),
     )
   })
