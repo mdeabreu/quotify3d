@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { MODEL_UPLOAD_ACCEPT, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 import { findSpoolForPair, uniqueOptions, type AvailableSpoolOption } from '@/lib/spoolAvailability'
 import { cn } from '@/utilities/cn'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
@@ -552,7 +553,7 @@ export const QuoteDetailsWorkspace = ({
               <div>
                 <p className="text-sm font-medium">Add more files</p>
                 <p className="mt-1 text-xs text-primary/60">
-                  Accepted formats: STL, 3MF, OBJ, STEP, STP, AMF, PLY
+                  Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}
                 </p>
               </div>
               <p className="text-sm text-primary/70">
@@ -561,7 +562,7 @@ export const QuoteDetailsWorkspace = ({
               </p>
             </div>
 
-            <Input accept=".stl,.3mf,.obj,.step,.stp,.amf,.ply" multiple name="files" type="file" />
+            <Input accept={MODEL_UPLOAD_ACCEPT} multiple name="files" type="file" />
 
             <Button className="w-full sm:w-auto" size="sm" type="submit">
               Upload files

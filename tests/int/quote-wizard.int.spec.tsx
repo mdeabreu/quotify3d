@@ -3,6 +3,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { QuoteWizard } from '@/components/QuoteWizard'
+import { MODEL_UPLOAD_ACCEPT } from '@/lib/modelUploadFormats'
 
 const push = vi.fn()
 
@@ -99,5 +100,18 @@ describe('QuoteWizard material pricing', () => {
     expect(await screen.findByText('PLA')).toBeTruthy()
     expect(screen.getByText('$0.18')).toBeTruthy()
     expect(screen.getByText('/ gram')).toBeTruthy()
+  })
+
+  it('uses mobile-friendly model file accept hints', async () => {
+    const { container } = render(<QuoteWizard />)
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+
+    expect(fileInput.accept).toBe(MODEL_UPLOAD_ACCEPT)
+    expect(fileInput.accept).toContain('.stl')
+    expect(fileInput.accept).toContain('.3mf')
+    expect(fileInput.accept).toContain('model/stl')
+    expect(fileInput.accept).toContain('model/3mf')
+    expect(fileInput.accept).toContain('application/vnd.ms-package.3dmanufacturing-3dmodel+xml')
   })
 })
