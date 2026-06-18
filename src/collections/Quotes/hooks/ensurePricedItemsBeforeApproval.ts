@@ -1,5 +1,6 @@
 import { APIError, type CollectionBeforeChangeHook } from 'payload'
 
+import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 type PricedGcode = {
@@ -8,12 +9,14 @@ type PricedGcode = {
 }
 
 export const getApprovedPrice = (gcode: PricedGcode): number | undefined => {
-  if (typeof gcode.priceOverride === 'number' && Number.isFinite(gcode.priceOverride)) {
-    return gcode.priceOverride
+  const priceOverride = toMinorUnitAmount(gcode.priceOverride)
+  if (typeof priceOverride === 'number') {
+    return priceOverride
   }
 
-  if (typeof gcode.estimatedPrice === 'number' && Number.isFinite(gcode.estimatedPrice)) {
-    return gcode.estimatedPrice
+  const estimatedPrice = toMinorUnitAmount(gcode.estimatedPrice)
+  if (typeof estimatedPrice === 'number') {
+    return estimatedPrice
   }
 
   return undefined

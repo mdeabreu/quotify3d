@@ -9,6 +9,20 @@ type Props = {
   secretKey: StripeAdapterArgs['secretKey']
 }
 
+const metadataValueMaxLength = 500
+
+export const buildStripeMetadata = (metadata: Record<string, unknown>): Record<string, string> =>
+  Object.entries(metadata).reduce<Record<string, string>>((acc, [key, value]) => {
+    if (typeof value === 'undefined') return acc
+
+    const stringValue = typeof value === 'string' ? value : JSON.stringify(value)
+    if (stringValue.length <= metadataValueMaxLength) {
+      acc[key] = stringValue
+    }
+
+    return acc
+  }, {})
+
 export const initiatePayment: (props: Props) => NonNullable<PaymentAdapter>['initiatePayment'] =
   (props) =>
   async ({ data, req, transactionsSlug }) => {
@@ -96,12 +110,12 @@ export const initiatePayment: (props: Props) => NonNullable<PaymentAdapter>['ini
         },
         currency,
         customer: customer.id,
-        metadata: {
+        metadata: buildStripeMetadata({
           cartID: cart.id,
-          cartItemsSnapshot: JSON.stringify(flattenedCart),
+          cartItemsSnapshot: flattenedCart,
           shippingAddress: shippingAddressAsString,
-          summary: JSON.stringify(summary),
-        },
+          summary,
+        }),
       })
 
       // Create a transaction for the payment intent in the database

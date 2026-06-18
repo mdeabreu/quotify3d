@@ -38,6 +38,11 @@ describe('getApprovedPrice', () => {
     expect(getApprovedPrice({ estimatedPrice: 10 })).toBe(10)
   })
 
+  it('rounds approved prices to integer minor units', () => {
+    expect(getApprovedPrice({ estimatedPrice: 1932.7000000000003 })).toBe(1933)
+    expect(getApprovedPrice({ estimatedPrice: 10, priceOverride: 12.4 })).toBe(12)
+  })
+
   it('ignores non-finite prices', () => {
     expect(getApprovedPrice({ estimatedPrice: Number.POSITIVE_INFINITY })).toBeUndefined()
     expect(getApprovedPrice({ priceOverride: Number.NaN })).toBeUndefined()
