@@ -265,9 +265,9 @@ Although Next.js includes a robust set of caching strategies out of the box, Pay
 
 To spin up this example locally, follow the [Quick Start](#quick-start). Then [Seed](#seed) the database with a few pages, posts, and projects.
 
-### Working with Postgres
+### Working with SQLite
 
-Postgres and other SQL-based databases follow a strict schema for managing your data. In comparison to our MongoDB adapter, this means that there's a few extra steps to working with Postgres.
+SQLite and other SQL-based databases follow a strict schema for managing your data. In comparison to MongoDB, this means that there's a few extra steps to working with schema changes.
 
 Note that often times when making big schema changes you can run the risk of losing data if you're not manually migrating it.
 
@@ -279,33 +279,61 @@ If your database is pointed to production you will want to set `push: false` oth
 
 #### Migrations
 
-[Migrations](https://payloadcms.com/docs/database/migrations) are essentially SQL code versions that keeps track of your schema. When deploy with Postgres you will need to make sure you create and then run your migrations.
+[Migrations](https://payloadcms.com/docs/database/migrations) are SQL code versions that keep track of your schema. This app imports migrations through `prodMigrations`, so pending migrations run automatically when Payload initializes in production.
 
 Locally create a migration
 
 ```bash
-pnpm payload migrate:create
+pnpm migrate:create migration_name
 ```
 
 This creates the migration files you will need to push alongside with your new configuration.
 
-On the server after building and before running `pnpm start` you will want to run your migrations
+To check or run migrations manually against the configured SQLite database:
 
 ```bash
-pnpm payload migrate
+pnpm migrate:status
+pnpm migrate
 ```
 
-This command will check for any migrations that have not yet been run and try to run them and it will keep a record of migrations that have been run in the database.
+Always back up `data/ecommerce.db` before deploying schema changes.
 
 ### Docker
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+You can use [Docker](https://www.docker.com) to run Quotify3D locally or on a server. The image is published to GitHub Container Registry as `ghcr.io/mdeabreu/quotify3d`.
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+For local development against the Docker image:
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+```bash
+docker compose up --build
+```
+
+For a server using the published image:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+The Compose file mounts `./data` to `/app/data`. Keep that directory backed up; it contains the SQLite database, uploads, uploaded models, and slicing work files.
+
+The slicing workflow uses `SLICER_BINARY_PATH`. Docker images install OrcaSlicer from the official Linux AppImage, extract it to `/opt/orcaslicer`, and run it through `/opt/orcaslicer/AppRun`. The Compose file sets this path explicitly so a local macOS slicer path from `.env` is not used inside the container.
+
+The official AppImage used by the Docker image is x86_64, so Compose builds and runs the app as `linux/amd64`.
+
+To import OrcaSlicer configuration profiles into the mounted Docker database, run the interactive importer:
+
+```bash
+docker compose run --rm importer
+```
+
+The importer uses the same `./data:/app/data` mount as the app and defaults its first prompt to the OrcaSlicer profiles included in the image at `/opt/orcaslicer/resources/profiles`. Back up `data/ecommerce.db` before importing, and prefer running the importer during a quiet or maintenance window.
+
+For non-Docker local development, set `SLICER_BINARY_PATH` to your local OrcaSlicer binary. On macOS, the default example is:
+
+```bash
+SLICER_BINARY_PATH=/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer
+```
 
 ### Seed
 
@@ -326,6 +354,10 @@ To run Payload in production, you need to build and start the Admin panel. To do
 1. Invoke the `next build` script by running `pnpm build` or `npm run build` in your project root. This creates a `.next` directory with a production-ready admin bundle.
 1. Finally run `pnpm start` or `npm run start` to run Node in production and serve Payload from the `.build` directory.
 1. When you're ready to go live, see Deployment below for more details.
+
+### Container Images
+
+GitHub Actions builds the Docker image on pull requests and publishes it on pushes to `main` and `v*` tags. `main` publishes `ghcr.io/mdeabreu/quotify3d:latest`; version tags publish matching immutable tags such as `ghcr.io/mdeabreu/quotify3d:v1.2.3`.
 
 ### Deploying to Vercel
 

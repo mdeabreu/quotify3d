@@ -38,7 +38,17 @@ vi.mock('child_process', () => ({
 import { sliceModel } from '@/jobs/workflows/helpers/gcodeHelpers'
 
 const tempDirs: string[] = []
+const originalSlicerBinaryPath = process.env.SLICER_BINARY_PATH
 type ExecFileCallback = (error: Error | null, stdout?: string, stderr?: string) => void
+
+const restoreSlicerBinaryPath = () => {
+  if (originalSlicerBinaryPath === undefined) {
+    delete process.env.SLICER_BINARY_PATH
+    return
+  }
+
+  process.env.SLICER_BINARY_PATH = originalSlicerBinaryPath
+}
 
 const createSlicePaths = async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'quotify3d-slice-model-'))
@@ -71,9 +81,12 @@ const writeGcodeForArgs = (args: string[], filename = 'plate-1.gcode') => {
 
 beforeEach(() => {
   mockExecFile.mockReset()
+  restoreSlicerBinaryPath()
 })
 
 afterEach(async () => {
+  restoreSlicerBinaryPath()
+
   for (const tempDir of tempDirs.splice(0)) {
     await fs.rm(tempDir, { force: true, recursive: true })
   }
@@ -99,6 +112,28 @@ describe('sliceModel', () => {
     expect(result.commandString).not.toContain('--ensure-on-bed')
     expect(result.commandString).not.toContain('--arrange')
     expect(result.commandString).not.toContain('--orient')
+  })
+
+  it('uses the configured slicer binary path for execution and command recording', async () => {
+    process.env.SLICER_BINARY_PATH = '/opt/orcaslicer/AppRun'
+    const paths = await createSlicePaths()
+
+    mockExecFile.mockImplementation(
+      (_binary: string, args: string[], _options: unknown, callback: ExecFileCallback) => {
+        writeGcodeForArgs(args)
+        callback(null, 'configured binary stdout', '')
+      },
+    )
+
+    const result = await sliceModel(paths)
+
+    expect(mockExecFile).toHaveBeenCalledWith(
+      '/opt/orcaslicer/AppRun',
+      expect.any(Array),
+      expect.any(Object),
+      expect.any(Function),
+    )
+    expect(result.commandString).toContain('/opt/orcaslicer/AppRun --info')
   })
 
   it('returns only the successful retry output and command after an earlier failure', async () => {
