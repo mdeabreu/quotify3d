@@ -14,7 +14,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { MODEL_UPLOAD_ACCEPT, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
+import {
+  getUnsupportedModelFilesMessage,
+  getUnsupportedModelFilenames,
+  MODEL_UPLOAD_ACCEPT,
+  MODEL_UPLOAD_FORMAT_LABEL,
+} from '@/lib/modelUploadFormats'
 import { findSpoolForPair, uniqueOptions, type AvailableSpoolOption } from '@/lib/spoolAvailability'
 import { cn } from '@/utilities/cn'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
@@ -22,7 +27,7 @@ import { PencilIcon, Trash2Icon } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { QuoteStatus } from '@/payload-types'
-import type { ReactNode } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
 type QuoteOption = {
@@ -484,6 +489,7 @@ export const QuoteDetailsWorkspace = ({
   submitForReviewAction,
 }: Props) => {
   const router = useRouter()
+  const [modelUploadError, setModelUploadError] = useState<string | null>(null)
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
   const shouldAutoRefresh = shouldAutoRefreshQuote({
     editable,
@@ -517,12 +523,35 @@ export const QuoteDetailsWorkspace = ({
     }
   }, [refreshRoute, shouldAutoRefresh])
 
+  const validateModelFiles = (files: Iterable<{ name: string }>): boolean => {
+    const unsupportedFilenames = getUnsupportedModelFilenames(files)
+
+    if (unsupportedFilenames.length > 0) {
+      setModelUploadError(getUnsupportedModelFilesMessage(unsupportedFilenames))
+      return false
+    }
+
+    setModelUploadError(null)
+    return true
+  }
+
+  const onModelUploadSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const files = new FormData(event.currentTarget)
+      .getAll('files')
+      .filter((value): value is File => value instanceof File)
+
+    if (!validateModelFiles(files)) {
+      event.preventDefault()
+    }
+  }
+
   return (
     <div className="space-y-6">
       {editable ? (
         <form
           action={addModelsAction}
           className="rounded-xl border border-dashed bg-background/70 p-4"
+          onSubmit={onModelUploadSubmit}
         >
           <input name="quoteID" type="hidden" value={quoteID} />
           <input
@@ -562,7 +591,19 @@ export const QuoteDetailsWorkspace = ({
               </p>
             </div>
 
-            <Input accept={MODEL_UPLOAD_ACCEPT} multiple name="files" type="file" />
+            <Input
+              accept={MODEL_UPLOAD_ACCEPT}
+              multiple
+              name="files"
+              onChange={(event) => {
+                if (!validateModelFiles(event.target.files ?? [])) {
+                  event.target.value = ''
+                }
+              }}
+              type="file"
+            />
+
+            {modelUploadError ? <p className="text-sm text-red-500">{modelUploadError}</p> : null}
 
             <Button className="w-full sm:w-auto" size="sm" type="submit">
               Upload files

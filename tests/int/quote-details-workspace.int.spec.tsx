@@ -115,6 +115,21 @@ const spoolOptions = [
   },
 ]
 
+describe('QuoteDetailsWorkspace model uploads', () => {
+  it('rejects unsupported file extensions before submission', () => {
+    const { container } = render(<QuoteDetailsWorkspace {...baseProps} />)
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['not a model'], 'invoice.pdf', { type: 'application/octet-stream' })],
+      },
+    })
+
+    expect(screen.getByText(/unsupported file format: invoice\.pdf/i)).toBeTruthy()
+  })
+})
+
 const failedItem = {
   colourId: '10',
   colourLabel: 'Red',
