@@ -12,6 +12,7 @@ import {
   type AvailableOption,
   type AvailableSpoolOption,
 } from '@/lib/spoolAvailability'
+import { MODEL_UPLOAD_ACCEPT, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 import { useAuth } from '@/providers/Auth'
 import { cn } from '@/utilities/cn'
 import Link from 'next/link'
@@ -491,11 +492,11 @@ export const QuoteWizard = () => {
           <div className="space-y-4">
             <h2 className="font-medium">Upload your files</h2>
             <p className="text-sm text-primary/70">
-              Add one or more 3D model files. You can set a quantity for each file before
-              continuing.
+              Add one or more 3D model files. Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}. You can
+              set a quantity for each file before continuing.
             </p>
             <Input
-              accept=".stl,.3mf,.obj,.step,.stp,.amf,.ply"
+              accept={MODEL_UPLOAD_ACCEPT}
               multiple
               onChange={(event) => onSelectFiles(event.target.files)}
               type="file"
