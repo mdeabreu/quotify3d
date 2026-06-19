@@ -4,6 +4,12 @@ services:
     platform: linux/amd64
     build:
       context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      platforms:
+        - linux/amd64
     env_file:
       - .env
     environment:
@@ -23,6 +29,11 @@ services:
     build:
       context: .
       target: importer
+      args:
+        NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      platforms:
+        - linux/amd64
     env_file:
       - .env
     environment:

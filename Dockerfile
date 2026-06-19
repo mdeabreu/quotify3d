@@ -1,7 +1,7 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.js file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM node:22.18.0-trixie-slim AS base
+FROM --platform=$TARGETPLATFORM node:22.18.0-trixie-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -20,6 +20,10 @@ RUN \
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_SERVER_URL
+ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p data

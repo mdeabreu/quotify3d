@@ -4,6 +4,7 @@ import path from 'path'
 import type { PayloadRequest } from 'payload'
 import { promisify } from 'util'
 
+import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 type JSONObject = Record<string, unknown>
@@ -481,7 +482,7 @@ export const calculateGcodePrice = async ({
     return undefined
   }
 
-  return totalCost
+  return toMinorUnitAmount(totalCost)
 }
 
 export const updateGcodeFromResults = async ({

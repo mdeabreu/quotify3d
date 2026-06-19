@@ -1,6 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
 import type { Gcode, Quote, QuoteStatus } from '@/payload-types'
+import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 type QuoteItem = Quote['items'][number]
@@ -87,12 +88,14 @@ const getDesiredGcodeStatus = ({
 }
 
 const getUnitPrice = (gcode: Gcode): number | null => {
-  if (typeof gcode.priceOverride === 'number') {
-    return gcode.priceOverride
+  const priceOverride = toMinorUnitAmount(gcode.priceOverride)
+  if (typeof priceOverride === 'number') {
+    return priceOverride
   }
 
-  if (typeof gcode.estimatedPrice === 'number') {
-    return gcode.estimatedPrice
+  const estimatedPrice = toMinorUnitAmount(gcode.estimatedPrice)
+  if (typeof estimatedPrice === 'number') {
+    return estimatedPrice
   }
 
   return null
@@ -104,8 +107,8 @@ const deriveQuoteSubtotal = ({
 }: {
   gcodeByItemID: Map<string, Gcode>
   items: QuoteItem[]
-}) =>
-  items.reduce((subtotal, item) => {
+}) => {
+  const subtotal = items.reduce((subtotal, item) => {
     const quoteItemID = getQuoteItemID(item)
     if (!quoteItemID) return subtotal
 
@@ -118,6 +121,9 @@ const deriveQuoteSubtotal = ({
     const quantity = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1
     return subtotal + unitPrice * quantity
   }, 0)
+
+  return toMinorUnitAmount(subtotal) ?? 0
+}
 
 const deriveQuoteStatus = ({
   gcodeByItemID,

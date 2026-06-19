@@ -7,3 +7,11 @@ export const getPriceFieldForCurrencyCode = (currencyCode: string): string =>
 
 export const getDefaultPriceField = (): string =>
   getPriceFieldForCurrencyCode(getDefaultCurrencyCode())
+
+export const toMinorUnitAmount = (amount: unknown): number | undefined => {
+  if (typeof amount !== 'number' || !Number.isFinite(amount)) {
+    return undefined
+  }
+
+  return Math.round(amount)
+}

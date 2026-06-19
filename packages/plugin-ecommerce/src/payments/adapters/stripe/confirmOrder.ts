@@ -60,6 +60,7 @@ export const confirmOrder: (props: Props) => NonNullable<PaymentAdapter>['confir
       // Find our existing transaction by the payment intent ID
       const transactionsResults = await payload.find({
         collection: transactionsSlug,
+        depth: 0,
         req,
         where: {
           'stripe.paymentIntentID': {
@@ -83,7 +84,7 @@ export const confirmOrder: (props: Props) => NonNullable<PaymentAdapter>['confir
       const cartID = paymentIntent.metadata.cartID
       const cartItemsSnapshot = paymentIntent.metadata.cartItemsSnapshot
         ? JSON.parse(paymentIntent.metadata.cartItemsSnapshot)
-        : undefined
+        : transaction.items
 
       const shippingAddress = paymentIntent.metadata.shippingAddress
         ? JSON.parse(paymentIntent.metadata.shippingAddress)
@@ -94,7 +95,7 @@ export const confirmOrder: (props: Props) => NonNullable<PaymentAdapter>['confir
       }
 
       if (!cartItemsSnapshot || !Array.isArray(cartItemsSnapshot)) {
-        throw new Error('Cart items snapshot not found or invalid in the PaymentIntent metadata')
+        throw new Error('Cart items snapshot not found or invalid')
       }
 
       const order = await payload.create({
