@@ -114,4 +114,18 @@ describe('QuoteWizard material pricing', () => {
     expect(fileInput.accept).toContain('model/3mf')
     expect(fileInput.accept).toContain('application/vnd.ms-package.3dmanufacturing-3dmodel+xml')
   })
+
+  it('rejects unsupported file extensions before upload', () => {
+    const { container } = render(<QuoteWizard />)
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['not a model'], 'invoice.pdf', { type: 'application/octet-stream' })],
+      },
+    })
+
+    expect(screen.getByText(/unsupported file format: invoice\.pdf/i)).toBeTruthy()
+    expect(screen.queryByText('invoice.pdf')).toBeNull()
+  })
 })

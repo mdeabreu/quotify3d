@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import { APIError, type CollectionConfig } from 'payload'
 
 import { randomUUID } from 'crypto'
 import path from 'path'
@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
 import { publicAccess } from '@/access/publicAccess'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
+import { isSupportedModelFilename, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -57,6 +58,13 @@ export const Models: CollectionConfig = {
     beforeOperation: [
       ({ args, operation, req }) => {
         if ((operation === 'create' || operation === 'update') && req.file) {
+          if (!isSupportedModelFilename(req.file.name)) {
+            throw new APIError(
+              `Unsupported model file "${req.file.name}". Accepted formats: ${MODEL_UPLOAD_FORMAT_LABEL}.`,
+              400,
+            )
+          }
+
           args.data ||= {}
 
           args.data.originalFilename = req.file.name

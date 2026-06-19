@@ -12,7 +12,12 @@ import {
   type AvailableOption,
   type AvailableSpoolOption,
 } from '@/lib/spoolAvailability'
-import { MODEL_UPLOAD_ACCEPT, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
+import {
+  getUnsupportedModelFilesMessage,
+  getUnsupportedModelFilenames,
+  MODEL_UPLOAD_ACCEPT,
+  MODEL_UPLOAD_FORMAT_LABEL,
+} from '@/lib/modelUploadFormats'
 import { useAuth } from '@/providers/Auth'
 import { cn } from '@/utilities/cn'
 import Link from 'next/link'
@@ -267,17 +272,27 @@ export const QuoteWizard = () => {
     step,
   ])
 
-  const onSelectFiles = (fileList: FileList | null) => {
-    if (!fileList) return
+  const onSelectFiles = (fileList: FileList | null): boolean => {
+    if (!fileList) return true
 
-    const nextLines: ModelLine[] = Array.from(fileList)
+    const files = Array.from(fileList)
+    const unsupportedFilenames = getUnsupportedModelFilenames(files)
+
+    if (unsupportedFilenames.length > 0) {
+      setError(getUnsupportedModelFilesMessage(unsupportedFilenames))
+      return false
+    }
+
+    const nextLines: ModelLine[] = files
       .filter((file) => file.size > 0)
       .map((file) => ({
         file,
         quantity: 1,
       }))
 
+    setError(null)
     setModelLines(nextLines)
+    return true
   }
 
   const updateQuantity = (index: number, quantityValue: string) => {
@@ -498,7 +513,11 @@ export const QuoteWizard = () => {
             <Input
               accept={MODEL_UPLOAD_ACCEPT}
               multiple
-              onChange={(event) => onSelectFiles(event.target.files)}
+              onChange={(event) => {
+                if (!onSelectFiles(event.target.files)) {
+                  event.target.value = ''
+                }
+              }}
               type="file"
             />
 
