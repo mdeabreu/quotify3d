@@ -5,7 +5,7 @@ import type { Page, Product } from '../payload-types'
 import { resolveBranding } from './branding'
 import { getServerSideURL } from './getURL'
 import { getCachedGlobal } from './getGlobals'
-import { mergeOpenGraph } from './mergeOpenGraph'
+import { getMergedOpenGraph } from './mergeOpenGraph'
 
 export const generateMeta = async (args: { doc: Page | Product }): Promise<Metadata> => {
   const { doc } = args || {}
@@ -21,7 +21,7 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
 
   return {
     description: doc?.meta?.description,
-    openGraph: mergeOpenGraph({
+    openGraph: await getMergedOpenGraph({
       ...(doc?.meta?.description
         ? {
             description: doc?.meta?.description,

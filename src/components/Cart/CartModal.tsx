@@ -21,8 +21,10 @@ import { OpenCartButton } from './OpenCart'
 import { Button } from '@/components/ui/button'
 import { Product, Variant } from '@/payload-types'
 import { getProductFallbackImage } from '@/utilities/products'
+import { useBranding } from '@/providers/Branding'
 
 export function CartModal() {
+  const { quoteProductPlaceholder } = useBranding()
   const { cart } = useCart()
   const { currency } = useCurrency()
   const pathname = usePathname()
@@ -116,7 +118,7 @@ export function CartModal() {
                       image = imageVariant.image
                     }
                   }
-                  const fallbackImage = getProductFallbackImage(productDoc)
+                  const fallbackImage = getProductFallbackImage(productDoc, quoteProductPlaceholder)
 
                   return (
                     <li className="flex w-full flex-col" key={i}>

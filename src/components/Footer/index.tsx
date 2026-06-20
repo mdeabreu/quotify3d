@@ -1,7 +1,6 @@
 import type { Footer } from '@/payload-types'
 
 import { FooterMenu } from '@/components/Footer/menu'
-import { LogoIcon } from '@/components/icons/logo'
 import { Media } from '@/components/Media'
 import { ThemeSelector } from '@/providers/Theme/ThemeSelector'
 import { resolveBranding } from '@/utilities/branding'
@@ -36,7 +35,12 @@ export async function Footer() {
                   size="96px"
                 />
               ) : (
-                <LogoIcon aria-label={`${branding.siteName} logo`} className="w-6" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt={`${branding.siteName} logo`}
+                  className="h-8 w-8 object-contain"
+                  src="/images/quotify3d-site-logo.png"
+                />
               )}
               <span className="sr-only">{branding.siteName}</span>
             </Link>

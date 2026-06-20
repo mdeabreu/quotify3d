@@ -27,6 +27,7 @@ import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
 import { Address, Cart, Product, Variant } from '@/payload-types'
 import { Checkbox } from '@/components/ui/checkbox'
 import { getProductFallbackImage } from '@/utilities/products'
+import { useBranding } from '@/providers/Branding'
 import { AddressItem } from '@/components/addresses/AddressItem'
 import { FormItem } from '@/components/forms/FormItem'
 import { toast } from 'sonner'
@@ -64,6 +65,7 @@ type PaymentSummary = {
 }
 
 export const CheckoutPage: React.FC = () => {
+  const { quoteProductPlaceholder } = useBranding()
   const { user } = useAuth()
   const router = useRouter()
   const { cart: providerCart } = useCart()
@@ -527,7 +529,7 @@ export const CheckoutPage: React.FC = () => {
                   : typeof meta?.image === 'object'
                     ? meta.image
                     : undefined
-              const fallbackImage = getProductFallbackImage(product)
+              const fallbackImage = getProductFallbackImage(product, quoteProductPlaceholder)
               const productPriceField = `priceIn${currency.code}` as keyof Product
               let price =
                 typeof product[productPriceField] === 'number' ? product[productPriceField] : null

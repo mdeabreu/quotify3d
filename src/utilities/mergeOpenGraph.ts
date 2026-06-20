@@ -1,21 +1,19 @@
 import type { Metadata } from 'next'
 
-import { getDefaultBranding } from './branding'
+import { DEFAULT_BRANDING, resolveBranding, resolveOpenGraphDefaults } from './branding'
+import { getCachedGlobal } from './getGlobals'
 import { getServerSideURL } from './getURL'
-
-const defaultBranding = getDefaultBranding()
 
 const defaultOpenGraph: Metadata['openGraph'] = {
   type: 'website',
-  description:
-    'Upload a 3D model, compare material and finish options, and request a print quote online.',
+  description: DEFAULT_BRANDING.openGraph.description,
   images: [
     {
-      url: `${getServerSideURL()}/images/thumbnail-placeholder.png`,
+      url: `${getServerSideURL()}${DEFAULT_BRANDING.openGraph.image}`,
     },
   ],
-  siteName: defaultBranding.siteName,
-  title: defaultBranding.siteName,
+  siteName: DEFAULT_BRANDING.siteName,
+  title: DEFAULT_BRANDING.siteName,
 }
 
 export const mergeOpenGraph = (og?: Partial<Metadata['openGraph']>): Metadata['openGraph'] => {
@@ -23,5 +21,25 @@ export const mergeOpenGraph = (og?: Partial<Metadata['openGraph']>): Metadata['o
     ...defaultOpenGraph,
     ...og,
     images: og?.images ? og.images : defaultOpenGraph.images,
+  }
+}
+
+export const getMergedOpenGraph = async (
+  og?: Partial<Metadata['openGraph']>,
+): Promise<Metadata['openGraph']> => {
+  const settings = await getCachedGlobal('siteSettings', 1)()
+  const defaults = resolveOpenGraphDefaults(settings)
+  const configuredOpenGraph: Metadata['openGraph'] = {
+    description: defaults.description,
+    images: [{ url: `${getServerSideURL()}${defaults.image}` }],
+    siteName: resolveBranding(settings).siteName,
+    title: defaults.title,
+    type: 'website',
+  }
+
+  return {
+    ...configuredOpenGraph,
+    ...og,
+    images: og?.images ? og.images : configuredOpenGraph.images,
   }
 }

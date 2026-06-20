@@ -2794,6 +2794,18 @@ export interface SiteSetting {
    */
   companyName?: string | null;
   logo?: (number | null) | Media;
+  /**
+   * Used when a page or product does not provide its own share metadata.
+   */
+  defaultOpenGraph?: {
+    title?: string | null;
+    description?: string | null;
+    image?: (number | null) | Media;
+  };
+  /**
+   * Shown for quote-created products that do not have a gallery image.
+   */
+  quoteProductPlaceholder?: (number | null) | Media;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2851,6 +2863,14 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   siteName?: T;
   companyName?: T;
   logo?: T;
+  defaultOpenGraph?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
+  quoteProductPlaceholder?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

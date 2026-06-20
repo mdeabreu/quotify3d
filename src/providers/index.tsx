@@ -7,12 +7,15 @@ import { currenciesConfig } from '@/config/currencies'
 import { SonnerProvider } from '@/providers/Sonner'
 import { HeaderThemeProvider } from './HeaderTheme'
 import { ThemeProvider } from './Theme'
+import { BrandingProvider } from './Branding'
 
 export const Providers: React.FC<{
   children: React.ReactNode
-}> = ({ children }) => {
+  quoteProductPlaceholder: string
+}> = ({ children, quoteProductPlaceholder }) => {
   return (
-    <ThemeProvider>
+    <BrandingProvider quoteProductPlaceholder={quoteProductPlaceholder}>
+      <ThemeProvider>
       <AuthProvider>
         <HeaderThemeProvider>
           <SonnerProvider />
@@ -53,6 +56,7 @@ export const Providers: React.FC<{
           </EcommerceProvider>
         </HeaderThemeProvider>
       </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </BrandingProvider>
   )
 }

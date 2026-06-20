@@ -5,6 +5,7 @@ import type { Product, Variant } from '@/payload-types'
 import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
 import { getProductFallbackImage } from '@/utilities/products'
+import { useBranding } from '@/providers/Branding'
 import { useCurrency } from '@payloadcms/plugin-ecommerce/client/react'
 import clsx from 'clsx'
 import Link from 'next/link'
@@ -15,6 +16,7 @@ type Props = {
 }
 
 export const ProductGridItem: React.FC<Props> = ({ product }) => {
+  const { quoteProductPlaceholder } = useBranding()
   const { currency } = useCurrency()
   const currencyCode = currency.code.toUpperCase()
   const productPriceField = `priceIn${currencyCode}` as keyof Product
@@ -42,7 +44,7 @@ export const ProductGridItem: React.FC<Props> = ({ product }) => {
     product.gallery?.[0]?.image && typeof product.gallery[0]?.image === 'object'
       ? product.gallery[0]?.image
       : false
-  const fallbackImage = getProductFallbackImage(product)
+  const fallbackImage = getProductFallbackImage(product, quoteProductPlaceholder)
 
   return (
     <Link className="relative inline-block h-full w-full group" href={`/products/${product.slug}`}>
