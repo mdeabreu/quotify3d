@@ -9,7 +9,6 @@ import React, { Suspense } from 'react'
 import { MobileMenu } from './MobileMenu'
 import type { Header, Media as MediaType } from 'src/payload-types'
 
-import { LogoIcon } from '@/components/icons/logo'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/utilities/cn'
 
@@ -48,7 +47,12 @@ export function HeaderClient({ branding, header }: Props) {
                   size="96px"
                 />
               ) : (
-                <LogoIcon aria-label={`${branding.siteName} logo`} className="w-6 h-auto" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt={`${branding.siteName} logo`}
+                  className="h-8 w-8 object-contain"
+                  src="/images/quotify3d-site-logo.png"
+                />
               )}
             </Link>
             {menu.length ? (

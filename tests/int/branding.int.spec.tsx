@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Media } from '@/payload-types'
 
 const globals = vi.hoisted(() => ({
   footer: {
@@ -27,7 +28,7 @@ vi.mock('@/utilities/getGlobals', () => ({
 }))
 
 import { Footer } from '@/components/Footer'
-import { resolveBranding } from '@/utilities/branding'
+import { DEFAULT_BRANDING, resolveBranding, resolveOpenGraphDefaults } from '@/utilities/branding'
 
 describe('branding', () => {
   beforeEach(() => {
@@ -46,15 +47,34 @@ describe('branding', () => {
     })
   })
 
-  it('falls back to environment branding when CMS values are absent', () => {
+  it('falls back to Quotify3D branding when CMS values are absent', () => {
     process.env.COMPANY_NAME = 'Env Company'
     process.env.SITE_NAME = 'Env Site'
 
     expect(resolveBranding({ id: 1 })).toMatchObject({
-      companyName: 'Env Company',
+      companyName: 'Quotify3D',
       logo: null,
-      siteName: 'Env Site',
+      siteName: 'Quotify3D',
     })
+  })
+
+  it('resolves Open Graph values from Site Settings before bundled defaults', () => {
+    expect(
+      resolveOpenGraphDefaults({
+        defaultOpenGraph: {
+          description: 'Custom description',
+          image: { id: 1, url: '/api/media/file/custom.png' } as Media,
+          title: 'Custom title',
+        },
+        id: 1,
+      }),
+    ).toMatchObject({
+      description: 'Custom description',
+      image: '/api/media/file/custom.png',
+      title: 'Custom title',
+    })
+
+    expect(resolveOpenGraphDefaults({ id: 1 })).toMatchObject(DEFAULT_BRANDING.openGraph)
   })
 
   it('renders fixed footer attribution links', async () => {

@@ -15,6 +15,7 @@ import React, { Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeftIcon } from 'lucide-react'
 import { Metadata } from 'next'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 
 type Args = {
   params: Promise<{
@@ -37,8 +38,9 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
 
   return {
     description: product.meta?.description || '',
-    openGraph: seoImage?.url
-      ? {
+    openGraph: await getMergedOpenGraph(
+      seoImage?.url
+        ? {
           images: [
             {
               alt: seoImage?.alt,
@@ -47,8 +49,9 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
               width: seoImage.width!,
             },
           ],
-        }
-      : null,
+          }
+        : undefined,
+    ),
     robots: {
       follow: canIndex,
       googleBot: {

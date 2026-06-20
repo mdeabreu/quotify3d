@@ -4,9 +4,10 @@ import { AdminBar } from '@/components/AdminBar'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
-import { ensureStartsWith } from '@/utilities/ensureStartsWith'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
+import { DEFAULT_BRANDING } from '@/utilities/branding'
+import { getCachedGlobal } from '@/utilities/getGlobals'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import React from 'react'
@@ -40,6 +41,12 @@ const twitterSite = TWITTER_SITE ? ensureStartsWith(TWITTER_SITE, 'https://') : 
 } */
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const siteSettings = await getCachedGlobal('siteSettings', 1)()
+  const placeholder =
+    typeof siteSettings.quoteProductPlaceholder === 'object' && siteSettings.quoteProductPlaceholder?.url
+      ? siteSettings.quoteProductPlaceholder.url
+      : DEFAULT_BRANDING.quoteProductPlaceholder
+
   return (
     <html
       className={[GeistSans.variable, GeistMono.variable].filter(Boolean).join(' ')}
@@ -52,7 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
       </head>
       <body>
-        <Providers>
+        <Providers quoteProductPlaceholder={placeholder}>
           <AdminBar />
           <LivePreviewListener />
 

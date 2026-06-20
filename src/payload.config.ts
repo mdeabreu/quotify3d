@@ -51,8 +51,7 @@ const catalogCollections = [Colours, Filaments, Machines, Processes]
 const productionCollections = [Models, Quotes, Gcodes]
 const operationsCollections = [Spools, Vendors]
 
-const isNextBuild =
-  process.env.NEXT_PHASE === 'phase-production-build' || process.env.npm_lifecycle_event === 'build'
+const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
 const shouldRunProdMigrations =
   process.env.NODE_ENV === 'production' &&
   (!isNextBuild || process.env.PAYLOAD_MIGRATE_DURING_BUILD === 'true')
