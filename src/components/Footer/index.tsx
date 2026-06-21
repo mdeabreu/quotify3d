@@ -80,7 +80,7 @@ export async function Footer() {
               rel="noreferrer"
               target="_blank"
             >
-              Quotify3d
+              Quotify3D
             </a>
             <a
               className="text-black hover:underline dark:text-white"
