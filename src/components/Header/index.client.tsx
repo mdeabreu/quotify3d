@@ -42,7 +42,7 @@ export function HeaderClient({ branding, header }: Props) {
               {branding.logo ? (
                 <Media
                   htmlElement={null}
-                  imgClassName="h-6 w-auto object-contain"
+                  imgClassName="h-8 w-auto object-contain"
                   resource={branding.logo}
                   size="96px"
                 />
