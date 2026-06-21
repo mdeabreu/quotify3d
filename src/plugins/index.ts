@@ -22,10 +22,16 @@ import {
   resolveCouponCodeBeforeValidate,
 } from '@/utilities/coupons'
 import { getServerSideURL } from '@/utilities/getURL'
+import { resolveBranding } from '@/utilities/branding'
 import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
 
-const generateTitle: GenerateTitle<Product | Page> = ({ doc }) => {
-  return doc?.title ? `${doc.title} | Quotify3D` : 'Quotify3D'
+export const generateTitle: GenerateTitle<Product | Page> = async ({ doc, req }) => {
+  const siteSettings = await req.payload.findGlobal({
+    slug: 'siteSettings',
+  })
+  const { siteName } = resolveBranding(siteSettings)
+
+  return doc?.title ? `${doc.title} | ${siteName}` : siteName
 }
 
 const generateURL: GenerateURL<Product | Page> = ({ doc }) => {

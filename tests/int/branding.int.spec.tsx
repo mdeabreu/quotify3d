@@ -80,7 +80,7 @@ describe('branding', () => {
   it('renders fixed footer attribution links', async () => {
     render(await Footer())
 
-    expect(screen.getByRole('link', { name: 'Quotify3d' }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: 'Quotify3D' }).getAttribute('href')).toBe(
       'https://github.com/mdeabreu/quotify3d',
     )
     expect(screen.getByRole('link', { name: 'Made with PayloadCMS' }).getAttribute('href')).toBe(
