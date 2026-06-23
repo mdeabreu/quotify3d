@@ -1,0 +1,23 @@
+.controls {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.swatch {
+  block-size: 2.5rem;
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 4px;
+  cursor: pointer;
+  inline-size: 3.5rem;
+  padding: 0.125rem;
+}
+
+.value {
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 4px;
+  color: var(--theme-text);
+  padding: 0.625rem 0.75rem;
+  width: 100%;
+}
