@@ -1,6 +1,5 @@
 services:
   app:
-    image: ghcr.io/mdeabreu/quotify3d:latest
     platform: linux/amd64
     build:
       context: .
@@ -24,7 +23,6 @@ services:
       - ./data:/app/data
 
   importer:
-    image: ghcr.io/mdeabreu/quotify3d-importer:latest
     platform: linux/amd64
     build:
       context: .
