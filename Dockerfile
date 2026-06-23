@@ -37,10 +37,14 @@ RUN \
   if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm --filter @payloadcms/plugin-ecommerce build; \
   fi
 
+# The production SQLite database is included in the build context only. It is never copied
+# into the runner image; this temporary builder-stage copy is deleted after prerendering.
 RUN \
-  if [ -f yarn.lock ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true yarn run build; \
-  elif [ -f package-lock.json ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true npm run build; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && CI=true PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/build.db PAYLOAD_MIGRATE_DURING_BUILD=true pnpm run build; \
+  set -eu; \
+  trap 'rm -f data/ecommerce.db data/ecommerce.db-shm data/ecommerce.db-wal' EXIT; \
+  if [ -f yarn.lock ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/ecommerce.db PAYLOAD_MIGRATE_DURING_BUILD=true yarn run build; \
+  elif [ -f package-lock.json ]; then PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/ecommerce.db PAYLOAD_MIGRATE_DURING_BUILD=true npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && CI=true PAYLOAD_SECRET=build-time-payload-secret DATABASE_URL=file:./data/ecommerce.db PAYLOAD_MIGRATE_DURING_BUILD=true pnpm run build; \
   else echo "Lockfile not found." && exit 1; \
   fi
 

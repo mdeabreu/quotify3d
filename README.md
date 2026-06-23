@@ -300,22 +300,24 @@ Always back up `data/ecommerce.db` before deploying schema changes.
 
 ### Docker
 
-You can use [Docker](https://www.docker.com) to run Quotify3D locally or on a server. The image is published to GitHub Container Registry as `ghcr.io/mdeabreu/quotify3d`.
+You can use [Docker](https://www.docker.com) to run Quotify3D locally or on a server. Production images are built on the deployment host so Next.js can prerender pages from that host's SQLite database.
 
-For local development against the Docker image:
+Build and run from a checkout that contains both `.env` and `data/ecommerce.db`:
 
 ```bash
 docker compose up --build
 ```
 
-For a server using the published image:
+For a production deployment, take a short maintenance window so the SQLite snapshot is consistent:
 
 ```bash
-docker compose pull
+docker compose down
+cp data/ecommerce.db "data/ecommerce.db.backup.$(date +%Y%m%d%H%M%S)"
+docker compose build
 docker compose up -d
 ```
 
-The Compose file mounts `./data` to `/app/data`. Keep that directory backed up; it contains the SQLite database, uploads, uploaded models, and slicing work files.
+Docker sends only `data/ecommerce.db` from `data/` to the build context. It is used in the disposable builder stage while Next.js prerenders the site; the final runtime image does not contain the database. The Compose file still mounts `./data` to `/app/data` at runtime. Keep that directory backed up; it contains the SQLite database, uploads, uploaded models, and slicing work files.
 
 The slicing workflow uses `SLICER_BINARY_PATH`. Docker images install OrcaSlicer from the official Linux AppImage, extract it to `/opt/orcaslicer`, and run it through `/opt/orcaslicer/AppRun`. The Compose file sets this path explicitly so a local macOS slicer path from `.env` is not used inside the container.
 
@@ -354,10 +356,6 @@ To run Payload in production, you need to build and start the Admin panel. To do
 1. Invoke the `next build` script by running `pnpm build` or `npm run build` in your project root. This creates a `.next` directory with a production-ready admin bundle.
 1. Finally run `pnpm start` or `npm run start` to run Node in production and serve Payload from the `.build` directory.
 1. When you're ready to go live, see Deployment below for more details.
-
-### Container Images
-
-GitHub Actions builds the Docker image on pull requests and publishes it on pushes to `main` and `v*` tags. `main` publishes `ghcr.io/mdeabreu/quotify3d:latest`; version tags publish matching immutable tags such as `ghcr.io/mdeabreu/quotify3d:v1.2.3`.
 
 ### Deploying to Vercel
 
