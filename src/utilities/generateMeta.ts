@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import type { Page, Product } from '../payload-types'
 
-import { resolveBranding } from './branding'
+import { getOpenGraphImageURL, resolveBranding } from './branding'
 import { getServerSideURL } from './getURL'
 import { getCachedGlobal } from './getGlobals'
 import { getMergedOpenGraph } from './mergeOpenGraph'
@@ -13,11 +13,11 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
   const branding = resolveBranding(siteSettings)
   const title = doc?.meta?.title || doc?.title || branding.siteName
 
-  const ogImage =
+  const ogImageURL =
     typeof doc?.meta?.image === 'object' &&
     doc.meta.image !== null &&
-    'url' in doc.meta.image &&
-    `${getServerSideURL()}${doc.meta.image.url}`
+    getOpenGraphImageURL(doc.meta.image)
+  const ogImage = ogImageURL ? `${getServerSideURL()}${ogImageURL}` : undefined
 
   return {
     description: doc?.meta?.description,

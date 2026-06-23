@@ -42,11 +42,15 @@ export const resolveBranding = (settings?: BrandingGlobal) => {
   }
 }
 
+export const getOpenGraphImageURL = (image: Media | null | undefined) => {
+  return image?.sizes?.og?.url || image?.url || null
+}
+
 export const resolveOpenGraphDefaults = (settings?: BrandingGlobal) => {
   const openGraph = settings?.defaultOpenGraph
   const image =
-    typeof openGraph?.image === 'object' && openGraph.image?.url
-      ? openGraph.image.url
+    typeof openGraph?.image === 'object'
+      ? getOpenGraphImageURL(openGraph.image) || DEFAULT_BRANDING.openGraph.image
       : DEFAULT_BRANDING.openGraph.image
 
   return {

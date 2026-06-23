@@ -5,6 +5,7 @@ import { GridTileImage } from '@/components/Grid/tile'
 import { Gallery } from '@/components/product/Gallery'
 import { ProductDescription } from '@/components/product/ProductDescription'
 import { getDefaultCurrencyCode, getDefaultPriceField } from '@/utilities/currency'
+import { getOpenGraphImageURL } from '@/utilities/branding'
 import { getProductFallbackImage, isPublicStorefrontProduct } from '@/utilities/products'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
@@ -35,20 +36,21 @@ export async function generateMetadata({ params }: Args): Promise<Metadata> {
   const canIndex = product._status === 'published'
 
   const seoImage = metaImage || (gallery.length ? (gallery[0]?.image as Media) : undefined)
+  const ogImageURL = getOpenGraphImageURL(seoImage)
 
   return {
     description: product.meta?.description || '',
     openGraph: await getMergedOpenGraph(
-      seoImage?.url
+      ogImageURL
         ? {
-          images: [
-            {
-              alt: seoImage?.alt,
-              height: seoImage.height!,
-              url: seoImage?.url,
-              width: seoImage.width!,
-            },
-          ],
+            images: [
+              {
+                alt: seoImage?.alt,
+                height: seoImage?.sizes?.og?.height ?? seoImage?.height ?? undefined,
+                url: ogImageURL,
+                width: seoImage?.sizes?.og?.width ?? seoImage?.width ?? undefined,
+              },
+            ],
           }
         : undefined,
     ),
