@@ -11,16 +11,26 @@ type Props = {
 }
 
 export const LibraryCardFrame = ({ children, description, image, title }: Props) => {
+  const libraryImage =
+    image?.sizes?.library?.url
+      ? {
+          ...image,
+          height: image.sizes.library.height ?? image.height,
+          url: image.sizes.library.url,
+          width: image.sizes.library.width ?? image.width,
+        }
+      : image
+
   return (
     <Card className="h-full overflow-hidden py-0">
       <div className="border-b bg-muted/20">
-        {image ? (
+        {libraryImage ? (
           <Media
             alt={title}
             className="relative aspect-[4/3] w-full"
             imgClassName="h-full w-full object-cover"
             priority={false}
-            resource={image}
+            resource={libraryImage}
           />
         ) : (
           <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-muted/60 via-background to-muted/30 text-xs font-mono uppercase tracking-[0.24em] text-primary/45">
