@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
+import { revalidateLibraryDelete, revalidateLibraryPage } from '@/hooks/revalidateLibrary'
 
 export const Processes: CollectionConfig = {
   slug: 'processes',
@@ -46,4 +47,8 @@ export const Processes: CollectionConfig = {
       required: true,
     },
   ],
+  hooks: {
+    afterChange: [revalidateLibraryPage(['/processes'])],
+    afterDelete: [revalidateLibraryDelete(['/processes'])],
+  },
 }

@@ -1,6 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
+import { revalidateLibraryDelete, revalidateLibraryPage } from '@/hooks/revalidateLibrary'
+
+const libraryPaths = ['/materials', '/colours']
 
 export const Spools: CollectionConfig = {
   slug: 'spools',
@@ -114,4 +117,8 @@ export const Spools: CollectionConfig = {
       ],
     },
   ],
+  hooks: {
+    afterChange: [revalidateLibraryPage(libraryPaths)],
+    afterDelete: [revalidateLibraryDelete(libraryPaths)],
+  },
 }
