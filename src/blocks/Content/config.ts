@@ -12,6 +12,7 @@ import { link } from '@/fields/link'
 import { Banner } from '../Banner/config'
 import { CallToAction } from '../CallToAction/config'
 import { Code } from '../Code/config'
+import { Icon } from '../Icon/config'
 import { MediaBlock } from '../MediaBlock/config'
 
 const columnFields: Field[] = [
@@ -45,7 +46,7 @@ const columnFields: Field[] = [
       features: ({ rootFeatures }) => {
         return [
           ...rootFeatures,
-          BlocksFeature({blocks: [Banner, CallToAction, Code, MediaBlock]}),
+          BlocksFeature({blocks: [Banner, CallToAction, Code, Icon, MediaBlock]}),
           HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
           FixedToolbarFeature(),
           InlineToolbarFeature(),

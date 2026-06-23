@@ -3112,6 +3112,23 @@ export interface CodeBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "IconBlock".
+ */
+export interface IconBlock {
+  icon: string;
+  color: string;
+  size: '16' | '20' | '24' | '32' | '48' | '64' | 'custom';
+  customSize?: number | null;
+  /**
+   * Optional. Leave blank when the icon is decorative.
+   */
+  label?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'icon';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "auth".
  */
 export interface Auth {
