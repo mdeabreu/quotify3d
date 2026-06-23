@@ -43,6 +43,7 @@ import { migrations } from '@/migrations'
 import { plugins } from './plugins'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
+import sharp from 'sharp'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -336,5 +337,5 @@ export default buildConfig({
   // Sharp is now an optional dependency -
   // if you want to resize images, crop, set focal point, etc.
   // make sure to install it and pass it to the config.
-  // sharp,
+  sharp,
 })
