@@ -1,6 +1,7 @@
 import * as migration_20260616_012027_initial_schema from './20260616_012027_initial_schema';
 import * as migration_20260620_060710_site_settings_branding from './20260620_060710_site_settings_branding';
 import * as migration_20260623_022209_media_sizes from './20260623_022209_media_sizes';
+import * as migration_20260623_030913_library_media_size from './20260623_030913_library_media_size';
 
 export const migrations = [
   {
@@ -16,6 +17,11 @@ export const migrations = [
   {
     up: migration_20260623_022209_media_sizes.up,
     down: migration_20260623_022209_media_sizes.down,
-    name: '20260623_022209_media_sizes'
+    name: '20260623_022209_media_sizes',
+  },
+  {
+    up: migration_20260623_030913_library_media_size.up,
+    down: migration_20260623_030913_library_media_size.down,
+    name: '20260623_030913_library_media_size'
   },
 ];

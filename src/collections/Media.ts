@@ -55,6 +55,11 @@ export const Media: CollectionConfig = {
         height: 500,
       },
       {
+        name: 'library',
+        width: 600,
+        height: 450,
+      },
+      {
         name: 'small',
         width: 600,
       },

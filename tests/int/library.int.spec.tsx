@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { LibraryCardFrame } from '@/components/library/LibraryCardFrame'
 import { ColourLibraryCard } from '@/components/library/LibraryCards'
 import { LibraryPage } from '@/components/library/LibraryPage'
 import {
@@ -169,6 +170,59 @@ describe('library helpers', () => {
 })
 
 describe('library UI', () => {
+  it('uses the library rendition when it is available', () => {
+    render(
+      <LibraryCardFrame
+        description={null}
+        image={{
+          alt: 'PLA spool',
+          createdAt: '2026-06-23T00:00:00.000Z',
+          height: 1000,
+          id: 1,
+          sizes: {
+            library: {
+              height: 450,
+              url: '/api/media/file/pla-600x450.jpg',
+              width: 600,
+            },
+          },
+          updatedAt: '2026-06-23T00:00:00.000Z',
+          url: '/api/media/file/pla.jpg',
+          width: 1500,
+        }}
+        title="PLA"
+      />,
+    )
+
+    const image = screen.getByRole('img', { name: 'PLA spool' })
+    expect(image.getAttribute('src')).toContain('pla-600x450.jpg')
+    expect(image.getAttribute('width')).toBe('600')
+    expect(image.getAttribute('height')).toBe('450')
+  })
+
+  it('falls back to the original image without a library rendition', () => {
+    render(
+      <LibraryCardFrame
+        description={null}
+        image={{
+          alt: 'PETG spool',
+          createdAt: '2026-06-23T00:00:00.000Z',
+          height: 1000,
+          id: 2,
+          updatedAt: '2026-06-23T00:00:00.000Z',
+          url: '/api/media/file/petg.jpg',
+          width: 1500,
+        }}
+        title="PETG"
+      />,
+    )
+
+    const image = screen.getByRole('img', { name: 'PETG spool' })
+    expect(image.getAttribute('src')).toContain('petg.jpg')
+    expect(image.getAttribute('width')).toBe('1500')
+    expect(image.getAttribute('height')).toBe('1000')
+  })
+
   it('renders an empty state when there are no items', () => {
     render(
       <LibraryPage
