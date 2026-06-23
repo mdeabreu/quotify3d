@@ -176,6 +176,7 @@ describe('library UI', () => {
         description={null}
         image={{
           alt: 'PLA spool',
+          createdAt: '2026-06-23T00:00:00.000Z',
           height: 1000,
           id: 1,
           sizes: {
@@ -185,6 +186,7 @@ describe('library UI', () => {
               width: 600,
             },
           },
+          updatedAt: '2026-06-23T00:00:00.000Z',
           url: '/api/media/file/pla.jpg',
           width: 1500,
         }}
@@ -204,8 +206,10 @@ describe('library UI', () => {
         description={null}
         image={{
           alt: 'PETG spool',
+          createdAt: '2026-06-23T00:00:00.000Z',
           height: 1000,
           id: 2,
+          updatedAt: '2026-06-23T00:00:00.000Z',
           url: '/api/media/file/petg.jpg',
           width: 1500,
         }}
