@@ -28,7 +28,12 @@ vi.mock('@/utilities/getGlobals', () => ({
 }))
 
 import { Footer } from '@/components/Footer'
-import { DEFAULT_BRANDING, resolveBranding, resolveOpenGraphDefaults } from '@/utilities/branding'
+import {
+  DEFAULT_BRANDING,
+  getOpenGraphImageURL,
+  resolveBranding,
+  resolveOpenGraphDefaults,
+} from '@/utilities/branding'
 
 describe('branding', () => {
   beforeEach(() => {
@@ -59,18 +64,30 @@ describe('branding', () => {
   })
 
   it('resolves Open Graph values from Site Settings before bundled defaults', () => {
+    const image = {
+      id: 1,
+      sizes: {
+        og: {
+          url: '/api/media/file/custom-1200x630.png',
+        },
+      },
+      url: '/api/media/file/custom.png',
+    } as Media
+
+    expect(getOpenGraphImageURL(image)).toBe('/api/media/file/custom-1200x630.png')
+
     expect(
       resolveOpenGraphDefaults({
         defaultOpenGraph: {
           description: 'Custom description',
-          image: { id: 1, url: '/api/media/file/custom.png' } as Media,
+          image,
           title: 'Custom title',
         },
         id: 1,
       }),
     ).toMatchObject({
       description: 'Custom description',
-      image: '/api/media/file/custom.png',
+      image: '/api/media/file/custom-1200x630.png',
       title: 'Custom title',
     })
 
