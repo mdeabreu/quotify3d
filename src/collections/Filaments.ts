@@ -4,6 +4,7 @@ import { amountField } from '@payloadcms/plugin-ecommerce'
 
 import { adminOnly } from '@/access/adminOnly'
 import { currenciesConfig } from '@/config/currencies'
+import { revalidateLibraryDelete, revalidateLibraryPage } from '@/hooks/revalidateLibrary'
 
 export const Filaments: CollectionConfig = {
   slug: 'filaments',
@@ -80,4 +81,8 @@ export const Filaments: CollectionConfig = {
       ],
     },
   ],
+  hooks: {
+    afterChange: [revalidateLibraryPage(['/materials'])],
+    afterDelete: [revalidateLibraryDelete(['/materials'])],
+  },
 }
