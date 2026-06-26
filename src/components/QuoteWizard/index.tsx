@@ -8,9 +8,11 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   buildAvailableSpoolOptions,
   findSpoolForPair,
+  getCatalogImageRendition,
   uniqueOptions,
   type AvailableOption,
   type AvailableSpoolOption,
+  type CatalogImage,
 } from '@/lib/spoolAvailability'
 import {
   getUnsupportedModelFilesMessage,
@@ -31,13 +33,7 @@ type QuoteOptionResponse = {
   id: number
   name: string
   description?: string | null
-  image?:
-    | {
-        url?: string | null
-        thumbnailURL?: string | null
-      }
-    | number
-    | null
+  image?: CatalogImage | number | null
 }
 
 type QuoteOptionsResponse = {
@@ -73,33 +69,12 @@ const shortenDescription = (description: string | null): string | null => {
   return `${normalized.slice(0, 117).trimEnd()}...`
 }
 
-const toAbsoluteURL = (value: string): string => {
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-
-  const base = process.env.NEXT_PUBLIC_SERVER_URL ?? ''
-  if (!base) return value
-
-  return `${base}${value}`
-}
-
 const normalizeOption = (option: QuoteOptionResponse): AvailableOption => {
-  let imageUrl: string | null = null
-
-  if (option.image && typeof option.image === 'object') {
-    const candidate = option.image.thumbnailURL || option.image.url
-
-    if (typeof candidate === 'string' && candidate.length > 0) {
-      imageUrl = toAbsoluteURL(candidate)
-    }
-  }
-
   return {
     id: option.id,
     name: option.name,
     description: typeof option.description === 'string' ? option.description : null,
-    imageUrl,
+    ...getCatalogImageRendition(option.image),
   }
 }
 
@@ -122,7 +97,9 @@ const OptionCard: React.FC<OptionCardProps> = ({
         <img
           alt={option.name}
           className="h-32 w-full rounded-sm border object-cover bg-background"
+          height={option.imageHeight ?? undefined}
           src={option.imageUrl}
+          width={option.imageWidth ?? undefined}
         />
       ) : (
         <div className="h-32 w-full rounded-sm border bg-muted/40 flex items-center justify-center text-xs font-mono uppercase tracking-wider text-primary/50">

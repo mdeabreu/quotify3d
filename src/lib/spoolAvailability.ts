@@ -3,8 +3,10 @@ import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 export type AvailableOption = {
   description: string | null
+  imageHeight?: number | null
   id: number
   imageUrl: string | null
+  imageWidth?: number | null
   name: string
   pricePerGram?: number | null
 }
@@ -30,11 +32,36 @@ const toAbsoluteURL = (value: string): string => {
   return `${base}${value}`
 }
 
-const getImageUrl = (image: Media | number | null | undefined): string | null => {
-  if (!image || typeof image === 'number') return null
+export type CatalogImage = Pick<Media, 'height' | 'sizes' | 'thumbnailURL' | 'url' | 'width'>
 
-  const candidate = image.thumbnailURL || image.url
-  return typeof candidate === 'string' && candidate.length > 0 ? toAbsoluteURL(candidate) : null
+export const getCatalogImageRendition = (
+  image: CatalogImage | number | null | undefined,
+): Pick<AvailableOption, 'imageHeight' | 'imageUrl' | 'imageWidth'> => {
+  if (!image || typeof image === 'number') {
+    return {
+      imageUrl: null,
+    }
+  }
+
+  const library = image.sizes?.library
+  const isUsingLibrary = Boolean(library?.url)
+  const isUsingOriginal = !isUsingLibrary && !image.thumbnailURL && Boolean(image.url)
+  const candidate = library?.url || image.thumbnailURL || image.url
+
+  if (typeof candidate !== 'string' || candidate.length === 0) {
+    return {
+      imageUrl: null,
+    }
+  }
+
+  const imageHeight = isUsingLibrary || isUsingOriginal ? (library?.height ?? image.height) : null
+  const imageWidth = isUsingLibrary || isUsingOriginal ? (library?.width ?? image.width) : null
+
+  return {
+    ...(typeof imageHeight === 'number' ? { imageHeight } : {}),
+    imageUrl: toAbsoluteURL(candidate),
+    ...(typeof imageWidth === 'number' ? { imageWidth } : {}),
+  }
 }
 
 const getActiveFilament = (value: Spool['material']): Filament | null => {
@@ -50,8 +77,8 @@ const getActiveColour = (value: Spool['colour']): Colour | null => {
 const normalizeOption = (doc: Filament | Colour): AvailableOption => {
   const option: AvailableOption = {
     description: typeof doc.description === 'string' ? doc.description : null,
+    ...getCatalogImageRendition(doc.image),
     id: doc.id,
-    imageUrl: getImageUrl(doc.image),
     name: doc.name,
   }
 

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Media } from '@/payload-types'
 
 const globals = vi.hoisted(() => ({
@@ -36,6 +36,10 @@ import {
 } from '@/utilities/branding'
 
 describe('branding', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   beforeEach(() => {
     process.env.COMPANY_NAME = ''
     process.env.SITE_NAME = ''
