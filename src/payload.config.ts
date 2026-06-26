@@ -4,14 +4,15 @@ import {
   EXPERIMENTAL_TableFeature,
   IndentFeature,
   ItalicFeature,
+  lexicalEditor,
   LinkFeature,
+  LinkFields,
   OrderedListFeature,
   UnderlineFeature,
   UnorderedListFeature,
-  lexicalEditor,
 } from '@payloadcms/richtext-lexical'
 import path from 'path'
-import { buildConfig } from 'payload'
+import { buildConfig, TextFieldSingleValidation } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from '@/collections/Categories'
@@ -173,10 +174,16 @@ export default buildConfig({
                 name: 'url',
                 type: 'text',
                 admin: {
-                  condition: ({ linkType }) => linkType !== 'internal',
+                  condition: (_data, siblingData) => siblingData?.linkType !== 'internal',
                 },
                 label: ({ t }) => t('fields:enterURL'),
                 required: true,
+                validate: ((value, options) => {
+                  if ((options?.siblingData as LinkFields)?.linkType === 'internal') {
+                    return true // no validation needed, as no url should exist for internal links
+                  }
+                  return value ? true : 'URL is required'
+                }) as TextFieldSingleValidation,
               },
             ]
           },
