@@ -39,9 +39,7 @@ export const getCatalogImageRendition = (
 ): Pick<AvailableOption, 'imageHeight' | 'imageUrl' | 'imageWidth'> => {
   if (!image || typeof image === 'number') {
     return {
-      imageHeight: null,
       imageUrl: null,
-      imageWidth: null,
     }
   }
 
@@ -52,16 +50,17 @@ export const getCatalogImageRendition = (
 
   if (typeof candidate !== 'string' || candidate.length === 0) {
     return {
-      imageHeight: null,
       imageUrl: null,
-      imageWidth: null,
     }
   }
 
+  const imageHeight = isUsingLibrary || isUsingOriginal ? (library?.height ?? image.height) : null
+  const imageWidth = isUsingLibrary || isUsingOriginal ? (library?.width ?? image.width) : null
+
   return {
-    imageHeight: isUsingLibrary || isUsingOriginal ? (library?.height ?? image.height ?? null) : null,
+    ...(typeof imageHeight === 'number' ? { imageHeight } : {}),
     imageUrl: toAbsoluteURL(candidate),
-    imageWidth: isUsingLibrary || isUsingOriginal ? (library?.width ?? image.width ?? null) : null,
+    ...(typeof imageWidth === 'number' ? { imageWidth } : {}),
   }
 }
 

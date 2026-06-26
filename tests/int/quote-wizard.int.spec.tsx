@@ -233,8 +233,8 @@ describe('catalog option image normalization', () => {
       width: 1500,
     })
     expect(thumbnailRendition.imageUrl).toContain('/api/media/file/thumbnail.jpg')
-    expect(thumbnailRendition.imageWidth).toBeNull()
-    expect(thumbnailRendition.imageHeight).toBeNull()
+    expect(thumbnailRendition.imageWidth).toBeUndefined()
+    expect(thumbnailRendition.imageHeight).toBeUndefined()
 
     const originalRendition = getCatalogImageRendition({
       height: 1000,
