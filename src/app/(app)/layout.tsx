@@ -10,6 +10,7 @@ import { DEFAULT_BRANDING } from '@/utilities/branding'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
+import { draftMode } from 'next/headers'
 import React from 'react'
 import './globals.css'
 
@@ -41,6 +42,7 @@ const twitterSite = TWITTER_SITE ? ensureStartsWith(TWITTER_SITE, 'https://') : 
 } */
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { isEnabled: draft } = await draftMode()
   const siteSettings = await getCachedGlobal('siteSettings', 1)()
   const placeholder =
     typeof siteSettings.quoteProductPlaceholder === 'object' && siteSettings.quoteProductPlaceholder?.url
@@ -61,7 +63,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <Providers quoteProductPlaceholder={placeholder}>
           <AdminBar />
-          <LivePreviewListener />
+          {draft ? <LivePreviewListener /> : null}
 
           <Header />
           <main>{children}</main>
