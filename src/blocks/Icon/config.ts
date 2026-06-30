@@ -32,7 +32,7 @@ export const Icon: Block = {
       required: true,
       admin: {
         components: {
-          Field: '@/blocks/Icon/ColorPicker#ColorPicker',
+          Field: '@/components/admin/ColorPickerField#ColorPickerField',
         },
       },
       validate: (value: unknown) => {
