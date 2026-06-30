@@ -54,6 +54,24 @@ export const ColourLibraryCard = ({ item }: { item: ColourLibraryItem }) => {
           </div>
         )}
 
+        {item.materials.length > 0 ? (
+          <div className="space-y-2">
+            <span className="text-xs font-mono uppercase tracking-[0.24em] text-primary/55">
+              Materials
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {item.materials.map((material) => (
+                <span
+                  className="rounded-full border bg-background px-3 py-1 text-xs font-mono uppercase tracking-[0.18em] text-primary/60"
+                  key={material.id}
+                >
+                  {material.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {item.swatches.length ? (
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono uppercase tracking-[0.24em] text-primary/55">
