@@ -1,4 +1,5 @@
 import type { Colour, Media, ProcessesSelect, Spool } from '@/payload-types'
+import { extractColourSwatches } from '@/lib/colourSwatches'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
@@ -10,11 +11,18 @@ export type MaterialLibraryItem = {
   pricePerGram: number | null
 }
 
+export type ColourLibraryMaterial = {
+  id: number
+  name: string
+  slug: string
+}
+
 export type ColourLibraryItem = {
   description: string | null
   finish: Colour['finish'] | null
   id: number
   image: Media | null
+  materials: ColourLibraryMaterial[]
   name: string
   swatches: string[]
   type: Colour['type'] | null
@@ -55,15 +63,12 @@ const toMedia = (value: Media | number | null | undefined): Media | null => {
   return value
 }
 
-export const extractColourSwatches = (
-  swatches: Colour['swatches'] | null | undefined,
-): string[] => {
-  if (!Array.isArray(swatches)) return []
-
-  return swatches
-    .map((swatch) => (typeof swatch?.hexcode === 'string' ? swatch.hexcode.trim() : ''))
-    .filter((swatch) => swatch.length > 0)
-}
+export const toMaterialSlug = (name: string): string =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 
 const getActiveSpoolDocs = async (): Promise<ActiveSpool[]> => {
   const payload = await getPayload({ config: configPromise })
@@ -115,11 +120,24 @@ export const fetchMaterialLibraryItems = async (): Promise<MaterialLibraryItem[]
 export const fetchColourLibraryItems = async (): Promise<ColourLibraryItem[]> => {
   const spools = await getActiveSpoolDocs()
   const colourByID = new Map<number, NonNullable<ReturnType<typeof getActiveColourFromSpool>>>()
+  const materialsByColourID = new Map<number, Map<number, ColourLibraryMaterial>>()
 
   for (const spool of spools) {
     const colour = getActiveColourFromSpool(spool)
-    if (!colour || colourByID.has(colour.id)) continue
-    colourByID.set(colour.id, colour)
+    const material = getActiveFilamentFromSpool(spool)
+    if (!colour || !material) continue
+
+    if (!colourByID.has(colour.id)) {
+      colourByID.set(colour.id, colour)
+    }
+
+    const materialsByID = materialsByColourID.get(colour.id) ?? new Map()
+    materialsByID.set(material.id, {
+      id: material.id,
+      name: material.name,
+      slug: toMaterialSlug(material.name),
+    })
+    materialsByColourID.set(colour.id, materialsByID)
   }
 
   return [...colourByID.values()]
@@ -129,6 +147,9 @@ export const fetchColourLibraryItems = async (): Promise<ColourLibraryItem[]> =>
       finish: doc.finish ?? null,
       id: doc.id,
       image: toMedia(doc.image),
+      materials: [...(materialsByColourID.get(doc.id)?.values() ?? [])].sort((left, right) =>
+        left.name.localeCompare(right.name),
+      ),
       name: doc.name,
       swatches: extractColourSwatches(doc.swatches),
       type: doc.type ?? null,

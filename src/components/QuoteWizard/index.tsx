@@ -1,5 +1,6 @@
 'use client'
 
+import { ColourOptionPreview } from '@/components/ColourPreview'
 import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,7 @@ import {
   getCatalogImageRendition,
   uniqueOptions,
   type AvailableOption,
+  type AvailableProcessOption,
   type AvailableSpoolOption,
   type CatalogImage,
 } from '@/lib/spoolAvailability'
@@ -24,7 +26,7 @@ import { useAuth } from '@/providers/Auth'
 import { cn } from '@/utilities/cn'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 
 type WizardStep = 0 | 1 | 2 | 3 | 4
@@ -37,7 +39,7 @@ type QuoteOptionResponse = {
 }
 
 type QuoteOptionsResponse = {
-  processes: AvailableOption[]
+  processes: AvailableProcessOption[]
   spools: AvailableSpoolOption[]
 }
 
@@ -51,6 +53,7 @@ type ModelLine = {
 }
 
 type OptionCardProps = {
+  fallbackPreview?: ReactNode
   showMaterialPrice?: boolean
   onSelect: (value: string) => void
   option: AvailableOption
@@ -69,21 +72,25 @@ const shortenDescription = (description: string | null): string | null => {
   return `${normalized.slice(0, 117).trimEnd()}...`
 }
 
-const normalizeOption = (option: QuoteOptionResponse): AvailableOption => {
+const normalizeProcessOption = (option: QuoteOptionResponse): AvailableProcessOption => {
   return {
-    id: option.id,
-    name: option.name,
     description: typeof option.description === 'string' ? option.description : null,
     ...getCatalogImageRendition(option.image),
+    id: option.id,
+    kind: 'process',
+    name: option.name,
   }
 }
 
 const OptionCard: React.FC<OptionCardProps> = ({
+  fallbackPreview,
   showMaterialPrice = false,
   onSelect,
   option,
   selected,
 }) => {
+  const shortDescription = shortenDescription(option.description)
+
   return (
     <button
       className={cn(
@@ -101,6 +108,8 @@ const OptionCard: React.FC<OptionCardProps> = ({
           src={option.imageUrl}
           width={option.imageWidth ?? undefined}
         />
+      ) : fallbackPreview ? (
+        fallbackPreview
       ) : (
         <div className="h-32 w-full rounded-sm border bg-muted/40 flex items-center justify-center text-xs font-mono uppercase tracking-wider text-primary/50">
           Preview unavailable
@@ -108,14 +117,12 @@ const OptionCard: React.FC<OptionCardProps> = ({
       )}
 
       <p className="mt-3 font-medium">{option.name}</p>
-      {showMaterialPrice && typeof option.pricePerGram === 'number' ? (
+      {showMaterialPrice && 'pricePerGram' in option && typeof option.pricePerGram === 'number' ? (
         <p className="mt-1 text-sm text-primary/70">
           <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
         </p>
       ) : null}
-      {shortenDescription(option.description) ? (
-        <p className="mt-1 text-sm text-primary/70">{shortenDescription(option.description)}</p>
-      ) : null}
+      {shortDescription ? <p className="mt-1 text-sm text-primary/70">{shortDescription}</p> : null}
     </button>
   )
 }
@@ -168,7 +175,7 @@ export const QuoteWizard = () => {
         ])
 
         setOptions({
-          processes: (processesJSON.docs ?? []).map(normalizeOption),
+          processes: (processesJSON.docs ?? []).map(normalizeProcessOption),
           spools: buildAvailableSpoolOptions(spoolsJSON.docs ?? []),
         })
       } catch (loadError) {
@@ -585,6 +592,9 @@ export const QuoteWizard = () => {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {availableColours.map((option) => (
                   <OptionCard
+                    fallbackPreview={
+                      <ColourOptionPreview className="h-32 w-full" option={option} />
+                    }
                     key={option.id}
                     onSelect={selectColour}
                     option={option}

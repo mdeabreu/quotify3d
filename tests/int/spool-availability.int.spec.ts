@@ -19,8 +19,8 @@ const activeColour = {
   id: 10,
   image: null,
   name: 'Red',
-  swatches: [],
-  type: 'solid',
+  swatches: [{ hexcode: '#ff0000' }, { hexcode: '#cc0000' }],
+  type: 'co-extrusion',
 }
 
 const makeReq = ({
@@ -58,14 +58,19 @@ describe('buildAvailableSpoolOptions', () => {
       {
         colour: {
           description: 'Bright red.',
+          finish: 'regular',
           id: 10,
           imageUrl: null,
+          kind: 'colour',
           name: 'Red',
+          swatches: ['#ff0000', '#cc0000'],
+          type: 'co-extrusion',
         },
         filament: {
           description: 'Easy printing.',
           id: 1,
           imageUrl: null,
+          kind: 'filament',
           name: 'PLA',
           pricePerGram: 0.18,
         },

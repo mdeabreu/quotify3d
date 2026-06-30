@@ -89,6 +89,9 @@ export const Colours: CollectionConfig = {
               type: 'text',
               required: true,
               admin: {
+                components: {
+                  Field: '@/components/admin/ColorPickerField#ColorPickerField',
+                },
                 description: 'Hex value including #, e.g. #FFAA00',
               },
               validate: (value: unknown) => {

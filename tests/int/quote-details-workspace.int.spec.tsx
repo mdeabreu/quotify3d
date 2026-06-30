@@ -66,6 +66,7 @@ const materialOptions = [
     description: null,
     id: 1,
     imageUrl: null,
+    kind: 'filament' as const,
     name: 'PLA',
     pricePerGram: 0.18,
   },
@@ -73,6 +74,7 @@ const materialOptions = [
     description: null,
     id: 2,
     imageUrl: null,
+    kind: 'filament' as const,
     name: 'PETG',
     pricePerGram: 0.24,
   },
@@ -81,15 +83,23 @@ const materialOptions = [
 const colourOptions = [
   {
     description: null,
+    finish: 'silk' as const,
     id: 10,
     imageUrl: null,
+    kind: 'colour' as const,
     name: 'Red',
+    swatches: ['#ff0000', '#111111'],
+    type: 'co-extrusion' as const,
   },
   {
     description: null,
+    finish: null,
     id: 11,
     imageUrl: null,
+    kind: 'colour' as const,
     name: 'Black',
+    swatches: [],
+    type: null,
   },
 ]
 
@@ -98,6 +108,7 @@ const qualityOptions = [
     description: null,
     id: 20,
     imageUrl: null,
+    kind: 'process' as const,
     name: 'Standard',
   },
 ]
@@ -261,12 +272,7 @@ describe('QuoteDetailsWorkspace failed slice notice', () => {
 
   it('does not show manual-review guidance for non-editable quotes', () => {
     render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        editable={false}
-        hasFailedItems
-        items={[failedItem]}
-      />,
+      <QuoteDetailsWorkspace {...baseProps} editable={false} hasFailedItems items={[failedItem]} />,
     )
 
     expect(screen.queryByText('Some files need manual review')).toBeNull()
@@ -451,6 +457,41 @@ describe('QuoteDetailsWorkspace material availability', () => {
     expect(screen.getByText('Showing colours available for PETG.')).toBeTruthy()
     expect(within(dialog).getAllByText('Black').length).toBeGreaterThan(0)
     expect(within(dialog).queryByRole('button', { name: /Red/ })).toBeNull()
+  })
+
+  it('renders a colour preview from swatches in the item editor', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...baseProps}
+        colourOptions={colourOptions}
+        items={[
+          {
+            colourId: '10',
+            colourLabel: 'Red',
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            gcodeDuration: null,
+            gcodePrice: null,
+            gcodeStatus: null,
+            gcodeWeight: null,
+            id: 'item-1',
+            modelLabel: 'benchy.stl',
+            processId: '20',
+            processLabel: 'Standard',
+            quantity: 1,
+            spoolId: '100',
+          },
+        ]}
+        materialOptions={materialOptions}
+        qualityOptions={qualityOptions}
+        spoolOptions={spoolOptions}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Colour/ }))
+
+    expect(screen.getByLabelText('Red colour preview')).toBeTruthy()
   })
 
   it('disables save until a compatible colour is selected after changing material', () => {

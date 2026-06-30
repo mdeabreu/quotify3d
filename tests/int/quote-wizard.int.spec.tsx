@@ -50,9 +50,12 @@ const spoolDocs = [
     colour: {
       active: true,
       description: 'Bright red.',
+      finish: 'silk',
       id: 10,
       image: null,
       name: 'Red',
+      swatches: [{ hexcode: '#ff0000' }, { hexcode: '#111111' }],
+      type: 'co-extrusion',
     },
     id: 100,
     material: {
@@ -179,6 +182,23 @@ describe('QuoteWizard options', () => {
     expect(image.getAttribute('height')).toBe('450')
   })
 
+  it('renders a colour preview from swatches when no colour image is available', async () => {
+    const { container } = render(<QuoteWizard />)
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['solid'], 'benchy.stl', { type: 'model/stl' })],
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(await screen.findByRole('button', { name: /PLA/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(screen.getByLabelText('Red colour preview')).toBeTruthy()
+    expect(screen.queryByText('Preview unavailable')).toBeNull()
+  })
+
   it('uses mobile-friendly model file accept hints', async () => {
     const { container } = render(<QuoteWizard />)
 
@@ -255,5 +275,8 @@ describe('catalog option image normalization', () => {
     expect(option.filament.imageUrl).toContain('/api/media/file/pla-library.jpg')
     expect(option.filament.imageWidth).toBe(600)
     expect(option.filament.imageHeight).toBe(450)
+    expect(option.colour.finish).toBe('silk')
+    expect(option.colour.swatches).toEqual(['#ff0000', '#111111'])
+    expect(option.colour.type).toBe('co-extrusion')
   })
 })

@@ -1,5 +1,6 @@
 'use client'
 
+import { ColourOptionPreview } from '@/components/ColourPreview'
 import { AddQuoteItemToCartButton } from '@/components/QuoteActions/AddQuoteItemToCartButton'
 import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,15 @@ import {
   MODEL_UPLOAD_ACCEPT,
   MODEL_UPLOAD_FORMAT_LABEL,
 } from '@/lib/modelUploadFormats'
-import { findSpoolForPair, uniqueOptions, type AvailableSpoolOption } from '@/lib/spoolAvailability'
+import {
+  findSpoolForPair,
+  uniqueOptions,
+  type AvailableColourOption,
+  type AvailableFilamentOption,
+  type AvailableOption,
+  type AvailableProcessOption,
+  type AvailableSpoolOption,
+} from '@/lib/spoolAvailability'
 import { cn } from '@/utilities/cn'
 import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
 import { PencilIcon, Trash2Icon } from 'lucide-react'
@@ -29,14 +38,6 @@ import { useRouter } from 'next/navigation'
 import type { QuoteStatus } from '@/payload-types'
 import type { FormEvent, ReactNode } from 'react'
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
-
-type QuoteOption = {
-  id: number
-  name: string
-  description: string | null
-  imageUrl: string | null
-  pricePerGram?: number | null
-}
 
 export type QuoteWorkspaceItem = {
   colourId: string
@@ -69,9 +70,9 @@ type Props = {
   hasInProgressItems: boolean
   hasPendingPrices: boolean
   items: QuoteWorkspaceItem[]
-  materialOptions: QuoteOption[]
-  qualityOptions: QuoteOption[]
-  colourOptions: QuoteOption[]
+  materialOptions: AvailableFilamentOption[]
+  qualityOptions: AvailableProcessOption[]
+  colourOptions: AvailableColourOption[]
   quoteID: number
   quoteStatus: QuoteStatus
   refreshEstimatesAction: (formData: FormData) => void | Promise<void>
@@ -136,9 +137,11 @@ const OptionCard = ({
   option,
   selected,
   showMaterialPrice = false,
+  fallbackPreview,
 }: {
+  fallbackPreview?: ReactNode
   onSelect: (value: string) => void
-  option: QuoteOption
+  option: AvailableOption
   selected: boolean
   showMaterialPrice?: boolean
 }) => (
@@ -156,6 +159,8 @@ const OptionCard = ({
         className="h-28 w-full rounded-sm border bg-background object-cover"
         src={option.imageUrl}
       />
+    ) : fallbackPreview ? (
+      fallbackPreview
     ) : (
       <div className="flex h-28 w-full items-center justify-center rounded-sm border bg-muted/40 text-xs font-mono uppercase tracking-wider text-primary/50">
         Preview unavailable
@@ -163,7 +168,7 @@ const OptionCard = ({
     )}
 
     <p className="mt-3 font-medium">{option.name}</p>
-    {showMaterialPrice && typeof option.pricePerGram === 'number' ? (
+    {showMaterialPrice && 'pricePerGram' in option && typeof option.pricePerGram === 'number' ? (
       <p className="mt-1 text-sm text-primary/70">
         <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
       </p>
@@ -188,13 +193,13 @@ const QuoteItemEditorDialog = ({
   spoolOptions,
   trigger,
 }: {
-  colourOptions: QuoteOption[]
+  colourOptions: AvailableColourOption[]
   accessToken?: string
   currencyCode?: string
   email?: string
   item: QuoteWorkspaceItem
-  materialOptions: QuoteOption[]
-  qualityOptions: QuoteOption[]
+  materialOptions: AvailableFilamentOption[]
+  qualityOptions: AvailableProcessOption[]
   quoteID: number
   quoteStatus: QuoteStatus
   saveItemAction: (formData: FormData) => void | Promise<void>
@@ -354,6 +359,9 @@ const QuoteItemEditorDialog = ({
                 <div className="grid gap-3 md:grid-cols-2">
                   {filteredColourOptions.map((option) => (
                     <OptionCard
+                      fallbackPreview={
+                        <ColourOptionPreview className="h-28 w-full" option={option} />
+                      }
                       key={option.id}
                       onSelect={(value) => {
                         setColourId(value)
@@ -675,9 +683,7 @@ export const QuoteDetailsWorkspace = ({
                           currencyCode={currencyCode}
                         />
                       ) : (
-                        <p className="text-sm font-mono text-primary/50">
-                          {pendingEstimateLabel}
-                        </p>
+                        <p className="text-sm font-mono text-primary/50">{pendingEstimateLabel}</p>
                       )}
                     </div>
 
@@ -740,9 +746,8 @@ export const QuoteDetailsWorkspace = ({
         <div className="rounded-md border bg-background px-4 py-3 text-sm text-primary/70">
           <p className="font-medium text-primary">Some files need manual review</p>
           <p className="mt-1">
-            The instant quote may not be accurate for models that could not be sliced
-            automatically. Send this quote for review and we will calculate the correct price for
-            those files.
+            The instant quote may not be accurate for models that could not be sliced automatically.
+            Send this quote for review and we will calculate the correct price for those files.
           </p>
         </div>
       ) : null}

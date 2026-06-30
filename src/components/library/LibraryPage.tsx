@@ -9,6 +9,7 @@ type Props = {
   description: string
   emptyMessage: string
   isEmpty: boolean
+  renderGrid?: boolean
   title: string
 }
 
@@ -18,6 +19,7 @@ export const LibraryPage = ({
   description,
   emptyMessage,
   isEmpty,
+  renderGrid = true,
   title,
 }: Props) => {
   return (
@@ -31,7 +33,11 @@ export const LibraryPage = ({
       </header>
 
       {!isEmpty ? (
-        <Grid className="mt-10 grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">{children}</Grid>
+        renderGrid ? (
+          <Grid className="mt-10 grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">{children}</Grid>
+        ) : (
+          children
+        )
       ) : (
         <Card className="mt-10 border-dashed bg-background/70">
           <CardHeader>
