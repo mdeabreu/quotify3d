@@ -1,4 +1,5 @@
 import type { Colour, Media, ProcessesSelect, Spool } from '@/payload-types'
+import { extractColourSwatches } from '@/lib/colourSwatches'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
@@ -53,16 +54,6 @@ type ActiveSpool = Spool & {
 const toMedia = (value: Media | number | null | undefined): Media | null => {
   if (!value || typeof value === 'number') return null
   return value
-}
-
-export const extractColourSwatches = (
-  swatches: Colour['swatches'] | null | undefined,
-): string[] => {
-  if (!Array.isArray(swatches)) return []
-
-  return swatches
-    .map((swatch) => (typeof swatch?.hexcode === 'string' ? swatch.hexcode.trim() : ''))
-    .filter((swatch) => swatch.length > 0)
 }
 
 const getActiveSpoolDocs = async (): Promise<ActiveSpool[]> => {

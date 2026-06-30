@@ -1,19 +1,41 @@
 import type { Colour, Filament, Media, Spool } from '@/payload-types'
+import { extractColourSwatches } from '@/lib/colourSwatches'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
-export type AvailableOption = {
+export type AvailableOptionBase = {
   description: string | null
   imageHeight?: number | null
   id: number
   imageUrl: string | null
   imageWidth?: number | null
+  kind: 'colour' | 'filament' | 'process'
   name: string
-  pricePerGram?: number | null
 }
 
+export type AvailableFilamentOption = AvailableOptionBase & {
+  kind: 'filament'
+  pricePerGram: number | null
+}
+
+export type AvailableColourOption = AvailableOptionBase & {
+  finish: Colour['finish'] | null
+  kind: 'colour'
+  swatches: string[]
+  type: Colour['type'] | null
+}
+
+export type AvailableProcessOption = AvailableOptionBase & {
+  kind: 'process'
+}
+
+export type AvailableOption =
+  | AvailableColourOption
+  | AvailableFilamentOption
+  | AvailableProcessOption
+
 export type AvailableSpoolOption = {
-  colour: AvailableOption
-  filament: AvailableOption
+  colour: AvailableColourOption
+  filament: AvailableFilamentOption
   id: number
 }
 
@@ -36,7 +58,7 @@ export type CatalogImage = Pick<Media, 'height' | 'sizes' | 'thumbnailURL' | 'ur
 
 export const getCatalogImageRendition = (
   image: CatalogImage | number | null | undefined,
-): Pick<AvailableOption, 'imageHeight' | 'imageUrl' | 'imageWidth'> => {
+): Pick<AvailableOptionBase, 'imageHeight' | 'imageUrl' | 'imageWidth'> => {
   if (!image || typeof image === 'number') {
     return {
       imageUrl: null,
@@ -74,19 +96,28 @@ const getActiveColour = (value: Spool['colour']): Colour | null => {
   return value
 }
 
-const normalizeOption = (doc: Filament | Colour): AvailableOption => {
-  const option: AvailableOption = {
+const normalizeFilamentOption = (doc: Filament): AvailableFilamentOption => {
+  return {
     description: typeof doc.description === 'string' ? doc.description : null,
     ...getCatalogImageRendition(doc.image),
     id: doc.id,
+    kind: 'filament',
     name: doc.name,
+    pricePerGram: typeof doc.pricePerGram === 'number' ? doc.pricePerGram : null,
   }
+}
 
-  if ('pricePerGram' in doc) {
-    option.pricePerGram = typeof doc.pricePerGram === 'number' ? doc.pricePerGram : null
+const normalizeColourOption = (doc: Colour): AvailableColourOption => {
+  return {
+    description: typeof doc.description === 'string' ? doc.description : null,
+    ...getCatalogImageRendition(doc.image),
+    finish: doc.finish ?? null,
+    id: doc.id,
+    kind: 'colour',
+    name: doc.name,
+    swatches: extractColourSwatches(doc.swatches),
+    type: doc.type ?? null,
   }
-
-  return option
 }
 
 export const buildAvailableSpoolOptions = (spools: ActiveSpool[]): AvailableSpoolOption[] => {
@@ -103,8 +134,8 @@ export const buildAvailableSpoolOptions = (spools: ActiveSpool[]): AvailableSpoo
     if (canonicalByPair.has(key)) continue
 
     canonicalByPair.set(key, {
-      colour: normalizeOption(colour),
-      filament: normalizeOption(filament),
+      colour: normalizeColourOption(colour),
+      filament: normalizeFilamentOption(filament),
       id: spool.id,
     })
   }
@@ -145,14 +176,32 @@ export const findSpoolForPair = (
   return spools.find((spool) => spool.filament.id === filamentID && spool.colour.id === colourID)
 }
 
-export const uniqueOptions = (
+export function uniqueOptions(
+  spools: AvailableSpoolOption[],
+  relation: 'colour',
+): AvailableColourOption[]
+export function uniqueOptions(
+  spools: AvailableSpoolOption[],
+  relation: 'filament',
+): AvailableFilamentOption[]
+export function uniqueOptions(
   spools: AvailableSpoolOption[],
   relation: 'colour' | 'filament',
-): AvailableOption[] => {
-  const byID = new Map<number, AvailableOption>()
+): AvailableColourOption[] | AvailableFilamentOption[] {
+  if (relation === 'colour') {
+    const byID = new Map<number, AvailableColourOption>()
+
+    for (const spool of spools) {
+      byID.set(spool.colour.id, spool.colour)
+    }
+
+    return [...byID.values()].sort((left, right) => left.name.localeCompare(right.name))
+  }
+
+  const byID = new Map<number, AvailableFilamentOption>()
 
   for (const spool of spools) {
-    byID.set(spool[relation].id, spool[relation])
+    byID.set(spool.filament.id, spool.filament)
   }
 
   return [...byID.values()].sort((left, right) => left.name.localeCompare(right.name))

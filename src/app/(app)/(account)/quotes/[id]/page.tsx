@@ -8,7 +8,13 @@ import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
 import { getVisibleAdminNotes } from '@/utilities/quotes/getVisibleAdminNotes'
-import { buildAvailableSpoolOptions, uniqueOptions } from '@/lib/spoolAvailability'
+import {
+  buildAvailableSpoolOptions,
+  getCatalogImageRendition,
+  uniqueOptions,
+  type AvailableProcessOption,
+  type CatalogImage,
+} from '@/lib/spoolAvailability'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 import { ChevronLeftIcon } from 'lucide-react'
@@ -29,52 +35,19 @@ type QuoteOptionResponse = {
   id: number
   name: string
   description?: string | null
-  image?:
-    | {
-        url?: string | null
-        thumbnailURL?: string | null
-      }
-    | number
-    | null
-}
-
-type QuoteOption = {
-  id: number
-  name: string
-  description: string | null
-  imageUrl: string | null
+  image?: CatalogImage | number | null
 }
 
 const editableStatuses = new Set<QuoteStatus>(['new', 'queued', 'sliced'])
 const inProgressGcodeStatuses = new Set(['queued', 'collecting-context', 'slicing', 'parsing'])
 
-const toAbsoluteURL = (value: string): string => {
-  if (value.startsWith('http://') || value.startsWith('https://')) {
-    return value
-  }
-
-  const base = process.env.NEXT_PUBLIC_SERVER_URL ?? ''
-  if (!base) return value
-
-  return `${base}${value}`
-}
-
-const normalizeOption = (option: QuoteOptionResponse): QuoteOption => {
-  let imageUrl: string | null = null
-
-  if (option.image && typeof option.image === 'object') {
-    const candidate = option.image.thumbnailURL || option.image.url
-
-    if (typeof candidate === 'string' && candidate.length > 0) {
-      imageUrl = toAbsoluteURL(candidate)
-    }
-  }
-
+const normalizeProcessOption = (option: QuoteOptionResponse): AvailableProcessOption => {
   return {
-    id: option.id,
-    name: option.name,
     description: typeof option.description === 'string' ? option.description : null,
-    imageUrl,
+    ...getCatalogImageRendition(option.image),
+    id: option.id,
+    kind: 'process',
+    name: option.name,
   }
 }
 
@@ -320,7 +293,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
   const spoolOptions = buildAvailableSpoolOptions(spoolsResult.docs)
   const materialOptions = uniqueOptions(spoolOptions, 'filament')
   const colourOptions = uniqueOptions(spoolOptions, 'colour')
-  const qualityOptions = (processesResult.docs as QuoteOptionResponse[]).map(normalizeOption)
+  const qualityOptions = (processesResult.docs as QuoteOptionResponse[]).map(normalizeProcessOption)
 
   const relatedProductsResult =
     quote.items.length > 0
@@ -926,7 +899,6 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
             <p className="whitespace-pre-wrap">{quote.notes}</p>
           </div>
         ) : null}
-
       </div>
     </div>
   )

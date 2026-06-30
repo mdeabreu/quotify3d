@@ -6,20 +6,20 @@ import type { ReactNode } from 'react'
 type Props = {
   children?: ReactNode
   description: string | null
+  fallbackMedia?: ReactNode
   image: MediaAsset | null
   title: string
 }
 
-export const LibraryCardFrame = ({ children, description, image, title }: Props) => {
-  const libraryImage =
-    image?.sizes?.library?.url
-      ? {
-          ...image,
-          height: image.sizes.library.height ?? image.height,
-          url: image.sizes.library.url,
-          width: image.sizes.library.width ?? image.width,
-        }
-      : image
+export const LibraryCardFrame = ({ children, description, fallbackMedia, image, title }: Props) => {
+  const libraryImage = image?.sizes?.library?.url
+    ? {
+        ...image,
+        height: image.sizes.library.height ?? image.height,
+        url: image.sizes.library.url,
+        width: image.sizes.library.width ?? image.width,
+      }
+    : image
 
   return (
     <Card className="h-full overflow-hidden py-0">
@@ -32,6 +32,8 @@ export const LibraryCardFrame = ({ children, description, image, title }: Props)
             priority={false}
             resource={libraryImage}
           />
+        ) : fallbackMedia ? (
+          fallbackMedia
         ) : (
           <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-br from-muted/60 via-background to-muted/30 text-xs font-mono uppercase tracking-[0.24em] text-primary/45">
             No Preview
@@ -41,7 +43,9 @@ export const LibraryCardFrame = ({ children, description, image, title }: Props)
 
       <CardHeader className="gap-2">
         <CardTitle className="text-xl">{title}</CardTitle>
-        {description ? <p className="text-sm leading-6 text-muted-foreground">{description}</p> : null}
+        {description ? (
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        ) : null}
       </CardHeader>
 
       {children ? <CardContent className="mt-auto pb-6">{children}</CardContent> : null}

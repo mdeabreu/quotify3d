@@ -6,11 +6,11 @@ import { LibraryCardFrame } from '@/components/library/LibraryCardFrame'
 import { ColourLibraryCard } from '@/components/library/LibraryCards'
 import { LibraryPage } from '@/components/library/LibraryPage'
 import {
-  extractColourSwatches,
   fetchColourLibraryItems,
   fetchMaterialLibraryItems,
   fetchProcessLibraryItems,
 } from '@/lib/library'
+import { extractColourSwatches } from '@/lib/colourSwatches'
 
 const find = vi.fn()
 const activeSpoolResponse = {
@@ -258,7 +258,9 @@ describe('library UI', () => {
     expect(screen.getByText('Sunset Shift')).toBeTruthy()
     expect(screen.getByText('Silk')).toBeTruthy()
     expect(screen.getByText('Co Extrusion')).toBeTruthy()
+    expect(screen.getByLabelText('Sunset Shift colour preview')).toBeTruthy()
     expect(screen.getByLabelText('#ff6600')).toBeTruthy()
     expect(screen.getByLabelText('#3300ff')).toBeTruthy()
+    expect(screen.queryByText('No Preview')).toBeNull()
   })
 })

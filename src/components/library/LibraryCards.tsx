@@ -1,28 +1,18 @@
+import { ColourOptionPreview } from '@/components/ColourPreview'
 import { LibraryCardFrame } from '@/components/library/LibraryCardFrame'
 import { Price } from '@/components/Price'
-import type {
-  ColourLibraryItem,
-  MaterialLibraryItem,
-  ProcessLibraryItem,
-} from '@/lib/library'
+import type { ColourLibraryItem, MaterialLibraryItem, ProcessLibraryItem } from '@/lib/library'
 import { capitaliseFirstLetter } from '@/utilities/capitaliseFirstLetter'
 
 const humanizeValue = (value: string | null) => {
   if (!value) return null
 
-  return value
-    .split('-')
-    .map(capitaliseFirstLetter)
-    .join(' ')
+  return value.split('-').map(capitaliseFirstLetter).join(' ')
 }
 
 export const MaterialLibraryCard = ({ item }: { item: MaterialLibraryItem }) => {
   return (
-    <LibraryCardFrame
-      description={item.description}
-      image={item.image}
-      title={item.name}
-    >
+    <LibraryCardFrame description={item.description} image={item.image} title={item.name}>
       {typeof item.pricePerGram === 'number' ? (
         <div className="flex items-center justify-between rounded-lg border bg-background px-4 py-3">
           <span className="text-xs font-mono uppercase tracking-[0.24em] text-primary/55">
@@ -42,6 +32,9 @@ export const ColourLibraryCard = ({ item }: { item: ColourLibraryItem }) => {
   return (
     <LibraryCardFrame
       description={item.description}
+      fallbackMedia={
+        <ColourOptionPreview className="aspect-[4/3] w-full rounded-none border-0" option={item} />
+      }
       image={item.image}
       title={item.name}
     >
@@ -85,11 +78,5 @@ export const ColourLibraryCard = ({ item }: { item: ColourLibraryItem }) => {
 }
 
 export const ProcessLibraryCard = ({ item }: { item: ProcessLibraryItem }) => {
-  return (
-    <LibraryCardFrame
-      description={item.description}
-      image={item.image}
-      title={item.name}
-    />
-  )
+  return <LibraryCardFrame description={item.description} image={item.image} title={item.name} />
 }
