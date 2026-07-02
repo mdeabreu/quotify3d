@@ -921,6 +921,10 @@ type CatalogPricing = {
     machinePricePerHour?: number
 }
 
+const IMPORT_OPERATION_CONTEXT = {
+    disableRevalidate: true,
+} as const
+
 function getEmptyCounts(): OperationCounts {
     return { created: 0, updated: 0, skipped: 0 }
 }
@@ -1002,6 +1006,7 @@ async function importConfigs(
 
             const updatedDoc = await payload.update({
                 collection,
+                context: IMPORT_OPERATION_CONTEXT,
                 id: existingDoc.id,
                 data: {
                     name,
@@ -1020,6 +1025,7 @@ async function importConfigs(
         } else {
             const createdDoc = await payload.create({
                 collection,
+                context: IMPORT_OPERATION_CONTEXT,
                 data: {
                     name,
                     config: configContents,
@@ -1179,6 +1185,7 @@ async function createCatalogItems(
 
             await payload.update({
                 collection,
+                context: IMPORT_OPERATION_CONTEXT,
                 id: existingDoc.id,
                 data,
             })
@@ -1203,6 +1210,7 @@ async function createCatalogItems(
 
         await payload.create({
             collection,
+            context: IMPORT_OPERATION_CONTEXT,
             data,
         })
 
