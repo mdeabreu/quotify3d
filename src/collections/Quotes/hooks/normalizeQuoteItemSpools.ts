@@ -1,5 +1,4 @@
 import type { CollectionBeforeValidateHook } from 'payload'
-import { APIError } from 'payload'
 
 import { toNumericRelationID } from '@/lib/spoolAvailability'
 
@@ -14,52 +13,6 @@ type QuoteItemInput = {
   process?: unknown
   quantity?: unknown
   spool?: unknown
-}
-
-const trackedItemFields = [
-  'model',
-  'quantity',
-  'spool',
-  'filament',
-  'colour',
-  'filamentSlots',
-  'process',
-  'machine',
-] as const
-
-const serializeFilamentSlots = (slots: unknown): string => {
-  if (!Array.isArray(slots)) return '[]'
-
-  return JSON.stringify(
-    slots.map((slot) => ({
-      colour: toNumericRelationID(slot?.colour) ?? null,
-    })),
-  )
-}
-
-const itemSelectionUnchanged = ({
-  item,
-  originalItem,
-}: {
-  item: QuoteItemInput
-  originalItem: QuoteItemInput | undefined
-}) => {
-  if (!originalItem) return false
-
-  return trackedItemFields.every((field) => {
-    if (field === 'quantity') {
-      return item.quantity === originalItem.quantity
-    }
-
-    if (field === 'filamentSlots') {
-      return (
-        serializeFilamentSlots(item.filamentSlots) ===
-        serializeFilamentSlots(originalItem.filamentSlots)
-      )
-    }
-
-    return toNumericRelationID(item[field]) === toNumericRelationID(originalItem[field])
-  })
 }
 
 const getActiveSpoolForPair = async ({
@@ -113,71 +66,6 @@ const getActiveSpoolForPair = async ({
   })
 }
 
-const resolveActiveSpool = async ({
-  item,
-  req,
-}: {
-  item: QuoteItemInput
-  req: Parameters<CollectionBeforeValidateHook>[0]['req']
-}) => {
-  const spoolID = toNumericRelationID(item.spool)
-  const filamentID = toNumericRelationID(item.filament)
-  const colourID = toNumericRelationID(item.colour)
-
-  if (spoolID) {
-    const spool = await req.payload.findByID({
-      collection: 'spools',
-      id: spoolID,
-      depth: 1,
-      req,
-      overrideAccess: true,
-    })
-
-    const spoolFilamentID = toNumericRelationID(spool.material)
-    const spoolColourID = toNumericRelationID(spool.colour)
-    const material = typeof spool.material === 'object' ? spool.material : null
-    const colour = typeof spool.colour === 'object' ? spool.colour : null
-
-    if (!spool.active || !material?.active || !colour?.active) {
-      throw new APIError('Selected spool is no longer available.', 400)
-    }
-
-    if (filamentID && spoolFilamentID !== filamentID) {
-      throw new APIError('Selected spool does not match the selected material.', 400)
-    }
-
-    if (colourID && spoolColourID !== colourID) {
-      throw new APIError('Selected spool does not match the selected colour.', 400)
-    }
-
-    return {
-      colour: spoolColourID,
-      filament: spoolFilamentID,
-      spool: spool.id,
-    }
-  }
-
-  if (!filamentID || !colourID) {
-    return null
-  }
-
-  const spool = await getActiveSpoolForPair({
-    colourID,
-    filamentID,
-    req,
-  })
-
-  if (!spool) {
-    throw new APIError('Selected material and colour combination is not available.', 400)
-  }
-
-  return {
-    colour: colourID,
-    filament: filamentID,
-    spool: spool.id,
-  }
-}
-
 const getModelFilamentSlotCount = async ({
   item,
   req,
@@ -227,23 +115,9 @@ const normalizeFilamentSlots = ({
   return normalized
 }
 
-export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
-  data,
-  operation,
-  originalDoc,
-  req,
-}) => {
+export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({ data, req }) => {
   if (!data || !Array.isArray(data.items)) {
     return data
-  }
-
-  const originalItemsByID = new Map<string, QuoteItemInput>()
-  if (operation === 'update' && Array.isArray(originalDoc?.items)) {
-    for (const originalItem of originalDoc.items) {
-      if (typeof originalItem?.id === 'string') {
-        originalItemsByID.set(originalItem.id, originalItem as QuoteItemInput)
-      }
-    }
   }
 
   const items = await Promise.all(
@@ -251,64 +125,26 @@ export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
       if (!item || typeof item !== 'object') return item
       const typedItem = item as QuoteItemInput
 
-      const originalItem =
-        operation === 'update' && typeof typedItem.id === 'string'
-          ? originalItemsByID.get(typedItem.id)
-          : undefined
       const slotCount = await getModelFilamentSlotCount({
         item: typedItem,
         req,
       })
-      const selectionUnchanged =
-        operation === 'update' &&
-        typeof typedItem.id === 'string' &&
-        itemSelectionUnchanged({
-          item: typedItem,
-          originalItem,
-        })
-      const colourChanged =
-        originalItem &&
-        toNumericRelationID(typedItem.colour) !== toNumericRelationID(originalItem.colour)
-      const slotsWereCarriedForward =
-        originalItem &&
-        serializeFilamentSlots(typedItem.filamentSlots) ===
-          serializeFilamentSlots(originalItem.filamentSlots)
-      const itemForSlots =
-        colourChanged && slotsWereCarriedForward
-          ? {
-              ...typedItem,
-              filamentSlots: undefined,
-            }
-          : typedItem
       const slots = normalizeFilamentSlots({
         colourID: toNumericRelationID(typedItem.colour),
-        item: itemForSlots,
+        item: typedItem,
         slotCount,
       })
-
-      if (
-        selectionUnchanged &&
-        slots.length === slotCount &&
-        serializeFilamentSlots(slots) === serializeFilamentSlots(typedItem.filamentSlots)
-      ) {
-        return item
-      }
-
-      const resolved = await resolveActiveSpool({
-        item: typedItem,
-        req,
-      })
-
-      if (!resolved) {
-        return {
-          ...item,
-          filamentSlots: slots,
-        }
-      }
+      const filamentID = toNumericRelationID(typedItem.filament)
+      const firstColourID = toNumericRelationID(slots[0]?.colour)
+      const spool =
+        filamentID && firstColourID
+          ? await getActiveSpoolForPair({ colourID: firstColourID, filamentID, req })
+          : null
 
       return {
         ...item,
-        ...resolved,
+        colour: firstColourID,
+        spool: spool?.id ?? null,
         filamentSlots: slots,
       }
     }),

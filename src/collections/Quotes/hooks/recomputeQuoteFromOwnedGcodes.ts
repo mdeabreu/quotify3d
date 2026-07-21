@@ -1,10 +1,15 @@
 import type { PayloadRequest } from 'payload'
 
+import {
+  analyzeQuoteItemConfiguration,
+  gcodeMatchesConfiguration,
+  type QuoteItem,
+  type QuoteItemConfigurationAnalysis,
+} from '@/lib/quotes/quoteItemConfiguration'
 import type { Gcode, Quote, QuoteStatus } from '@/payload-types'
 import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
-type QuoteItem = Quote['items'][number]
 type ManagedQuoteStatus = Extract<QuoteStatus, 'new' | 'queued' | 'sliced'>
 type RecomputeOptions = {
   quote: Quote
@@ -47,43 +52,6 @@ const getManagedQuoteStatus = (status: QuoteStatus): ManagedQuoteStatus | null =
   return null
 }
 
-const getFilamentSlots = (value: unknown) => {
-  if (!Array.isArray(value)) return []
-
-  return value
-    .map((slot) => ({
-      colour: toNumericRelationID(slot?.colour),
-    }))
-    .filter((slot): slot is { colour: number } => typeof slot.colour === 'number')
-}
-
-const getItemConfiguration = (item: QuoteItem) => ({
-  model: toNumericRelationID(item.model),
-  filament: toNumericRelationID(item.filament),
-  filamentSlots: getFilamentSlots(item.filamentSlots),
-  process: toNumericRelationID(item.process),
-  machine: toNumericRelationID(item.machine),
-})
-
-const isCompleteConfiguration = (configuration: ReturnType<typeof getItemConfiguration>) =>
-  Boolean(
-    configuration.model &&
-      configuration.filament &&
-      configuration.filamentSlots.length > 0 &&
-      configuration.process &&
-      configuration.machine,
-  )
-
-const configurationsMatch = (
-  left: ReturnType<typeof getItemConfiguration>,
-  right: ReturnType<typeof getItemConfiguration>,
-) =>
-  left.model === right.model &&
-  left.filament === right.filament &&
-  JSON.stringify(left.filamentSlots) === JSON.stringify(right.filamentSlots) &&
-  left.process === right.process &&
-  left.machine === right.machine
-
 const getDesiredGcodeStatus = ({
   configurationChanged,
   currentStatus,
@@ -123,20 +91,28 @@ const getUnitPrice = (gcode: Gcode): number | null => {
 }
 
 const deriveQuoteSubtotal = ({
+  analyses,
   gcodeByItemID,
   items,
 }: {
+  analyses: Map<string, QuoteItemConfigurationAnalysis>
   gcodeByItemID: Map<string, Gcode>
   items: QuoteItem[]
 }) => {
   const subtotal = items.reduce((subtotal, item) => {
-    if (!isCompleteConfiguration(getItemConfiguration(item))) return subtotal
-
     const quoteItemID = getQuoteItemID(item)
     if (!quoteItemID) return subtotal
+    const analysis = analyses.get(quoteItemID)
+    if (!analysis?.complete) return subtotal
 
     const gcode = gcodeByItemID.get(quoteItemID)
-    if (!gcode) return subtotal
+    if (
+      !gcode ||
+      toNumericRelationID(item.gcode) !== gcode.id ||
+      !gcodeMatchesConfiguration(gcode, analysis)
+    ) {
+      return subtotal
+    }
 
     const unitPrice = getUnitPrice(gcode)
     if (typeof unitPrice !== 'number') return subtotal
@@ -149,10 +125,12 @@ const deriveQuoteSubtotal = ({
 }
 
 const deriveQuoteStatus = ({
+  analyses,
   gcodeByItemID,
   items,
   currentStatus,
 }: {
+  analyses: Map<string, QuoteItemConfigurationAnalysis>
   currentStatus: QuoteStatus
   gcodeByItemID: Map<string, Gcode>
   items: QuoteItem[]
@@ -166,11 +144,21 @@ const deriveQuoteStatus = ({
     return currentStatus
   }
 
-  const ownedGcodes = itemIDs
-    .map((quoteItemID) => gcodeByItemID.get(quoteItemID))
-    .filter((gcode): gcode is Gcode => Boolean(gcode))
+  if (!itemIDs.every((itemID) => analyses.get(itemID)?.complete)) return 'new'
 
-  if (!items.every((item) => isCompleteConfiguration(getItemConfiguration(item)))) return 'new'
+  const ownedGcodes = items
+    .map((item) => {
+      const itemID = getQuoteItemID(item)
+      const gcode = itemID ? gcodeByItemID.get(itemID) : undefined
+      const analysis = itemID ? analyses.get(itemID) : undefined
+      return gcode &&
+        analysis &&
+        toNumericRelationID(item.gcode) === gcode.id &&
+        gcodeMatchesConfiguration(gcode, analysis)
+        ? gcode
+        : undefined
+    })
+    .filter((gcode): gcode is Gcode => Boolean(gcode))
 
   const allSliced =
     ownedGcodes.length === itemIDs.length && ownedGcodes.every((gcode) => gcode.status === 'sliced')
@@ -178,13 +166,7 @@ const deriveQuoteStatus = ({
   return allSliced ? 'sliced' : 'queued'
 }
 
-const findOwnedGcodes = async ({
-  quoteID,
-  req,
-}: {
-  quoteID: number
-  req: PayloadRequest
-}) =>
+const findOwnedGcodes = async ({ quoteID, req }: { quoteID: number; req: PayloadRequest }) =>
   req.payload.find({
     collection: 'gcodes',
     depth: 0,
@@ -202,10 +184,12 @@ const buildOwnedGcodeMap = (gcodes: Gcode[]) =>
   new Map<string, Gcode>(gcodes.map((gcode) => [String(gcode.quoteItemID), gcode] as const))
 
 const reconcileOwnedGcodesForQuote = async ({
+  analyses,
   existingGcodes,
   quote,
   req,
 }: {
+  analyses: Map<string, QuoteItemConfigurationAnalysis>
   existingGcodes: Gcode[]
   quote: Quote
   req: PayloadRequest
@@ -235,14 +219,19 @@ const reconcileOwnedGcodesForQuote = async ({
     const quoteItemID = getQuoteItemID(item)
     if (!quoteItemID) continue
 
-    const configuration = getItemConfiguration(item)
-    const { model, filament, filamentSlots, process, machine } = configuration
+    const analysis = analyses.get(quoteItemID)
+    const configuration = analysis?.configuration
+    const existing = gcodeByItemID.get(quoteItemID)
 
-    if (!model || !filament || filamentSlots.length === 0 || !process || !machine) {
+    if (!configuration) {
+      if (toNumericRelationID(item.gcode)) {
+        nextItems[index] = { ...item, gcode: null }
+        itemsChanged = true
+      }
       continue
     }
 
-    const existing = gcodeByItemID.get(quoteItemID)
+    const { model, filament, filamentSlots, process, machine } = configuration
 
     if (!existing) {
       const created = await req.payload.create({
@@ -279,15 +268,7 @@ const reconcileOwnedGcodesForQuote = async ({
       continue
     }
 
-    const existingConfiguration = {
-      model: toNumericRelationID(existing.model),
-      filament: toNumericRelationID(existing.filament),
-      filamentSlots: getFilamentSlots(existing.filamentSlots),
-      process: toNumericRelationID(existing.process),
-      machine: toNumericRelationID(existing.machine),
-    }
-
-    const configurationChanged = !configurationsMatch(configuration, existingConfiguration)
+    const configurationChanged = !gcodeMatchesConfiguration(existing, analysis)
     const desiredStatus = getDesiredGcodeStatus({
       configurationChanged,
       currentStatus: existing.status,
@@ -365,9 +346,21 @@ export const recomputeQuoteFromOwnedGcodes = async ({
   })
 
   const existingGcodes = existingGcodesResult.docs as Gcode[]
+  const analyses = new Map(
+    await Promise.all(
+      items.map(
+        async (item) =>
+          [
+            getQuoteItemID(item) as string,
+            await analyzeQuoteItemConfiguration({ item, payload: req.payload, req }),
+          ] as const,
+      ),
+    ),
+  )
 
   const reconciled = reconcileOwnedGcodes
     ? await reconcileOwnedGcodesForQuote({
+        analyses,
         existingGcodes,
         quote,
         req,
@@ -379,11 +372,13 @@ export const recomputeQuoteFromOwnedGcodes = async ({
       }
 
   const nextSubtotal = deriveQuoteSubtotal({
+    analyses,
     gcodeByItemID: reconciled.gcodeByItemID,
     items: reconciled.nextItems,
   })
 
   const nextStatus = deriveQuoteStatus({
+    analyses,
     currentStatus: quote.status,
     gcodeByItemID: reconciled.gcodeByItemID,
     items: reconciled.nextItems,

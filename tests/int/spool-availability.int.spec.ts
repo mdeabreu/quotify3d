@@ -113,13 +113,10 @@ describe('normalizeQuoteItemSpools', () => {
   })
 
   it('accepts an active spool and populates the quote item pair', async () => {
-    const findByID = vi.fn().mockResolvedValue({
-      active: true,
-      colour: activeColour,
-      id: 21,
-      material: activeMaterial,
+    const find = vi.fn().mockResolvedValue({
+      docs: [{ active: true, colour: activeColour, id: 21, material: activeMaterial }],
     })
-    const req = makeReq({ findByID })
+    const req = makeReq({ find })
 
     await expect(
       normalizeQuoteItemSpools({
@@ -146,17 +143,18 @@ describe('normalizeQuoteItemSpools', () => {
     })
   })
 
-  it('rejects inactive spool-backed combinations', async () => {
-    const findByID = vi.fn().mockResolvedValue({
-      active: true,
-      colour: activeColour,
-      id: 21,
-      material: {
-        ...activeMaterial,
-        active: false,
-      },
+  it('preserves an unavailable selection and clears its legacy spool', async () => {
+    const find = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          active: true,
+          colour: activeColour,
+          id: 21,
+          material: { ...activeMaterial, active: false },
+        },
+      ],
     })
-    const req = makeReq({ findByID })
+    const req = makeReq({ find })
 
     await expect(
       normalizeQuoteItemSpools({
@@ -172,7 +170,16 @@ describe('normalizeQuoteItemSpools', () => {
         operation: 'create',
         req,
       } as never),
-    ).rejects.toThrow('Selected spool is no longer available.')
+    ).resolves.toMatchObject({
+      items: [
+        {
+          colour: 10,
+          filament: 1,
+          filamentSlots: [{ colour: 10 }],
+          spool: null,
+        },
+      ],
+    })
   })
 
   it('derives a canonical active spool from a material and colour pair', async () => {

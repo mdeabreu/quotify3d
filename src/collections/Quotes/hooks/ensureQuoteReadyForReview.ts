@@ -1,5 +1,9 @@
 import { APIError, type CollectionBeforeChangeHook } from 'payload'
 
+import {
+  analyzeQuoteItemConfiguration,
+  gcodeMatchesConfiguration,
+} from '@/lib/quotes/quoteItemConfiguration'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 const TERMINAL_GCODE_STATUSES = new Set(['sliced', 'failed'])
@@ -24,31 +28,8 @@ export const ensureQuoteReadyForReview: CollectionBeforeChangeHook = async ({
 
   for (const [index, item] of items.entries()) {
     const lineNumber = index + 1
-    const modelID = resolveRelationID(item?.model)
-    const filamentID = resolveRelationID(item?.filament)
-    const processID = resolveRelationID(item?.process)
-    const machineID = resolveRelationID(item?.machine)
-    const slots = Array.isArray(item?.filamentSlots) ? item.filamentSlots : []
-
-    if (!modelID || !filamentID || !processID || !machineID || !item?.quantity || item.quantity < 1) {
-      incompleteLines.push(lineNumber)
-      continue
-    }
-
-    const model = await req.payload.findByID({
-      collection: 'models',
-      id: modelID,
-      depth: 0,
-      req,
-      overrideAccess: true,
-      select: { filamentSlotCount: true },
-    })
-    const slotCount = Math.max(1, Math.floor(model.filamentSlotCount || 1))
-    const slotsComplete =
-      slots.length === slotCount &&
-      slots.every((slot: { colour?: unknown }) => Boolean(resolveRelationID(slot?.colour)))
-
-    if (!slotsComplete) {
+    const analysis = await analyzeQuoteItemConfiguration({ item, payload: req.payload, req })
+    if (!analysis.complete) {
       incompleteLines.push(lineNumber)
       continue
     }
@@ -59,16 +40,31 @@ export const ensureQuoteReadyForReview: CollectionBeforeChangeHook = async ({
       continue
     }
 
-    const gcode = await req.payload.findByID({
-      collection: 'gcodes',
-      id: gcodeID,
-      depth: 0,
-      req,
-      overrideAccess: true,
-      select: { status: true },
-    })
+    let gcode
+    try {
+      gcode = await req.payload.findByID({
+        collection: 'gcodes',
+        id: gcodeID,
+        depth: 0,
+        req,
+        overrideAccess: true,
+        select: {
+          filament: true,
+          filamentSlots: true,
+          machine: true,
+          model: true,
+          process: true,
+          status: true,
+        },
+      })
+    } catch {
+      unfinishedLines.push(lineNumber)
+      continue
+    }
 
-    if (!TERMINAL_GCODE_STATUSES.has(gcode.status)) unfinishedLines.push(lineNumber)
+    if (!gcodeMatchesConfiguration(gcode, analysis) || !TERMINAL_GCODE_STATUSES.has(gcode.status)) {
+      unfinishedLines.push(lineNumber)
+    }
   }
 
   if (incompleteLines.length > 0) {
