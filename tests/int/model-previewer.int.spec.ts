@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import * as THREE from 'three'
 
 import { expandSingleComponentProjects, resolvePreviewSlot } from '@/components/ModelPreviewer'
+import { centerModelOnPlate, visibleBounds } from '@/components/ModelPreviewer/scene'
 
 const parseXml = (contents: string) => new DOMParser().parseFromString(contents, 'application/xml')
 
@@ -77,5 +79,57 @@ describe('resolvePreviewSlot', () => {
 
   it('falls back to the containing mesh slot for unpainted faces', () => {
     expect(resolvePreviewSlot(0, 2)).toBe(2)
+  })
+})
+
+describe('preview framing', () => {
+  it('centres nested translated content on the build plate', () => {
+    const wrapper = new THREE.Group()
+    const archiveRoot = new THREE.Group()
+    archiveRoot.position.set(80, -45, 12)
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(20, 30, 40))
+    mesh.position.set(15, 25, 20)
+    archiveRoot.add(mesh)
+    wrapper.add(archiveRoot)
+
+    expect(centerModelOnPlate(THREE, wrapper)).toBe(true)
+
+    const bounds = visibleBounds(THREE, wrapper)
+    const center = bounds.getCenter(new THREE.Vector3())
+    expect(center.x).toBeCloseTo(0)
+    expect(center.y).toBeCloseTo(0)
+    expect(bounds.min.z).toBeCloseTo(0)
+  })
+
+  it('ignores invisible geometry when calculating preview bounds', () => {
+    const model = new THREE.Group()
+    model.add(new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10)))
+    const hidden = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10))
+    hidden.position.set(1000, 1000, 1000)
+    hidden.visible = false
+    model.add(hidden)
+
+    const bounds = visibleBounds(THREE, model)
+
+    expect(bounds.max.x).toBeCloseTo(5)
+    expect(bounds.max.y).toBeCloseTo(5)
+    expect(bounds.max.z).toBeCloseTo(5)
+  })
+
+  it('includes instance transforms in preview bounds', () => {
+    const model = new THREE.Group()
+    const mesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(10, 10, 10),
+      new THREE.MeshBasicMaterial(),
+      2,
+    )
+    mesh.setMatrixAt(0, new THREE.Matrix4().makeTranslation(50, 0, 0))
+    mesh.setMatrixAt(1, new THREE.Matrix4().makeTranslation(100, 0, 0))
+    model.add(mesh)
+
+    const bounds = visibleBounds(THREE, model)
+
+    expect(bounds.min.x).toBeCloseTo(45)
+    expect(bounds.max.x).toBeCloseTo(105)
   })
 })
