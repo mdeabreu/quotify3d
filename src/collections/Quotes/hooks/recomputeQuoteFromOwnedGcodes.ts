@@ -47,12 +47,32 @@ const getManagedQuoteStatus = (status: QuoteStatus): ManagedQuoteStatus | null =
   return null
 }
 
+const getFilamentSlots = (value: unknown) => {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((slot) => ({
+      colour: toNumericRelationID(slot?.colour),
+    }))
+    .filter((slot): slot is { colour: number } => typeof slot.colour === 'number')
+}
+
 const getItemConfiguration = (item: QuoteItem) => ({
   model: toNumericRelationID(item.model),
   filament: toNumericRelationID(item.filament),
+  filamentSlots: getFilamentSlots(item.filamentSlots),
   process: toNumericRelationID(item.process),
   machine: toNumericRelationID(item.machine),
 })
+
+const isCompleteConfiguration = (configuration: ReturnType<typeof getItemConfiguration>) =>
+  Boolean(
+    configuration.model &&
+      configuration.filament &&
+      configuration.filamentSlots.length > 0 &&
+      configuration.process &&
+      configuration.machine,
+  )
 
 const configurationsMatch = (
   left: ReturnType<typeof getItemConfiguration>,
@@ -60,6 +80,7 @@ const configurationsMatch = (
 ) =>
   left.model === right.model &&
   left.filament === right.filament &&
+  JSON.stringify(left.filamentSlots) === JSON.stringify(right.filamentSlots) &&
   left.process === right.process &&
   left.machine === right.machine
 
@@ -109,6 +130,8 @@ const deriveQuoteSubtotal = ({
   items: QuoteItem[]
 }) => {
   const subtotal = items.reduce((subtotal, item) => {
+    if (!isCompleteConfiguration(getItemConfiguration(item))) return subtotal
+
     const quoteItemID = getQuoteItemID(item)
     if (!quoteItemID) return subtotal
 
@@ -127,13 +150,14 @@ const deriveQuoteSubtotal = ({
 
 const deriveQuoteStatus = ({
   gcodeByItemID,
-  itemIDs,
+  items,
   currentStatus,
 }: {
   currentStatus: QuoteStatus
   gcodeByItemID: Map<string, Gcode>
-  itemIDs: string[]
+  items: QuoteItem[]
 }): QuoteStatus => {
+  const itemIDs = items.map(getQuoteItemID).filter((itemID): itemID is string => Boolean(itemID))
   if (currentStatus === 'new') {
     return currentStatus
   }
@@ -145,6 +169,8 @@ const deriveQuoteStatus = ({
   const ownedGcodes = itemIDs
     .map((quoteItemID) => gcodeByItemID.get(quoteItemID))
     .filter((gcode): gcode is Gcode => Boolean(gcode))
+
+  if (!items.every((item) => isCompleteConfiguration(getItemConfiguration(item)))) return 'new'
 
   const allSliced =
     ownedGcodes.length === itemIDs.length && ownedGcodes.every((gcode) => gcode.status === 'sliced')
@@ -210,9 +236,9 @@ const reconcileOwnedGcodesForQuote = async ({
     if (!quoteItemID) continue
 
     const configuration = getItemConfiguration(item)
-    const { model, filament, process, machine } = configuration
+    const { model, filament, filamentSlots, process, machine } = configuration
 
-    if (!model || !filament || !process || !machine) {
+    if (!model || !filament || filamentSlots.length === 0 || !process || !machine) {
       continue
     }
 
@@ -233,6 +259,7 @@ const reconcileOwnedGcodesForQuote = async ({
           status: managedQuoteStatus === 'queued' ? 'queued' : 'new',
           model,
           filament,
+          filamentSlots,
           process,
           machine,
           ...clearSlicingResults,
@@ -255,6 +282,7 @@ const reconcileOwnedGcodesForQuote = async ({
     const existingConfiguration = {
       model: toNumericRelationID(existing.model),
       filament: toNumericRelationID(existing.filament),
+      filamentSlots: getFilamentSlots(existing.filamentSlots),
       process: toNumericRelationID(existing.process),
       machine: toNumericRelationID(existing.machine),
     }
@@ -290,6 +318,7 @@ const reconcileOwnedGcodesForQuote = async ({
           status: desiredStatus,
           model,
           filament,
+          filamentSlots,
           process,
           machine,
           ...(configurationChanged ? clearSlicingResults : {}),
@@ -357,7 +386,7 @@ export const recomputeQuoteFromOwnedGcodes = async ({
   const nextStatus = deriveQuoteStatus({
     currentStatus: quote.status,
     gcodeByItemID: reconciled.gcodeByItemID,
-    itemIDs,
+    items: reconciled.nextItems,
   })
 
   const hasChanges =

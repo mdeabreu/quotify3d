@@ -1,9 +1,11 @@
 import { execFile } from 'child_process'
+import { unzipSync, zipSync } from 'fflate'
 import fs from 'fs/promises'
 import path from 'path'
 import type { PayloadRequest } from 'payload'
 import { promisify } from 'util'
 
+import { extractColourSwatches } from '@/lib/colourSwatches'
 import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
@@ -21,6 +23,12 @@ const FILAMENT_REGEX = /; filament used \[g\]\s*=\s*([^\r\n]+)/i
 const DURATION_LINE_REGEX = /; total estimated time:\s*([^\r\n]+)/i
 const DURATION_TOKEN_REGEX = /(\d+)\s*([hms])/gi
 const SLICER_ATTEMPT_OUTPUT_MAX_LENGTH = 2000
+const PRUSA_PAINT_ATTRIBUTE = /slic3rpe:mmu_segmentation(\s*=)/g
+const PAINT_ATTRIBUTE = /\s+(?:slic3rpe:mmu_segmentation|paint_color)\s*=\s*(["'])[^"']*\1/g
+const METADATA_TAG = /<metadata\b[^>]*>/g
+const EXTRUDER_KEY = /\bkey\s*=\s*(["'])extruder\1/
+const EXTRUDER_VALUE = /\bvalue\s*=\s*(["'])\d+\1/
+const MODEL_SETTINGS = 'Metadata/model_settings.config'
 
 type SlicerAttempt = {
   label: string
@@ -56,6 +64,75 @@ const writeConfigFile = async (dir: string, filename: string, payload: JSONObjec
   return fullPath
 }
 
+const cloneJSONObject = (value: JSONObject): JSONObject => JSON.parse(JSON.stringify(value))
+
+const buildFilamentConfigFiles = async ({
+  baseConfig,
+  dir,
+  slotColours,
+}: {
+  baseConfig: JSONObject
+  dir: string
+  slotColours: string[]
+}) => {
+  if (slotColours.length === 0) return []
+
+  const baseName =
+    typeof baseConfig.name === 'string' && baseConfig.name ? baseConfig.name : 'Filament'
+  const baseFilamentID =
+    typeof baseConfig.filament_id === 'string' ? baseConfig.filament_id : undefined
+  const baseSettingID =
+    typeof baseConfig.setting_id === 'string' ? baseConfig.setting_id : undefined
+
+  const slotPaths = []
+  for (let index = 0; index < slotColours.length; index += 1) {
+    const slot = index + 1
+    const colour = slotColours[index]
+    const config = cloneJSONObject(baseConfig)
+    const slotName = `${baseName} Slot ${slot}`
+
+    config.name = slotName
+    config.filament_settings_id = [slotName]
+    config.filament_colour = [colour]
+    config.filament_multi_colour = [colour]
+    config.default_filament_colour = [colour]
+    config.extruder_colour = [colour]
+    config.filament_self_index = [String(slot)]
+
+    if (baseFilamentID) {
+      config.filament_id = `${baseFilamentID}-${slot}`
+    }
+
+    if (baseSettingID) {
+      config.setting_id = `${baseSettingID}-${slot}`
+    }
+
+    slotPaths.push(await writeConfigFile(dir, `filament-${slot}.json`, config))
+  }
+
+  return slotPaths
+}
+
+const getGcodeSlotColourIDs = (gcode: { filamentSlots?: unknown }) => {
+  if (!Array.isArray(gcode.filamentSlots)) return []
+
+  return gcode.filamentSlots
+    .map((slot) => resolveRelationID(slot?.colour))
+    .filter((colourID): colourID is number => typeof colourID === 'number')
+}
+
+const collapseMatchingColourIDs = (colourIDs: number[]) =>
+  colourIDs.length > 0 && colourIDs.every((colourID) => colourID === colourIDs[0])
+    ? colourIDs.slice(0, 1)
+    : colourIDs
+
+const getColourHex = (colour: { swatches?: unknown }) => {
+  const swatches = extractColourSwatches(
+    colour.swatches as Parameters<typeof extractColourSwatches>[0],
+  )
+  return swatches[0] || '#FFFFFF'
+}
+
 const getSlicerOutput = (stdout?: string | Buffer | null, stderr?: string | Buffer | null) => {
   return [stdout, stderr]
     .filter((output): output is string | Buffer => Boolean(output))
@@ -73,6 +150,58 @@ const truncateSlicerOutput = (output?: string) => {
 
 const formatSlicerCommand = (args: string[]) => {
   return [getOrcaBinary(), ...args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg))].join(' ')
+}
+
+const flattenModelSettings = (settingsXml: string) =>
+  settingsXml.replace(METADATA_TAG, (tag) => {
+    if (!EXTRUDER_KEY.test(tag)) return tag
+    return tag.replace(EXTRUDER_VALUE, 'value="1"')
+  })
+
+const prepareModelForOrcaCli = async (
+  modelPath: string,
+  outputDir: string,
+  singleColour: boolean,
+) => {
+  if (path.extname(modelPath).toLowerCase() !== '.3mf') return modelPath
+
+  const archive = unzipSync(await fs.readFile(modelPath))
+  const isBambuProject = Boolean(archive[MODEL_SETTINGS])
+
+  // Orca's CLI already treats Prusa-painted projects as single colour unless their
+  // paint attributes are translated for a multi-colour slice.
+  if (singleColour && !isBambuProject) return modelPath
+
+  let changed = false
+
+  for (const [filename, contents] of Object.entries(archive)) {
+    if (filename === MODEL_SETTINGS && singleColour) {
+      const settingsXml = new TextDecoder().decode(contents)
+      const normalizedXml = flattenModelSettings(settingsXml)
+      if (normalizedXml !== settingsXml) {
+        archive[filename] = new Uint8Array(new TextEncoder().encode(normalizedXml))
+        changed = true
+      }
+      continue
+    }
+
+    if (!filename.startsWith('3D/') || !filename.endsWith('.model')) continue
+
+    const modelXml = new TextDecoder().decode(contents)
+    const normalizedXml = singleColour
+      ? modelXml.replace(PAINT_ATTRIBUTE, '')
+      : modelXml.replace(PRUSA_PAINT_ATTRIBUTE, 'paint_color$1')
+    if (normalizedXml === modelXml) continue
+
+    archive[filename] = new Uint8Array(new TextEncoder().encode(normalizedXml))
+    changed = true
+  }
+
+  if (!changed) return modelPath
+
+  const preparedPath = path.join(path.dirname(outputDir), 'slicer-model.3mf')
+  await fs.writeFile(preparedPath, zipSync(archive))
+  return preparedPath
 }
 
 const buildSlicerArgs = ({
@@ -303,9 +432,30 @@ export const buildSlicerContext = async ({
   ) as JSONObject
 
   const dir = path.join(process.cwd(), 'data', 'tmp', 'slicing', String(gcodeId))
+  const slotColourIDs = collapseMatchingColourIDs(getGcodeSlotColourIDs(gcode))
+  const slotColours = await Promise.all(
+    slotColourIDs.map(async (colourID) => {
+      const colour = await req.payload.findByID({
+        collection: 'colours',
+        id: colourID,
+        depth: 0,
+      })
 
-  const [filamentConfigPath, processConfigPath, machineConfigPath] = await Promise.all([
-    writeConfigFile(dir, 'filament.json', filamentConfig),
+      return getColourHex(colour)
+    }),
+  )
+  const filamentConfigPaths = await buildFilamentConfigFiles({
+    baseConfig: filamentConfig,
+    dir,
+    slotColours,
+  })
+
+  const filamentConfigPath =
+    filamentConfigPaths.length > 0
+      ? filamentConfigPaths.join(';')
+      : await writeConfigFile(dir, 'filament.json', filamentConfig)
+
+  const [processConfigPath, machineConfigPath] = await Promise.all([
     writeConfigFile(dir, 'process.json', processConfig),
     writeConfigFile(dir, 'machine.json', machineConfig),
   ])
@@ -331,6 +481,8 @@ export const sliceModel = async ({
   machineConfigPath: string
 }) => {
   const failedAttempts: FailedSlicerAttempt[] = []
+  const singleColour = !filamentConfigPath.includes(';')
+  const slicerModelPath = await prepareModelForOrcaCli(modelPath, outputDir, singleColour)
 
   for (const attempt of SLICER_ATTEMPTS) {
     console.info(`[sliceModel] Trying OrcaSlicer attempt: ${attempt.label}`)
@@ -340,7 +492,7 @@ export const sliceModel = async ({
 
     const args = buildSlicerArgs({
       attempt,
-      modelPath,
+      modelPath: slicerModelPath,
       outputDir,
       filamentConfigPath,
       processConfigPath,

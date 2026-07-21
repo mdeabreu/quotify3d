@@ -81,6 +81,37 @@ describe('buildAvailableSpoolOptions', () => {
 })
 
 describe('normalizeQuoteItemSpools', () => {
+  it('preserves ordered quote slots with unassigned colours', async () => {
+    const findByID = vi.fn().mockResolvedValue({ filamentSlotCount: 3 })
+    const req = makeReq({ findByID })
+
+    await expect(
+      normalizeQuoteItemSpools({
+        data: {
+          items: [
+            {
+              filament: 1,
+              filamentSlots: [{ description: 'Body' }, { colour: 10, description: 'Eyes' }, {}],
+              model: 7,
+            },
+          ],
+        },
+        operation: 'create',
+        req,
+      } as never),
+    ).resolves.toMatchObject({
+      items: [
+        {
+          filamentSlots: [
+            { colour: undefined, description: 'Body' },
+            { colour: 10, description: 'Eyes' },
+            { colour: undefined, description: undefined },
+          ],
+        },
+      ],
+    })
+  })
+
   it('accepts an active spool and populates the quote item pair', async () => {
     const findByID = vi.fn().mockResolvedValue({
       active: true,

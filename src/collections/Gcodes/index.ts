@@ -125,6 +125,26 @@ export const Gcodes: CollectionConfig = {
       ],
     },
     {
+      name: 'filamentSlots',
+      label: 'Filament slots',
+      type: 'array',
+      access: {
+        update: () => false,
+      },
+      admin: {
+        description: 'Colour assignments in model slot order used for this slice.',
+        initCollapsed: true,
+      },
+      fields: [
+        {
+          name: 'colour',
+          type: 'relationship',
+          relationTo: 'colours',
+          required: true,
+        },
+      ],
+    },
+    {
       name: 'weightOverride',
       type: 'number',
       min: 0,

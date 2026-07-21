@@ -14,9 +14,13 @@ const serializeItems = (items: unknown): string => {
       spool: resolveRelationID(item?.spool) ?? null,
       filament: resolveRelationID(item?.filament) ?? null,
       colour: resolveRelationID(item?.colour) ?? null,
+      filamentSlots: Array.isArray(item?.filamentSlots)
+        ? item.filamentSlots.map((slot: { colour?: unknown }) => ({
+            colour: resolveRelationID(slot?.colour) ?? null,
+          }))
+        : [],
       process: resolveRelationID(item?.process) ?? null,
       machine: resolveRelationID(item?.machine) ?? null,
-      quantity: typeof item?.quantity === 'number' ? item.quantity : null,
     })),
   )
 }
@@ -38,13 +42,10 @@ export const resetStatusWhenSlicedQuoteChanges: CollectionBeforeChangeHook = asy
     return data
   }
 
-  const notesChanged =
-    hasOwn(data, 'notes') &&
-    (typeof data.notes === 'string' ? data.notes : null) !== originalDoc.notes
   const itemsChanged =
     hasOwn(data, 'items') && serializeItems(data.items) !== serializeItems(originalDoc.items)
 
-  if (!notesChanged && !itemsChanged) {
+  if (!itemsChanged) {
     return data
   }
 

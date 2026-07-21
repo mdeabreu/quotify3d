@@ -1,5 +1,6 @@
 import fs from 'fs/promises'
 import fsSync from 'fs'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import os from 'os'
 import path from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -35,7 +36,7 @@ vi.mock('child_process', () => ({
   execFile: mockExecFile,
 }))
 
-import { sliceModel } from '@/jobs/workflows/helpers/gcodeHelpers'
+import { buildSlicerContext, sliceModel } from '@/jobs/workflows/helpers/gcodeHelpers'
 
 const tempDirs: string[] = []
 const originalSlicerBinaryPath = process.env.SLICER_BINARY_PATH
@@ -93,6 +94,92 @@ afterEach(async () => {
 })
 
 describe('sliceModel', () => {
+  it('normalizes PrusaSlicer paint attributes before slicing a 3MF', async () => {
+    const paths = await createSlicePaths()
+    paths.modelPath = path.join(paths.tempDir, 'painted.3mf')
+    paths.filamentConfigPath = `${paths.filamentConfigPath};${path.join(paths.tempDir, 'filament-2.json')}`
+    await fs.writeFile(
+      paths.modelPath,
+      zipSync({
+        '3D/3dmodel.model': strToU8(
+          '<triangle v1="0" v2="1" v3="2" slic3rpe:mmu_segmentation="1"/>',
+        ),
+      }),
+    )
+
+    mockExecFile.mockImplementation(
+      (_binary: string, args: string[], _options: unknown, callback: ExecFileCallback) => {
+        const preparedModelPath = args.at(-1)
+        expect(preparedModelPath).not.toBe(paths.modelPath)
+
+        const archive = unzipSync(fsSync.readFileSync(preparedModelPath!))
+        const modelXml = strFromU8(archive['3D/3dmodel.model'])
+        expect(modelXml).toContain('paint_color="1"')
+        expect(modelXml).not.toContain('slic3rpe:mmu_segmentation')
+
+        writeGcodeForArgs(args)
+        callback(null, 'normalized', '')
+      },
+    )
+
+    const result = await sliceModel(paths)
+
+    expect(result.commandString).toContain('slicer-model.3mf')
+  })
+
+  it('passes a single-colour non-Bambu 3MF through without rewriting it', async () => {
+    const paths = await createSlicePaths()
+    paths.modelPath = path.join(paths.tempDir, 'painted.3mf')
+    await fs.writeFile(
+      paths.modelPath,
+      zipSync({
+        '3D/3dmodel.model': strToU8('<triangle v1="0" v2="1" v3="2" paint_color="1"/>'),
+      }),
+    )
+
+    mockExecFile.mockImplementation(
+      (_binary: string, args: string[], _options: unknown, callback: ExecFileCallback) => {
+        expect(args.at(-1)).toBe(paths.modelPath)
+        writeGcodeForArgs(args)
+        callback(null, 'native', '')
+      },
+    )
+
+    await sliceModel(paths)
+  })
+
+  it('flattens only model colour assignments for a single-colour Bambu project', async () => {
+    const paths = await createSlicePaths()
+    paths.modelPath = path.join(paths.tempDir, 'painted.3mf')
+    const projectSettings = '{"enable_prime_tower":"1"}'
+    await fs.writeFile(
+      paths.modelPath,
+      zipSync({
+        '3D/Objects/object.model': strToU8('<triangle v1="0" v2="1" v3="2" paint_color="1"/>'),
+        'Metadata/model_settings.config': strToU8('<metadata key="extruder" value="3"/>'),
+        'Metadata/project_settings.config': strToU8(projectSettings),
+      }),
+    )
+
+    mockExecFile.mockImplementation(
+      (_binary: string, args: string[], _options: unknown, callback: ExecFileCallback) => {
+        const preparedModelPath = args.at(-1)
+        const archive = unzipSync(fsSync.readFileSync(preparedModelPath!))
+
+        expect(strFromU8(archive['3D/Objects/object.model'])).not.toContain('paint_color')
+        expect(strFromU8(archive['Metadata/model_settings.config'])).toContain(
+          'key="extruder" value="1"',
+        )
+        expect(strFromU8(archive['Metadata/project_settings.config'])).toBe(projectSettings)
+
+        writeGcodeForArgs(args)
+        callback(null, 'flattened', '')
+      },
+    )
+
+    await sliceModel(paths)
+  })
+
   it('returns the baseline command and output when the uploaded model slices successfully', async () => {
     const paths = await createSlicePaths()
 
@@ -217,5 +304,115 @@ describe('sliceModel', () => {
       /as-uploaded[\s\S]*ensure-on-bed[\s\S]*arrange[\s\S]*orient[\s\S]*full-auto-repair/,
     )
     expect(message).toContain(`${'x'.repeat(2000)}...`)
+  })
+})
+
+describe('buildSlicerContext', () => {
+  it('writes one unique filament config per selected colour slot', async () => {
+    const gcodeId = 'slot-config-test'
+    const slicingDir = path.join(process.cwd(), 'data', 'tmp', 'slicing', gcodeId)
+
+    await fs.rm(slicingDir, { force: true, recursive: true })
+    tempDirs.push(slicingDir)
+
+    const findByID = vi.fn(async ({ collection, id }: { collection: string; id: number }) => {
+      if (collection === 'gcodes') {
+        return {
+          id,
+          filament: 1,
+          process: 2,
+          machine: 3,
+          filamentSlots: [{ colour: 10 }, { colour: 11 }],
+        }
+      }
+
+      if (collection === 'filaments') return { id, config: 101 }
+      if (collection === 'processes') return { id, config: 102 }
+      if (collection === 'machines') return { id, config: 103 }
+      if (collection === 'filament-configs') {
+        return {
+          id,
+          config: {
+            name: 'Generic PETG',
+            filament_id: 'petg',
+            setting_id: 'petg-setting',
+          },
+        }
+      }
+      if (collection === 'process-configs') return { id, config: { name: 'Process' } }
+      if (collection === 'machine-configs') return { id, config: { name: 'Machine' } }
+      if (collection === 'colours' && id === 10) {
+        return { id, swatches: [{ hexcode: '#de4343' }] }
+      }
+      if (collection === 'colours' && id === 11) {
+        return { id, swatches: [{ hexcode: '#000000' }] }
+      }
+
+      throw new Error(`Unexpected ${collection} ${id}`)
+    })
+
+    const context = await buildSlicerContext({
+      gcodeId,
+      req: {
+        payload: {
+          findByID,
+        },
+      } as never,
+    })
+
+    const filamentConfigPaths = context.filamentConfigPath.split(';')
+    expect(filamentConfigPaths).toHaveLength(2)
+
+    const firstConfig = JSON.parse(await fs.readFile(filamentConfigPaths[0], 'utf-8'))
+    const secondConfig = JSON.parse(await fs.readFile(filamentConfigPaths[1], 'utf-8'))
+
+    expect(firstConfig.name).toBe('Generic PETG Slot 1')
+    expect(firstConfig.filament_colour).toEqual(['#de4343'])
+    expect(firstConfig.filament_self_index).toEqual(['1'])
+    expect(secondConfig.name).toBe('Generic PETG Slot 2')
+    expect(secondConfig.filament_colour).toEqual(['#000000'])
+    expect(secondConfig.filament_self_index).toEqual(['2'])
+  })
+
+  it('writes one filament config when every slot uses the same colour', async () => {
+    const gcodeId = 'same-colour-config-test'
+    const slicingDir = path.join(process.cwd(), 'data', 'tmp', 'slicing', gcodeId)
+
+    await fs.rm(slicingDir, { force: true, recursive: true })
+    tempDirs.push(slicingDir)
+
+    const findByID = vi.fn(async ({ collection, id }: { collection: string; id: number }) => {
+      if (collection === 'gcodes') {
+        return {
+          id,
+          filament: 1,
+          process: 2,
+          machine: 3,
+          filamentSlots: [{ colour: 10 }, { colour: 10 }, { colour: 10 }],
+        }
+      }
+      if (collection === 'filaments') return { id, config: 101 }
+      if (collection === 'processes') return { id, config: 102 }
+      if (collection === 'machines') return { id, config: 103 }
+      if (collection === 'filament-configs') return { id, config: { name: 'Generic PLA' } }
+      if (collection === 'process-configs') return { id, config: { name: 'Process' } }
+      if (collection === 'machine-configs') return { id, config: { name: 'Machine' } }
+      if (collection === 'colours') {
+        return { id, swatches: [{ hexcode: '#de4343' }] }
+      }
+
+      throw new Error(`Unexpected ${collection} ${id}`)
+    })
+
+    const context = await buildSlicerContext({
+      gcodeId,
+      req: { payload: { findByID } } as never,
+    })
+
+    expect(context.filamentConfigPath).not.toContain(';')
+    expect(findByID).toHaveBeenCalledTimes(8)
+    expect(JSON.parse(await fs.readFile(context.filamentConfigPath, 'utf-8'))).toMatchObject({
+      filament_colour: ['#de4343'],
+    })
   })
 })

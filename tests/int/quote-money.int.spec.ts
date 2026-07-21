@@ -2,6 +2,7 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { recomputeQuoteFromOwnedGcodes } from '@/collections/Quotes/hooks/recomputeQuoteFromOwnedGcodes'
+import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
 import { calculateGcodePrice } from '@/jobs/workflows/helpers/gcodeHelpers'
 import type { Gcode, Quote } from '@/payload-types'
 import { toMinorUnitAmount } from '@/utilities/currency'
@@ -68,8 +69,24 @@ describe('quote money normalization', () => {
         status: 'queued',
         subtotal: 0,
         items: [
-          { id: 'line-one', quantity: 2 },
-          { id: 'line-two', quantity: 1 },
+          {
+            id: 'line-one',
+            quantity: 2,
+            model: 1,
+            filament: 1,
+            filamentSlots: [{ colour: 1 }],
+            process: 1,
+            machine: 1,
+          },
+          {
+            id: 'line-two',
+            quantity: 1,
+            model: 2,
+            filament: 1,
+            filamentSlots: [{ colour: 1 }],
+            process: 1,
+            machine: 1,
+          },
         ],
       } as Quote,
       reconcileOwnedGcodes: false,
@@ -85,5 +102,54 @@ describe('quote money normalization', () => {
         }),
       }),
     )
+  })
+})
+
+describe('sliced quote invalidation', () => {
+  const configuredItem = {
+    id: 'line-one',
+    model: 1,
+    quantity: 1,
+    filament: 1,
+    colour: 1,
+    spool: 1,
+    filamentSlots: [{ colour: 1, description: 'Body' }],
+    process: 1,
+    machine: 1,
+  }
+
+  it('preserves sliced status for quantity, notes, and slot-description changes', async () => {
+    const data = {
+      items: [
+        {
+          ...configuredItem,
+          quantity: 3,
+          notes: 'Handle carefully',
+          filamentSlots: [{ colour: 1, description: 'Updated description' }],
+        },
+      ],
+    }
+
+    await resetStatusWhenSlicedQuoteChanges({
+      data,
+      operation: 'update',
+      originalDoc: { items: [configuredItem], notes: null, status: 'sliced' },
+    } as never)
+
+    expect(data).not.toHaveProperty('status')
+  })
+
+  it('invalidates sliced status when an ordered slot colour changes', async () => {
+    const data: Record<string, unknown> = {
+      items: [{ ...configuredItem, filamentSlots: [{ colour: 2 }] }],
+    }
+
+    await resetStatusWhenSlicedQuoteChanges({
+      data,
+      operation: 'update',
+      originalDoc: { items: [configuredItem], status: 'sliced' },
+    } as never)
+
+    expect(data.status).toBe('new')
   })
 })

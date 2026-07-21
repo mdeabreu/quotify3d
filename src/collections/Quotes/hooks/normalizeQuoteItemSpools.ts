@@ -5,10 +5,12 @@ import { toNumericRelationID } from '@/lib/spoolAvailability'
 
 type QuoteItemInput = {
   colour?: unknown
+  filamentSlots?: unknown
   filament?: unknown
   id?: unknown
   machine?: unknown
   model?: unknown
+  notes?: unknown
   process?: unknown
   quantity?: unknown
   spool?: unknown
@@ -20,9 +22,20 @@ const trackedItemFields = [
   'spool',
   'filament',
   'colour',
+  'filamentSlots',
   'process',
   'machine',
 ] as const
+
+const serializeFilamentSlots = (slots: unknown): string => {
+  if (!Array.isArray(slots)) return '[]'
+
+  return JSON.stringify(
+    slots.map((slot) => ({
+      colour: toNumericRelationID(slot?.colour) ?? null,
+    })),
+  )
+}
 
 const itemSelectionUnchanged = ({
   item,
@@ -36,6 +49,13 @@ const itemSelectionUnchanged = ({
   return trackedItemFields.every((field) => {
     if (field === 'quantity') {
       return item.quantity === originalItem.quantity
+    }
+
+    if (field === 'filamentSlots') {
+      return (
+        serializeFilamentSlots(item.filamentSlots) ===
+        serializeFilamentSlots(originalItem.filamentSlots)
+      )
     }
 
     return toNumericRelationID(item[field]) === toNumericRelationID(originalItem[field])
@@ -158,6 +178,55 @@ const resolveActiveSpool = async ({
   }
 }
 
+const getModelFilamentSlotCount = async ({
+  item,
+  req,
+}: {
+  item: QuoteItemInput
+  req: Parameters<CollectionBeforeValidateHook>[0]['req']
+}) => {
+  const modelID = toNumericRelationID(item.model)
+  if (!modelID) return 1
+
+  const model = await req.payload.findByID({
+    collection: 'models',
+    id: modelID,
+    depth: 0,
+    req,
+    overrideAccess: true,
+  })
+
+  return typeof model.filamentSlotCount === 'number' && model.filamentSlotCount > 0
+    ? Math.floor(model.filamentSlotCount)
+    : 1
+}
+
+const normalizeFilamentSlots = ({
+  colourID,
+  item,
+  slotCount,
+}: {
+  colourID: number | null
+  item: QuoteItemInput
+  slotCount: number
+}) => {
+  const slots = Array.isArray(item.filamentSlots) ? item.filamentSlots : []
+  const fallbackColourID = slots.length === 0 ? colourID : null
+  const normalized = slots.slice(0, slotCount).map((slot) => ({
+    colour: toNumericRelationID(slot?.colour) ?? fallbackColourID ?? undefined,
+    description:
+      typeof slot?.description === 'string' && slot.description.trim()
+        ? slot.description.trim()
+        : undefined,
+  }))
+
+  while (normalized.length < slotCount) {
+    normalized.push({ colour: fallbackColourID ?? undefined, description: undefined })
+  }
+
+  return normalized
+}
+
 export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
   data,
   operation,
@@ -182,13 +251,45 @@ export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
       if (!item || typeof item !== 'object') return item
       const typedItem = item as QuoteItemInput
 
-      if (
+      const originalItem =
+        operation === 'update' && typeof typedItem.id === 'string'
+          ? originalItemsByID.get(typedItem.id)
+          : undefined
+      const slotCount = await getModelFilamentSlotCount({
+        item: typedItem,
+        req,
+      })
+      const selectionUnchanged =
         operation === 'update' &&
         typeof typedItem.id === 'string' &&
         itemSelectionUnchanged({
           item: typedItem,
-          originalItem: originalItemsByID.get(typedItem.id),
+          originalItem,
         })
+      const colourChanged =
+        originalItem &&
+        toNumericRelationID(typedItem.colour) !== toNumericRelationID(originalItem.colour)
+      const slotsWereCarriedForward =
+        originalItem &&
+        serializeFilamentSlots(typedItem.filamentSlots) ===
+          serializeFilamentSlots(originalItem.filamentSlots)
+      const itemForSlots =
+        colourChanged && slotsWereCarriedForward
+          ? {
+              ...typedItem,
+              filamentSlots: undefined,
+            }
+          : typedItem
+      const slots = normalizeFilamentSlots({
+        colourID: toNumericRelationID(typedItem.colour),
+        item: itemForSlots,
+        slotCount,
+      })
+
+      if (
+        selectionUnchanged &&
+        slots.length === slotCount &&
+        serializeFilamentSlots(slots) === serializeFilamentSlots(typedItem.filamentSlots)
       ) {
         return item
       }
@@ -198,11 +299,17 @@ export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
         req,
       })
 
-      if (!resolved) return item
+      if (!resolved) {
+        return {
+          ...item,
+          filamentSlots: slots,
+        }
+      }
 
       return {
         ...item,
         ...resolved,
+        filamentSlots: slots,
       }
     }),
   )
