@@ -52,8 +52,8 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
-ARG ORCASLICER_VERSION=v2.3.2
-ARG ORCASLICER_SHA256=c64336ceec37d941766e675cbaaaf5124e184402bf18177fbf81ba5102734ad8
+ARG ORCASLICER_VERSION=v2.4.1
+ARG ORCASLICER_SHA256=7aff29a0ac6bb906f11c069eefe83459781c3364bac20ba9529eb9937a231402
 ARG TARGETARCH
 
 ENV NODE_ENV=production
@@ -91,7 +91,8 @@ RUN apt-get update && \
     libwebkit2gtk-4.1-0 \
     libwxgtk3.2-1t64 \
     locales \
-    squashfs-tools && \
+    squashfs-tools \
+    unzip && \
   rm -rf /var/lib/apt/lists/*
 RUN ORCASLICER_DOWNLOAD_URL="https://github.com/OrcaSlicer/OrcaSlicer/releases/download/${ORCASLICER_VERSION}/OrcaSlicer_Linux_AppImage_Ubuntu2404_V${ORCASLICER_VERSION#v}.AppImage" && \
   curl -fsSL "${ORCASLICER_DOWNLOAD_URL}" -o /tmp/orca.app && \
