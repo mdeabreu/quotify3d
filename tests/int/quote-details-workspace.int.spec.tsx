@@ -1,245 +1,314 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  QuoteCustomerNotesForm,
   QuoteDetailsWorkspace,
   shouldAutoRefreshQuote,
+  type QuoteWorkspaceItem,
 } from '@/components/QuoteDetailsWorkspace'
 
 const refresh = vi.fn()
-const ecommerceMocks = vi.hoisted(() => ({
-  addItem: vi.fn(async () => {}),
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh }),
 }))
 
-afterEach(() => {
-  cleanup()
-})
-
-vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={typeof href === 'string' ? href : '#'} {...props}>
-      {children}
-    </a>
+vi.mock('@/components/ModelPreviewer', () => ({
+  ModelPreviewer: ({ colors }: { colors: string[] }) => (
+    <div data-testid="model-preview">{colors.join(',')}</div>
   ),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    refresh,
-  }),
+vi.mock('@/providers/Branding', () => ({
+  useBranding: () => ({ quoteProductPlaceholder: '/placeholder.png' }),
 }))
 
 vi.mock('@payloadcms/plugin-ecommerce/client/react', () => ({
-  useCart: () => ({
-    addItem: ecommerceMocks.addItem,
-    isLoading: false,
-  }),
   useCurrency: () => ({
     formatCurrency: (amount: number) => `$${amount.toFixed(2)}`,
     supportedCurrencies: [{ code: 'USD' }],
   }),
 }))
 
-const baseProps = {
+const item = (overrides: Partial<QuoteWorkspaceItem> = {}): QuoteWorkspaceItem => ({
+  configured: false,
+  filamentId: '',
+  filamentLabel: '',
+  filamentSlots: [],
+  gcodeDuration: null,
+  gcodePrice: null,
+  gcodeStatus: null,
+  gcodeWeight: null,
+  id: 'item-1',
+  modelLabel: 'model.3mf',
+  modelNote: '',
+  modelSlotCount: 2,
+  modelURL: '/model',
+  processId: '',
+  processLabel: '',
+  quantity: 1,
+  ...overrides,
+})
+
+const props = {
   addModelsAction: async () => {},
-  colourOptions: [],
   editable: true,
-  hasFailedItems: false,
-  hasInProgressItems: false,
-  hasPendingPrices: false,
-  items: [],
-  materialOptions: [],
-  qualityOptions: [],
+  items: [item()],
+  materialOptions: [
+    {
+      id: 1,
+      kind: 'filament' as const,
+      name: 'PLA',
+      pricePerGram: 0.2,
+      description: null,
+      imageUrl: null,
+    },
+  ],
+  qualityOptions: [
+    { id: 20, kind: 'process' as const, name: 'Standard', description: null, imageUrl: null },
+  ],
   quoteID: 42,
-  quoteStatus: 'sliced' as const,
-  refreshEstimatesAction: async () => {},
+  quoteStatus: 'new' as const,
   removeItemAction: async () => {},
-  saveItemAction: async () => {},
-  spoolOptions: [],
+  saveItemAction: async () => ({ success: true as const }),
+  spoolOptions: [
+    {
+      id: 100,
+      colour: {
+        id: 10,
+        kind: 'colour' as const,
+        name: 'Red',
+        swatches: ['#ff0000'],
+        finish: null,
+        type: null,
+        description: null,
+        imageUrl: null,
+      },
+      filament: {
+        id: 1,
+        kind: 'filament' as const,
+        name: 'PLA',
+        pricePerGram: 0.2,
+        description: null,
+        imageUrl: null,
+      },
+    },
+    {
+      id: 101,
+      colour: {
+        id: 11,
+        kind: 'colour' as const,
+        name: 'Black',
+        swatches: ['#111111'],
+        finish: null,
+        type: null,
+        description: null,
+        imageUrl: null,
+      },
+      filament: {
+        id: 1,
+        kind: 'filament' as const,
+        name: 'PLA',
+        pricePerGram: 0.2,
+        description: null,
+        imageUrl: null,
+      },
+    },
+  ],
   submitForReviewAction: async () => {},
 }
 
-const materialOptions = [
-  {
-    description: null,
-    id: 1,
-    imageUrl: null,
-    kind: 'filament' as const,
-    name: 'PLA',
-    pricePerGram: 0.18,
-  },
-  {
-    description: null,
-    id: 2,
-    imageUrl: null,
-    kind: 'filament' as const,
-    name: 'PETG',
-    pricePerGram: 0.24,
-  },
-]
-
-const colourOptions = [
-  {
-    description: null,
-    finish: 'silk' as const,
-    id: 10,
-    imageUrl: null,
-    kind: 'colour' as const,
-    name: 'Red',
-    swatches: ['#ff0000', '#111111'],
-    type: 'co-extrusion' as const,
-  },
-  {
-    description: null,
-    finish: null,
-    id: 11,
-    imageUrl: null,
-    kind: 'colour' as const,
-    name: 'Black',
-    swatches: [],
-    type: null,
-  },
-]
-
-const qualityOptions = [
-  {
-    description: null,
-    id: 20,
-    imageUrl: null,
-    kind: 'process' as const,
-    name: 'Standard',
-  },
-]
-
-const spoolOptions = [
-  {
-    id: 100,
-    filament: materialOptions[0],
-    colour: colourOptions[0],
-  },
-  {
-    id: 101,
-    filament: materialOptions[1],
-    colour: colourOptions[1],
-  },
-]
-
-describe('QuoteDetailsWorkspace model uploads', () => {
-  it('rejects unsupported file extensions before submission', () => {
-    const { container } = render(<QuoteDetailsWorkspace {...baseProps} />)
-
-    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement
-    fireEvent.change(fileInput, {
-      target: {
-        files: [new File(['not a model'], 'invoice.pdf', { type: 'application/octet-stream' })],
-      },
-    })
-
-    expect(screen.getByText(/unsupported file format: invoice\.pdf/i)).toBeTruthy()
-  })
+afterEach(() => {
+  cleanup()
+  refresh.mockReset()
+  vi.restoreAllMocks()
 })
 
-const failedItem = {
-  colourId: '10',
-  colourLabel: 'Red',
-  filamentId: '1',
-  filamentLabel: 'PLA',
-  gcodeDuration: null,
-  gcodePrice: null,
-  gcodeStatus: 'failed',
-  gcodeWeight: null,
-  id: 'item-1',
-  modelLabel: 'benchy.stl',
-  processId: '20',
-  processLabel: 'Standard',
-  quantity: 1,
-  spoolId: '100',
-}
+describe('QuoteDetailsWorkspace', () => {
+  it('shows incomplete items and keeps submission disabled', () => {
+    render(<QuoteDetailsWorkspace {...props} />)
 
-describe('QuoteDetailsWorkspace auto refresh', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    refresh.mockReset()
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'visible',
-    })
+    expect(screen.getAllByText('Needs setup').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('No colour selected')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Submit for review' }).hasAttribute('disabled')).toBe(
+      true,
+    )
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('refreshes the route while processing is in progress', () => {
-    render(<QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />)
-
-    expect(
-      screen.getByText('Updating estimates automatically while slicing finishes.'),
-    ).toBeTruthy()
-
-    vi.advanceTimersByTime(3000)
-    expect(refresh).toHaveBeenCalledTimes(1)
-
-    vi.advanceTimersByTime(3000)
-    expect(refresh).toHaveBeenCalledTimes(2)
-  })
-
-  it('does not refresh while the tab is hidden', () => {
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'hidden',
-    })
-
-    render(<QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />)
-
-    vi.advanceTimersByTime(6000)
-    expect(refresh).not.toHaveBeenCalled()
-  })
-
-  it('stops refreshing when the quote is not eligible for auto refresh', () => {
-    const { rerender } = render(
-      <QuoteDetailsWorkspace {...baseProps} hasPendingPrices quoteStatus="queued" />,
+  it('enables final review once every item is terminal', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[
+          item({
+            configured: true,
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            filamentSlots: [
+              { colourId: '10', colourLabel: 'Red', description: 'Body', hex: '#ff0000' },
+              { colourId: '11', colourLabel: 'Black', description: 'Eyes', hex: '#111111' },
+            ],
+            gcodePrice: 12.5,
+            gcodeStatus: 'sliced',
+            processId: '20',
+            processLabel: 'Standard',
+          }),
+        ]}
+        quoteStatus="sliced"
+      />,
     )
 
-    vi.advanceTimersByTime(3000)
-    expect(refresh).toHaveBeenCalledTimes(1)
+    const submit = screen.getByRole('button', { name: 'Submit for review' })
+    expect(submit.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(submit)
+    expect(screen.getByText('Submit this quote?')).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Confirm submission' }).parentElement?.className,
+    ).toContain('mt-5')
+  })
 
-    rerender(<QuoteDetailsWorkspace {...baseProps} />)
+  it('uses choose-and-close for material, colour, and process', () => {
+    render(<QuoteDetailsWorkspace {...props} />)
 
-    vi.advanceTimersByTime(6000)
-    expect(refresh).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0])
+    expect(screen.getByText('Choose a material')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /PLA/ }))
+    expect(screen.queryByText('Choose a material')).toBeNull()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0])
+    expect(screen.getByText('Choose a colour for slot 1')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Red/ }))
+    expect(screen.queryByText('Choose a colour for slot 1')).toBeNull()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select' }).at(-1)!)
+    expect(screen.getByText('Choose a print process')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Standard/ }))
+    expect(screen.queryByText('Choose a print process')).toBeNull()
+  })
+
+  it('updates one persistent preview and applies ordered partial slots once', async () => {
+    const saveItemAction = vi.fn(async (_formData: FormData) => ({ success: true as const }))
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[item({ filamentId: '1', filamentLabel: 'PLA' })]}
+        saveItemAction={saveItemAction}
+      />,
+    )
+
+    expect(screen.getAllByTestId('model-preview')).toHaveLength(1)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Red/ }))
+    expect(screen.getByTestId('model-preview').textContent).toBe('#ff0000,#808080')
+
+    const descriptions = screen.getAllByLabelText(/What should this colour apply to/)
+    fireEvent.change(descriptions[0], { target: { value: 'Body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+
+    await waitFor(() => expect(saveItemAction).toHaveBeenCalledOnce())
+    const formData = saveItemAction.mock.calls[0][0]
+    expect(JSON.parse(String(formData.get('filamentSlots')))).toEqual([
+      { colour: '10', description: 'Body' },
+      { colour: '', description: '' },
+    ])
+    expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('clears descriptions and shows one row in Same Colour mode', async () => {
+    const saveItemAction = vi.fn(async (_formData: FormData) => ({ success: true as const }))
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[
+          item({
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            filamentSlots: [
+              { colourId: '10', colourLabel: 'Red', description: 'Body', hex: '#ff0000' },
+              { colourId: '10', colourLabel: 'Red', description: 'Eyes', hex: '#ff0000' },
+            ],
+          }),
+        ]}
+        saveItemAction={saveItemAction}
+      />,
+    )
+
+    expect(screen.getByText('Whole model')).toBeTruthy()
+    expect(screen.queryByLabelText(/What should this colour apply to/)).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[1])
+    fireEvent.click(screen.getByRole('button', { name: /Black/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+
+    await waitFor(() => expect(saveItemAction).toHaveBeenCalledOnce())
+    const formData = saveItemAction.mock.calls[0][0]
+    expect(JSON.parse(String(formData.get('filamentSlots')))).toEqual([
+      { colour: '11', description: '' },
+      { colour: '11', description: '' },
+    ])
+  })
+
+  it('dims a saved estimate while slicing settings are unapplied', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[
+          item({
+            configured: true,
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            filamentSlots: [
+              { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+              { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+            ],
+            gcodeDuration: 600,
+            gcodePrice: 10,
+            gcodeStatus: 'sliced',
+            processId: '20',
+            processLabel: 'Standard',
+          }),
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[1])
+    fireEvent.click(screen.getByRole('button', { name: /Black/ }))
+    expect(screen.getByText('Based on saved setup')).toBeTruthy()
+  })
+
+  it('confirms before discarding a dirty draft when switching models', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[item(), item({ id: 'item-2', modelLabel: 'second.3mf' })]}
+      />,
+    )
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0])
+    fireEvent.click(screen.getByRole('button', { name: /PLA/ }))
+    fireEvent.click(screen.getByText('second.3mf'))
+    expect(screen.getByRole('heading', { name: 'model.3mf' })).toBeTruthy()
+    fireEvent.click(screen.getByText('second.3mf'))
+    expect(screen.getByRole('heading', { name: 'second.3mf' })).toBeTruthy()
+    expect(confirm).toHaveBeenCalledTimes(2)
   })
 })
 
 describe('shouldAutoRefreshQuote', () => {
-  it('returns true for queued editable quotes with pending pricing', () => {
+  it('refreshes editable quotes while slicing', () => {
     expect(
       shouldAutoRefreshQuote({
         editable: true,
         hasFailedItems: false,
-        hasInProgressItems: false,
+        hasInProgressItems: true,
         hasPendingPrices: true,
         quoteStatus: 'queued',
       }),
     ).toBe(true)
   })
 
-  it('returns false for non-editable quotes', () => {
-    expect(
-      shouldAutoRefreshQuote({
-        editable: false,
-        hasFailedItems: false,
-        hasInProgressItems: true,
-        hasPendingPrices: true,
-        quoteStatus: 'queued',
-      }),
-    ).toBe(false)
-  })
-
-  it('returns false for failed line items', () => {
+  it('stops refreshing after a failure', () => {
     expect(
       shouldAutoRefreshQuote({
         editable: true,
@@ -249,305 +318,5 @@ describe('shouldAutoRefreshQuote', () => {
         quoteStatus: 'queued',
       }),
     ).toBe(false)
-  })
-})
-
-describe('QuoteDetailsWorkspace failed slice notice', () => {
-  it('shows manual-review guidance for editable quotes with failed items', () => {
-    render(<QuoteDetailsWorkspace {...baseProps} hasFailedItems items={[failedItem]} />)
-
-    expect(screen.getByText('Some files need manual review')).toBeTruthy()
-    expect(
-      screen.getByText(
-        'The instant quote may not be accurate for models that could not be sliced automatically. Send this quote for review and we will calculate the correct price for those files.',
-      ),
-    ).toBeTruthy()
-  })
-
-  it('does not show manual-review guidance when there are no failed items', () => {
-    render(<QuoteDetailsWorkspace {...baseProps} />)
-
-    expect(screen.queryByText('Some files need manual review')).toBeNull()
-  })
-
-  it('does not show manual-review guidance for non-editable quotes', () => {
-    render(
-      <QuoteDetailsWorkspace {...baseProps} editable={false} hasFailedItems items={[failedItem]} />,
-    )
-
-    expect(screen.queryByText('Some files need manual review')).toBeNull()
-  })
-})
-
-describe('QuoteDetailsWorkspace material availability', () => {
-  beforeEach(() => {
-    ecommerceMocks.addItem.mockClear()
-  })
-
-  it('shows refresh copy for unsliced line items that need a new estimate', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: 'new',
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        quoteStatus="new"
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    expect(screen.getByText('Refresh estimate needed')).toBeTruthy()
-    expect(screen.queryByText('Estimate in progress')).toBeNull()
-  })
-
-  it('keeps in-progress copy for queued line items', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: 'queued',
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        quoteStatus="queued"
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    expect(screen.getByText('Estimate in progress')).toBeTruthy()
-  })
-
-  it('keeps quote-linked products addable from the quote page', async () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        editable={false}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: 3600,
-            gcodePrice: 12,
-            gcodeStatus: 'sliced',
-            gcodeWeight: 25,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            productID: 99,
-            quantity: 2,
-            spoolId: '100',
-          },
-        ]}
-        quoteStatus="approved"
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /add quote item to cart/i }))
-
-    expect(ecommerceMocks.addItem).toHaveBeenCalledWith({ product: 99 }, 2)
-  })
-
-  it('shows all active materials in the material step', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: null,
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
-
-    expect(screen.getAllByText('PLA').length).toBeGreaterThan(0)
-    expect(screen.getByText('PETG')).toBeTruthy()
-    expect(screen.getByText('$0.18')).toBeTruthy()
-    expect(screen.getByText('$0.24')).toBeTruthy()
-  })
-
-  it('filters colours after a material is selected', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: null,
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
-    fireEvent.click(screen.getByRole('button', { name: /PETG/ }))
-    const dialog = screen.getByRole('dialog')
-
-    expect(screen.getByText('Showing colours available for PETG.')).toBeTruthy()
-    expect(within(dialog).getAllByText('Black').length).toBeGreaterThan(0)
-    expect(within(dialog).queryByRole('button', { name: /Red/ })).toBeNull()
-  })
-
-  it('renders a colour preview from swatches in the item editor', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: null,
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Colour/ }))
-
-    expect(screen.getByLabelText('Red colour preview')).toBeTruthy()
-  })
-
-  it('disables save until a compatible colour is selected after changing material', () => {
-    render(
-      <QuoteDetailsWorkspace
-        {...baseProps}
-        colourOptions={colourOptions}
-        items={[
-          {
-            colourId: '10',
-            colourLabel: 'Red',
-            filamentId: '1',
-            filamentLabel: 'PLA',
-            gcodeDuration: null,
-            gcodePrice: null,
-            gcodeStatus: null,
-            gcodeWeight: null,
-            id: 'item-1',
-            modelLabel: 'benchy.stl',
-            processId: '20',
-            processLabel: 'Standard',
-            quantity: 1,
-            spoolId: '100',
-          },
-        ]}
-        materialOptions={materialOptions}
-        qualityOptions={qualityOptions}
-        spoolOptions={spoolOptions}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /edit item/i }))
-    fireEvent.click(screen.getByRole('button', { name: /PETG/ }))
-
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(true)
-
-    fireEvent.click(screen.getByRole('button', { name: /Black/ }))
-
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled).toBe(false)
-  })
-})
-
-describe('QuoteCustomerNotesForm', () => {
-  it('shows an editable customer note field with the current note', () => {
-    render(
-      <QuoteCustomerNotesForm
-        quoteID={42}
-        quoteNotes="Please print this extra sturdy."
-        saveNotesAction={async () => {}}
-      />,
-    )
-
-    const notes = screen.getByLabelText('Notes for our team') as HTMLTextAreaElement
-
-    expect(notes).toBeTruthy()
-    expect(notes.value).toBe('Please print this extra sturdy.')
-    expect(screen.getByRole('button', { name: 'Save note' })).toBeTruthy()
   })
 })
