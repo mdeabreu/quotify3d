@@ -32,6 +32,7 @@ vi.mock('@payloadcms/plugin-ecommerce/client/react', () => ({
 }))
 
 const item = (overrides: Partial<QuoteWorkspaceItem> = {}): QuoteWorkspaceItem => ({
+  configurationIssues: [],
   configured: false,
   filamentId: '',
   filamentLabel: '',
