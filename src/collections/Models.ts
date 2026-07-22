@@ -1,4 +1,7 @@
-import { APIError, type CollectionConfig } from 'payload'
+import {
+  APIError,
+  type CollectionConfig,
+} from 'payload'
 
 import { randomUUID } from 'crypto'
 import path from 'path'
@@ -6,11 +9,16 @@ import { fileURLToPath } from 'url'
 
 import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
 import { publicAccess } from '@/access/publicAccess'
+import {
+  analyzeModelFilamentSlotCount,
+  ModelArchiveLimitError,
+} from '@/lib/modelFilamentSlots'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 import { isSupportedModelFilename, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const modelsDir = path.resolve(dirname, '../../data/models')
 
 export const Models: CollectionConfig = {
   slug: 'models',
@@ -34,6 +42,16 @@ export const Models: CollectionConfig = {
       name: 'originalFilename',
       type: 'text',
       admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'filamentSlotCount',
+      type: 'number',
+      defaultValue: 1,
+      min: 1,
+      admin: {
+        description: 'Detected filament slots. Multi-colour 3MF files may have more than one.',
         readOnly: true,
       },
     },
@@ -68,6 +86,22 @@ export const Models: CollectionConfig = {
           args.data ||= {}
 
           args.data.originalFilename = req.file.name
+          try {
+            args.data.filamentSlotCount = analyzeModelFilamentSlotCount(
+              req.file.name,
+              req.file.data,
+            )
+          } catch (error) {
+            if (error instanceof ModelArchiveLimitError) {
+              throw new APIError(error.message, 400)
+            }
+
+            req.payload.logger.warn({
+              err: error,
+              msg: `Could not detect filament slots for ${req.file.name}; defaulting to one slot.`,
+            })
+            args.data.filamentSlotCount = 1
+          }
 
           const parsed = path.parse(req.file.name)
           const safeBase = parsed.name
@@ -86,6 +120,6 @@ export const Models: CollectionConfig = {
     beforeChange: [normalizeCustomerOrEmail],
   },
   upload: {
-    staticDir: path.resolve(dirname, '../../data/models'),
+    staticDir: modelsDir,
   },
 }

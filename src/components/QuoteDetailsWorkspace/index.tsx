@@ -1,13 +1,13 @@
 'use client'
 
 import { ColourOptionPreview } from '@/components/ColourPreview'
-import { AddQuoteItemToCartButton } from '@/components/QuoteActions/AddQuoteItemToCartButton'
 import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,92 +22,44 @@ import {
   MODEL_UPLOAD_FORMAT_LABEL,
 } from '@/lib/modelUploadFormats'
 import {
-  findSpoolForPair,
   uniqueOptions,
-  type AvailableColourOption,
-  type AvailableFilamentOption,
   type AvailableOption,
-  type AvailableProcessOption,
   type AvailableSpoolOption,
 } from '@/lib/spoolAvailability'
-import { cn } from '@/utilities/cn'
-import { formatDuration, formatWeight } from '@/utilities/formatPrintMetrics'
-import { PencilIcon, Trash2Icon } from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import type { QuoteStatus } from '@/payload-types'
-import type { FormEvent, ReactNode } from 'react'
-import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { useBranding } from '@/providers/Branding'
+import { cn } from '@/utilities/cn'
+import { FilePlus2Icon, Layers3Icon, PaletteIcon, PrinterIcon } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useState,
+  useTransition,
+  type FormEvent,
+} from 'react'
+import {
+  createDraft,
+  draftToFormSlots,
+  itemDraftReducer,
+  normalizeDraftForApply,
+  serializeDraft,
+  serializeSlicingDraft,
+} from './draft'
+import type { QuoteDetailsWorkspaceProps } from './types'
+import { OptionDialog } from './OptionDialog'
+import { QuoteItemList } from './QuoteItemList'
+import { EstimateSummary } from './EstimateSummary'
+import { SubmissionDialog } from './SubmissionDialog'
+import { QuoteItemEditor } from './QuoteItemEditor'
 
-export type QuoteWorkspaceItem = {
-  colourId: string
-  colourLabel: string
-  gcodeDuration: number | null
-  gcodePrice: number | null
-  gcodeStatus: string | null
-  gcodeWeight: number | null
-  id: string
-  modelLabel: string
-  productID?: number
-  productSlug?: string
-  processId: string
-  processLabel: string
-  quantity: number
-  spoolId: string
-  filamentId: string
-  filamentLabel: string
-}
-
-type EditorStep = 'material' | 'colour' | 'quality'
-
-type Props = {
-  addModelsAction: (formData: FormData) => void | Promise<void>
-  accessToken?: string
-  currencyCode?: string
-  editable: boolean
-  email?: string
-  hasFailedItems: boolean
-  hasInProgressItems: boolean
-  hasPendingPrices: boolean
-  items: QuoteWorkspaceItem[]
-  materialOptions: AvailableFilamentOption[]
-  qualityOptions: AvailableProcessOption[]
-  colourOptions: AvailableColourOption[]
-  quoteID: number
-  quoteStatus: QuoteStatus
-  refreshEstimatesAction: (formData: FormData) => void | Promise<void>
-  removeItemAction: (formData: FormData) => void | Promise<void>
-  saveItemAction: (formData: FormData) => void | Promise<void>
-  spoolOptions: AvailableSpoolOption[]
-  submitForReviewAction: (formData: FormData) => void | Promise<void>
-}
-
-const steps: { id: EditorStep; label: string }[] = [
-  { id: 'material', label: 'Material' },
-  { id: 'colour', label: 'Colour' },
-  { id: 'quality', label: 'Quality' },
-]
-
-const humanizeStatus = (status: string | null) => {
-  if (!status) return null
-  return status.replaceAll('-', ' ')
-}
-
-const getPendingEstimateLabel = ({
-  gcodeStatus,
-  quoteStatus,
-}: {
-  gcodeStatus: string | null
-  quoteStatus: QuoteStatus
-}) => {
-  if (gcodeStatus === 'failed') return 'Estimate failed'
-  if (gcodeStatus === 'new' || quoteStatus === 'new') return 'Refresh estimate needed'
-
-  return 'Estimate in progress'
-}
+export type { QuoteWorkspaceItem, QuoteWorkspaceSlot, SaveQuoteItemResult } from './types'
 
 const AUTO_REFRESH_INTERVAL_MS = 3000
-
+const IN_PROGRESS = new Set(['queued', 'collecting-context', 'slicing', 'parsing'])
+const TERMINAL = new Set(['sliced', 'failed'])
 export const shouldAutoRefreshQuote = ({
   editable,
   hasFailedItems,
@@ -120,665 +72,520 @@ export const shouldAutoRefreshQuote = ({
   hasInProgressItems: boolean
   hasPendingPrices: boolean
   quoteStatus: QuoteStatus
-}) => {
-  if (!editable) return false
+}) =>
+  editable &&
+  (hasInProgressItems || (!hasFailedItems && quoteStatus === 'queued' && hasPendingPrices))
 
-  if (hasFailedItems) return false
-
-  if (hasInProgressItems) {
-    return true
-  }
-
-  return quoteStatus === 'queued' && hasPendingPrices
-}
-
-const OptionCard = ({
-  onSelect,
-  option,
-  selected,
-  showMaterialPrice = false,
-  fallbackPreview,
-}: {
-  fallbackPreview?: ReactNode
-  onSelect: (value: string) => void
-  option: AvailableOption
-  selected: boolean
-  showMaterialPrice?: boolean
-}) => (
-  <button
-    className={cn(
-      'rounded-md border bg-card p-3 text-left transition hover:border-primary/60 hover:bg-primary/5',
-      selected && 'border-primary bg-primary/10',
-    )}
-    onClick={() => onSelect(String(option.id))}
-    type="button"
-  >
-    {option.imageUrl ? (
-      <img
-        alt={option.name}
-        className="h-28 w-full rounded-sm border bg-background object-cover"
-        src={option.imageUrl}
-      />
-    ) : fallbackPreview ? (
-      fallbackPreview
-    ) : (
-      <div className="flex h-28 w-full items-center justify-center rounded-sm border bg-muted/40 text-xs font-mono uppercase tracking-wider text-primary/50">
-        Preview unavailable
-      </div>
-    )}
-
-    <p className="mt-3 font-medium">{option.name}</p>
-    {showMaterialPrice && 'pricePerGram' in option && typeof option.pricePerGram === 'number' ? (
-      <p className="mt-1 text-sm text-primary/70">
-        <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
-      </p>
-    ) : null}
-    {option.description ? (
-      <p className="mt-1 line-clamp-2 text-sm text-primary/70">{option.description}</p>
-    ) : null}
-  </button>
-)
-
-const QuoteItemEditorDialog = ({
-  colourOptions,
-  accessToken = '',
-  currencyCode,
-  email = '',
-  item,
-  materialOptions,
-  qualityOptions,
+const AccessFields = ({
+  accessToken,
+  email,
+  itemID,
   quoteID,
-  quoteStatus,
-  saveItemAction,
-  spoolOptions,
-  trigger,
-}: {
-  colourOptions: AvailableColourOption[]
-  accessToken?: string
-  currencyCode?: string
-  email?: string
-  item: QuoteWorkspaceItem
-  materialOptions: AvailableFilamentOption[]
-  qualityOptions: AvailableProcessOption[]
-  quoteID: number
-  quoteStatus: QuoteStatus
-  saveItemAction: (formData: FormData) => void | Promise<void>
-  spoolOptions: AvailableSpoolOption[]
-  trigger: ReactNode
-}) => {
-  const [activeStep, setActiveStep] = useState<EditorStep>('material')
-  const [quantity, setQuantity] = useState(item.quantity)
-  const [filamentId, setFilamentId] = useState(item.filamentId)
-  const [filamentLabel, setFilamentLabel] = useState(item.filamentLabel)
-  const [colourId, setColourId] = useState(item.colourId)
-  const [colourLabel, setColourLabel] = useState(item.colourLabel)
-  const [processId, setProcessId] = useState(item.processId)
-  const [processLabel, setProcessLabel] = useState(item.processLabel)
-
-  const materialByID = useMemo(
-    () => new Map(materialOptions.map((option) => [String(option.id), option] as const)),
-    [materialOptions],
-  )
-  const colourByID = useMemo(
-    () => new Map(colourOptions.map((option) => [String(option.id), option] as const)),
-    [colourOptions],
-  )
-  const qualityByID = useMemo(
-    () => new Map(qualityOptions.map((option) => [String(option.id), option] as const)),
-    [qualityOptions],
-  )
-
-  const selectedMaterial = materialByID.get(filamentId)
-  const selectedColour = colourByID.get(colourId)
-  const selectedQuality = qualityByID.get(processId)
-  const selectedSpool = findSpoolForPair(spoolOptions, {
-    colour: colourId,
-    filament: filamentId,
-  })
-  const filteredColourOptions = useMemo(() => {
-    const selectedFilamentID = Number.parseInt(filamentId, 10)
-
-    if (!Number.isInteger(selectedFilamentID)) return []
-
-    return uniqueOptions(
-      spoolOptions.filter((spool) => spool.filament.id === selectedFilamentID),
-      'colour',
-    )
-  }, [filamentId, spoolOptions])
-  const canSave = Boolean(selectedSpool && processId)
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{item.modelLabel}</DialogTitle>
-          <DialogDescription>
-            Update the quantity, material, colour, and print quality for this quote line item.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-[120px]">
-              <p className="text-xs font-mono uppercase tracking-widest text-primary/50">
-                Quantity
-              </p>
-              <Input
-                aria-label={`Quantity for ${item.modelLabel}`}
-                className="mt-2"
-                min={1}
-                onChange={(event) => {
-                  const nextQuantity = Number.parseInt(event.target.value, 10)
-                  setQuantity(
-                    Number.isInteger(nextQuantity) && nextQuantity >= 1 ? nextQuantity : 1,
-                  )
-                }}
-                type="number"
-                value={quantity}
-              />
-            </div>
-
-            <div className="rounded-full border px-3 py-2 text-right">
-              {typeof item.gcodePrice === 'number' ? (
-                <Price
-                  amount={item.gcodePrice * quantity}
-                  as="p"
-                  className="text-sm font-medium"
-                  currencyCode={currencyCode}
-                />
-              ) : (
-                <p className="text-sm text-primary/70">
-                  {getPendingEstimateLabel({ gcodeStatus: item.gcodeStatus, quoteStatus })}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-3">
-            {steps.map((step) => (
-              <button
-                key={step.id}
-                className={cn(
-                  'rounded-md border px-4 py-2.5 text-center transition hover:border-primary/60',
-                  activeStep === step.id && 'border-primary bg-primary/5',
-                )}
-                onClick={() => setActiveStep(step.id)}
-                type="button"
-              >
-                <p className="font-medium">{step.label}</p>
-                <p className="mt-1 text-xs text-primary/55">
-                  {step.id === 'material'
-                    ? (selectedMaterial?.name ?? 'Choose material')
-                    : step.id === 'colour'
-                      ? (selectedColour?.name ?? 'Choose colour')
-                      : (selectedQuality?.name ?? 'Choose quality')}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          {activeStep === 'material' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-primary/70">
-                Pick a material first. The next step will show the colours currently available for
-                that material.
-              </p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {materialOptions.map((option) => (
-                  <OptionCard
-                    key={option.id}
-                    onSelect={(value) => {
-                      setFilamentId(value)
-                      setFilamentLabel(materialByID.get(value)?.name ?? filamentLabel)
-                      if (
-                        colourId &&
-                        !findSpoolForPair(spoolOptions, { colour: colourId, filament: value })
-                      ) {
-                        setColourId('')
-                      }
-                      setActiveStep('colour')
-                    }}
-                    option={option}
-                    selected={filamentId === String(option.id)}
-                    showMaterialPrice
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {activeStep === 'colour' ? (
-            <div className="space-y-3">
-              <p className="text-sm text-primary/70">
-                {selectedMaterial
-                  ? `Showing colours available for ${selectedMaterial.name}.`
-                  : 'Choose a material before selecting a colour.'}
-              </p>
-              {filteredColourOptions.length > 0 ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {filteredColourOptions.map((option) => (
-                    <OptionCard
-                      fallbackPreview={
-                        <ColourOptionPreview className="h-28 w-full" option={option} />
-                      }
-                      key={option.id}
-                      onSelect={(value) => {
-                        setColourId(value)
-                        setColourLabel(colourByID.get(value)?.name ?? colourLabel)
-                        setActiveStep('quality')
-                      }}
-                      option={option}
-                      selected={colourId === String(option.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-md border bg-background px-3 py-2 text-sm text-primary/70">
-                  No colours are available for this material right now.
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {activeStep === 'quality' ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {qualityOptions.map((option) => (
-                <OptionCard
-                  key={option.id}
-                  onSelect={(value) => {
-                    setProcessId(value)
-                    setProcessLabel(qualityByID.get(value)?.name ?? processLabel)
-                  }}
-                  option={option}
-                  selected={processId === String(option.id)}
-                />
-              ))}
-            </div>
-          ) : null}
-
-          <form
-            action={saveItemAction}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-card p-3"
-          >
-            <input name="quoteID" type="hidden" value={quoteID} />
-            <input name="itemID" type="hidden" value={item.id} />
-            <input name="quantity" type="hidden" value={quantity} />
-            <input name="spool" type="hidden" value={selectedSpool?.id ?? item.spoolId} />
-            <input name="filament" type="hidden" value={filamentId} />
-            <input name="colour" type="hidden" value={colourId} />
-            <input name="process" type="hidden" value={processId} />
-            {email ? <input name="email" type="hidden" value={email} /> : null}
-            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
-
-            <div className="min-w-0 flex-1 text-sm text-primary/70">
-              <p className="truncate">
-                {selectedMaterial?.name ?? filamentLabel} · {selectedColour?.name ?? colourLabel} ·{' '}
-                {selectedQuality?.name ?? processLabel} · Qty {quantity}
-              </p>
-            </div>
-
-            {!selectedSpool ? (
-              <p className="text-sm text-red-500">
-                Choose an available material and colour combination.
-              </p>
-            ) : null}
-
-            <Button disabled={!canSave} size="sm" type="submit">
-              Save
-            </Button>
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-export const QuoteCustomerNotesForm = ({
-  accessToken = '',
-  email = '',
-  quoteID,
-  quoteNotes,
-  saveNotesAction,
 }: {
   accessToken?: string
   email?: string
+  itemID?: string
   quoteID: number
-  quoteNotes?: string | null
-  saveNotesAction: (formData: FormData) => void | Promise<void>
 }) => (
-  <form action={saveNotesAction} className="rounded-xl border bg-card p-4">
+  <>
     <input name="quoteID" type="hidden" value={quoteID} />
+    {itemID ? <input name="itemID" type="hidden" value={itemID} /> : null}
     {email ? <input name="email" type="hidden" value={email} /> : null}
     {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
-
-    <div className="space-y-3">
-      <div>
-        <Label htmlFor="quote-notes">Notes for our team</Label>
-        <p className="mt-1 text-sm text-primary/60">
-          Add requirements, deadlines, or anything else we should know before review.
-        </p>
-      </div>
-      <Textarea
-        defaultValue={quoteNotes ?? ''}
-        id="quote-notes"
-        name="notes"
-        placeholder="Tell us anything that would help with this quote."
-        rows={4}
-      />
-      <div className="flex justify-end">
-        <Button size="sm" type="submit" variant="outline">
-          Save note
-        </Button>
-      </div>
-    </div>
-  </form>
+  </>
 )
 
-export const QuoteDetailsWorkspace = ({
-  addModelsAction,
+const QuoteDetailsWorkspaceState = ({
   accessToken = '',
-  colourOptions,
+  addModelsAction,
   currencyCode,
   editable,
   email = '',
-  hasFailedItems,
-  hasInProgressItems,
-  hasPendingPrices,
+  initialItemID = '',
   items,
   materialOptions,
   qualityOptions,
   quoteID,
+  quoteNotes,
   quoteStatus,
-  refreshEstimatesAction,
   removeItemAction,
   saveItemAction,
   spoolOptions,
   submitForReviewAction,
-}: Props) => {
+}: QuoteDetailsWorkspaceProps) => {
   const router = useRouter()
-  const [modelUploadError, setModelUploadError] = useState<string | null>(null)
-  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
-  const shouldAutoRefresh = shouldAutoRefreshQuote({
+  const { quoteProductPlaceholder } = useBranding()
+  const initialActiveID = items.some((item) => item.id === initialItemID)
+    ? initialItemID
+    : (items[0]?.id ?? '')
+  const initialItem = items.find((item) => item.id === initialActiveID) ?? items[0]
+  const [activeID, setActiveID] = useState(initialActiveID)
+  const [draft, dispatchDraft] = useReducer(itemDraftReducer, initialItem, createDraft)
+  const [savedDraft, setSavedDraft] = useState(() => serializeDraft(createDraft(initialItem)))
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [materialOpen, setMaterialOpen] = useState(false)
+  const [processOpen, setProcessOpen] = useState(false)
+  const [colourSlot, setColourSlot] = useState<number | null>(null)
+  const [pending, startTransition] = useTransition()
+  const activeItem = items.find((item) => item.id === activeID) ?? items[0]
+  const currentDraft = serializeDraft(draft)
+  const dirty = currentDraft !== savedDraft
+  const slicingDirty =
+    serializeSlicingDraft(draft) !== serializeSlicingDraft(createDraft(activeItem))
+  const availableColours = useMemo(
+    () =>
+      uniqueOptions(
+        spoolOptions.filter((option) => String(option.filament.id) === draft.filamentId),
+        'colour',
+      ),
+    [draft.filamentId, spoolOptions],
+  )
+  const hasInProgress = items.some(
+    (item) => item.configured && IN_PROGRESS.has(item.gcodeStatus ?? ''),
+  )
+  const hasFailed = items.some((item) => item.gcodeStatus === 'failed')
+  const hasPendingPrices = items.some((item) => item.configured && item.gcodePrice === null)
+  const shouldRefresh = shouldAutoRefreshQuote({
     editable,
-    hasFailedItems,
-    hasInProgressItems,
+    hasFailedItems: hasFailed,
+    hasInProgressItems: hasInProgress,
     hasPendingPrices,
     quoteStatus,
   })
-
-  const refreshRoute = useEffectEvent(() => {
-    router.refresh()
-  })
+  const canSubmit =
+    editable &&
+    items.length > 0 &&
+    items.every((item) => item.configured && TERMINAL.has(item.gcodeStatus ?? ''))
+  const subtotal = items.reduce(
+    (total, item) =>
+      total + (item.configured && item.gcodePrice !== null ? item.gcodePrice * item.quantity : 0),
+    0,
+  )
+  const refresh = useEffectEvent(() => router.refresh())
 
   useEffect(() => {
-    if (!shouldAutoRefresh) {
-      return
-    }
+    if (!shouldRefresh) return
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, AUTO_REFRESH_INTERVAL_MS)
+    return () => window.clearInterval(interval)
+  }, [shouldRefresh])
 
-    const refreshWhenVisible = () => {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-        return
-      }
+  if (!activeItem) return null
 
-      refreshRoute()
-    }
-
-    const interval = window.setInterval(refreshWhenVisible, AUTO_REFRESH_INTERVAL_MS)
-
-    return () => {
-      window.clearInterval(interval)
-    }
-  }, [refreshRoute, shouldAutoRefresh])
-
-  const validateModelFiles = (files: Iterable<{ name: string }>): boolean => {
-    const unsupportedFilenames = getUnsupportedModelFilenames(files)
-
-    if (unsupportedFilenames.length > 0) {
-      setModelUploadError(getUnsupportedModelFilesMessage(unsupportedFilenames))
-      return false
-    }
-
-    setModelUploadError(null)
-    return true
+  const selectItem = (itemID: string) => {
+    if (itemID === activeItem.id) return
+    if (dirty && !window.confirm('Discard your unapplied changes and switch models?')) return
+    const nextItem = items.find((item) => item.id === itemID)
+    if (!nextItem) return
+    const nextDraft = createDraft(nextItem)
+    setActiveID(itemID)
+    dispatchDraft({ item: nextItem, type: 'reset' })
+    setSavedDraft(serializeDraft(nextDraft))
+    setSaveError(null)
+    const url = new URL(window.location.href)
+    url.searchParams.set('item', itemID)
+    window.history.replaceState(null, '', url)
   }
 
-  const onModelUploadSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const validateUpload = (event: FormEvent<HTMLFormElement>) => {
     const files = new FormData(event.currentTarget)
       .getAll('files')
       .filter((value): value is File => value instanceof File)
+    const unsupported = getUnsupportedModelFilenames(files)
+    if (unsupported.length === 0) return
+    event.preventDefault()
+    setUploadError(getUnsupportedModelFilesMessage(unsupported))
+  }
 
-    if (!validateModelFiles(files)) {
-      event.preventDefault()
-    }
+  const setSameColour = (sameColour: boolean) => {
+    dispatchDraft({ sameColour, type: 'set-same-colour' })
+  }
+
+  const applyDraft = () => {
+    const submittedDraft = normalizeDraftForApply(draft)
+    const formData = new FormData()
+    formData.set('quoteID', String(quoteID))
+    formData.set('itemID', activeItem.id)
+    formData.set('email', email)
+    formData.set('accessToken', accessToken)
+    formData.set('filament', submittedDraft.filamentId)
+    formData.set('process', submittedDraft.processId)
+    formData.set('quantity', String(submittedDraft.quantity))
+    formData.set('notes', submittedDraft.modelNote)
+    formData.set('filamentSlots', JSON.stringify(draftToFormSlots(submittedDraft)))
+    setSaveError(null)
+    startTransition(async () => {
+      const result = await saveItemAction(formData)
+      if (!result.success) {
+        setSaveError(result.error)
+        return
+      }
+      dispatchDraft({
+        item: {
+          ...activeItem,
+          filamentId: submittedDraft.filamentId,
+          filamentLabel: submittedDraft.filamentLabel,
+          filamentSlots: submittedDraft.slots,
+          modelNote: submittedDraft.modelNote,
+          processId: submittedDraft.processId,
+          processLabel: submittedDraft.processLabel,
+          quantity: submittedDraft.quantity,
+        },
+        type: 'reset',
+      })
+      setSavedDraft(serializeDraft(submittedDraft))
+      router.refresh()
+    })
+  }
+
+  const discardDraft = () => {
+    const persisted = createDraft(activeItem)
+    dispatchDraft({ item: activeItem, type: 'reset' })
+    setSavedDraft(serializeDraft(persisted))
+    setSaveError(null)
+  }
+
+  const chooseColour = (option: AvailableOption) => {
+    dispatchDraft({
+      option,
+      slotIndex: draft.sameColour ? 0 : (colourSlot ?? 0),
+      type: 'select-colour',
+    })
   }
 
   return (
-    <div className="space-y-6">
-      {editable ? (
-        <form
-          action={addModelsAction}
-          className="rounded-xl border border-dashed bg-background/70 p-4"
-          onSubmit={onModelUploadSubmit}
-        >
-          <input name="quoteID" type="hidden" value={quoteID} />
-          <input
-            name="spool"
-            type="hidden"
-            value={items[0]?.spoolId || String(spoolOptions[0]?.id ?? '')}
-          />
-          <input
-            name="filament"
-            type="hidden"
-            value={items[0]?.filamentId || String(spoolOptions[0]?.filament.id ?? '')}
-          />
-          <input
-            name="colour"
-            type="hidden"
-            value={items[0]?.colourId || String(spoolOptions[0]?.colour.id ?? '')}
-          />
-          <input
-            name="process"
-            type="hidden"
-            value={items[0]?.processId ?? String(qualityOptions[0]?.id ?? '')}
-          />
-          {email ? <input name="email" type="hidden" value={email} /> : null}
-          {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
-
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">Add more files</p>
-                <p className="mt-1 text-xs text-primary/60">
-                  Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}
-                </p>
-              </div>
-              <p className="text-sm text-primary/70">
-                {items.length} file{items.length === 1 ? '' : 's'} · {totalQuantity} total item
-                {totalQuantity === 1 ? '' : 's'}
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="grid min-h-[44rem] lg:grid-cols-[23rem_minmax(0,1fr)]">
+        <aside className="border-b bg-background lg:border-r lg:border-b-0">
+          <div className="flex items-center justify-between border-b px-4 py-4">
+            <div>
+              <h2 className="font-medium">Your quote</h2>
+              <p className="text-sm text-primary/55">
+                {items.length} model{items.length === 1 ? '' : 's'}
               </p>
             </div>
-
-            <Input
-              accept={MODEL_UPLOAD_ACCEPT}
-              multiple
-              name="files"
-              onChange={(event) => {
-                if (!validateModelFiles(event.target.files ?? [])) {
-                  event.target.value = ''
-                }
-              }}
-              type="file"
-            />
-
-            {modelUploadError ? <p className="text-sm text-red-500">{modelUploadError}</p> : null}
-
-            <Button className="w-full sm:w-auto" size="sm" type="submit">
-              Upload files
-            </Button>
-          </div>
-        </form>
-      ) : null}
-
-      {items.length > 0 ? (
-        <ul className="flex flex-col gap-6">
-          {items.map((item) => {
-            const canRemove = editable && items.length > 1
-            const subtotal =
-              typeof item.gcodePrice === 'number' ? item.gcodePrice * item.quantity : null
-            const statusLabel = humanizeStatus(item.gcodeStatus)
-            const pendingEstimateLabel = getPendingEstimateLabel({
-              gcodeStatus: item.gcodeStatus,
-              quoteStatus,
-            })
-
-            return (
-              <li key={item.id}>
-                <div className="flex flex-col gap-6 rounded-lg border bg-card px-4 py-3 md:px-6 md:py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-medium">
-                        {item.productSlug ? (
-                          <Link href={`/products/${item.productSlug}`}>{item.modelLabel}</Link>
-                        ) : (
-                          item.modelLabel
-                        )}
-                      </h3>
-
-                      {statusLabel ? (
-                        <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono uppercase tracking-widest text-primary/55">
-                          {statusLabel}
-                        </p>
-                      ) : null}
-
-                      {typeof item.gcodeWeight === 'number' ? (
-                        <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono tracking-widest text-primary/55">
-                          {formatWeight(item.gcodeWeight)}
-                        </p>
-                      ) : null}
-
-                      {typeof item.gcodeDuration === 'number' ? (
-                        <p className="rounded-full bg-background px-2 py-0.5 text-xs font-mono tracking-widest text-primary/55">
-                          {formatDuration(item.gcodeDuration)}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="text-sm font-mono tracking-widest text-primary/50">
-                      <p>{item.filamentLabel}</p>
-                      <p>{item.colourLabel}</p>
-                      <p>{item.processLabel}</p>
-                    </div>
-
-                    <div>x{item.quantity}</div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 sm:items-end">
-                    <div className="text-right">
-                      <p className="text-lg font-medium">Subtotal</p>
-                      {typeof subtotal === 'number' ? (
-                        <Price
-                          amount={subtotal}
-                          className="text-sm font-mono text-primary/50"
-                          currencyCode={currencyCode}
-                        />
-                      ) : (
-                        <p className="text-sm font-mono text-primary/50">{pendingEstimateLabel}</p>
-                      )}
-                    </div>
-
-                    {typeof item.productID === 'number' ? (
-                      <AddQuoteItemToCartButton
-                        productID={item.productID}
-                        quantity={item.quantity}
-                      />
+            {editable ? (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="icon" title="Add model" variant="outline">
+                    <FilePlus2Icon className="size-4" />
+                    <span className="sr-only">Add model</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add another model</DialogTitle>
+                    <DialogDescription>
+                      The new item starts without material, colour, or process selections.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form action={addModelsAction} onSubmit={validateUpload}>
+                    <AccessFields accessToken={accessToken} email={email} quoteID={quoteID} />
+                    <Input
+                      accept={MODEL_UPLOAD_ACCEPT}
+                      multiple
+                      name="files"
+                      required
+                      type="file"
+                    />
+                    <p className="mt-2 text-xs text-primary/55">{MODEL_UPLOAD_FORMAT_LABEL}</p>
+                    {uploadError ? (
+                      <p className="mt-2 text-sm text-red-500">{uploadError}</p>
                     ) : null}
+                    <DialogFooter className="mt-5">
+                      <Button type="submit">Upload</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            ) : null}
+          </div>
 
-                    {editable ? (
-                      <div className="flex flex-wrap gap-2">
-                        <QuoteItemEditorDialog
-                          colourOptions={colourOptions}
-                          accessToken={accessToken}
-                          currencyCode={currencyCode}
-                          email={email}
-                          item={item}
-                          materialOptions={materialOptions}
-                          qualityOptions={qualityOptions}
-                          quoteID={quoteID}
-                          quoteStatus={quoteStatus}
-                          saveItemAction={saveItemAction}
-                          spoolOptions={spoolOptions}
-                          trigger={
-                            <Button size="icon" variant="outline">
-                              <PencilIcon className="size-4" />
-                              <span className="sr-only">Edit item</span>
-                            </Button>
+          <QuoteItemList
+            activeItemID={activeItem.id}
+            currencyCode={currencyCode}
+            items={items}
+            onSelect={selectItem}
+          />
+
+          <div className="border-t p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-primary/60">
+                {items.some((item) => item.gcodePrice === null)
+                  ? 'Partial estimate'
+                  : 'Estimated total'}
+              </span>
+              <Price
+                amount={subtotal}
+                className="text-xl font-medium"
+                currencyCode={currencyCode}
+              />
+            </div>
+            {editable ? (
+              <SubmissionDialog
+                accessToken={accessToken}
+                canSubmit={canSubmit}
+                currencyCode={currencyCode}
+                email={email}
+                items={items}
+                quoteID={quoteID}
+                quoteNotes={quoteNotes}
+                submitForReviewAction={submitForReviewAction}
+              />
+            ) : null}
+            {editable ? (
+              <p
+                aria-hidden={canSubmit}
+                className={cn('mt-2 min-h-4 text-xs text-primary/50', canSubmit && 'invisible')}
+              >
+                Complete every item and wait for each estimate to finish.
+              </p>
+            ) : null}
+          </div>
+        </aside>
+
+        <QuoteItemEditor
+          accessToken={accessToken}
+          colors={draft.slots.map((slot) => slot.hex)}
+          editable={editable}
+          email={email}
+          fallbackSrc={quoteProductPlaceholder}
+          item={activeItem}
+          itemCount={items.length}
+          quoteID={quoteID}
+          removeItemAction={removeItemAction}
+        >
+          <div className="divide-y">
+            <div className="flex items-center gap-4 px-5 py-4">
+              <Layers3Icon className="size-5 text-primary/50" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Material</p>
+                <p className="text-sm text-primary/55">{draft.filamentLabel || 'Not selected'}</p>
+              </div>
+              {editable ? (
+                <Button onClick={() => setMaterialOpen(true)} variant="outline">
+                  {draft.filamentId ? 'Change' : 'Select'}
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-4">
+                <PaletteIcon className="size-5 text-primary/50" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">Colours</p>
+                  <p className="text-sm text-primary/55">
+                    {draft.sameColour ? 'One colour for the whole model' : 'Assigned by model slot'}
+                  </p>
+                </div>
+                {editable && activeItem.modelSlotCount > 1 ? (
+                  <div className="grid grid-cols-2 rounded-md border p-1">
+                    <button
+                      aria-pressed={draft.sameColour}
+                      className={cn(
+                        'rounded-sm px-3 py-2 text-sm',
+                        draft.sameColour && 'bg-primary text-primary-foreground',
+                      )}
+                      onClick={() => setSameColour(true)}
+                      type="button"
+                    >
+                      Same colour
+                    </button>
+                    <button
+                      aria-pressed={!draft.sameColour}
+                      className={cn(
+                        'rounded-sm px-3 py-2 text-sm',
+                        !draft.sameColour && 'bg-primary text-primary-foreground',
+                      )}
+                      onClick={() => setSameColour(false)}
+                      type="button"
+                    >
+                      By slot
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {(draft.sameColour ? draft.slots.slice(0, 1) : draft.slots).map((slot, index) => (
+                  <div className="rounded-md border p-3" key={index}>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="size-8 shrink-0 rounded-sm border"
+                        style={{ background: slot.hex }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          {draft.sameColour ? 'Whole model' : `Slot ${index + 1}`}
+                        </p>
+                        <p className="truncate text-sm text-primary/55">
+                          {slot.colourLabel || 'No colour selected'}
+                        </p>
+                      </div>
+                      {editable ? (
+                        <Button
+                          disabled={!draft.filamentId}
+                          onClick={() => setColourSlot(index)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          {slot.colourId ? 'Change' : 'Select'}
+                        </Button>
+                      ) : null}
+                    </div>
+                    {!draft.sameColour ? (
+                      <div className="mt-3">
+                        <Label htmlFor={`slot-description-${activeItem.id}-${index}`}>
+                          What should this colour apply to?{' '}
+                          <span className="font-normal">(optional)</span>
+                        </Label>
+                        <Input
+                          className="mt-2"
+                          disabled={!editable}
+                          id={`slot-description-${activeItem.id}-${index}`}
+                          onChange={(event) =>
+                            dispatchDraft({
+                              description: event.target.value,
+                              slotIndex: index,
+                              type: 'set-slot-description',
+                            })
                           }
+                          placeholder="e.g. body, logo, eyes"
+                          value={slot.description}
                         />
-
-                        <form action={removeItemAction}>
-                          <input name="quoteID" type="hidden" value={quoteID} />
-                          <input name="itemID" type="hidden" value={item.id} />
-                          {email ? <input name="email" type="hidden" value={email} /> : null}
-                          {accessToken ? (
-                            <input name="accessToken" type="hidden" value={accessToken} />
-                          ) : null}
-                          <Button disabled={!canRemove} size="icon" type="submit" variant="outline">
-                            <Trash2Icon className="size-4" />
-                            <span className="sr-only">Remove item</span>
-                          </Button>
-                        </form>
                       </div>
                     ) : null}
                   </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 px-5 py-4">
+              <PrinterIcon className="size-5 text-primary/50" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Print process</p>
+                <p className="text-sm text-primary/55">{draft.processLabel || 'Not selected'}</p>
+              </div>
+              {editable ? (
+                <Button onClick={() => setProcessOpen(true)} variant="outline">
+                  {draft.processId ? 'Change' : 'Select'}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-5 border-t p-5">
+            <div>
+              <Label>Quantity</Label>
+              {editable ? (
+                <div className="mt-2 flex w-fit items-center rounded-md border">
+                  <Button
+                    disabled={draft.quantity <= 1}
+                    onClick={() =>
+                      dispatchDraft({ quantity: draft.quantity - 1, type: 'set-quantity' })
+                    }
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    -
+                  </Button>
+                  <span className="w-12 text-center">{draft.quantity}</span>
+                  <Button
+                    onClick={() =>
+                      dispatchDraft({ quantity: draft.quantity + 1, type: 'set-quantity' })
+                    }
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    +
+                  </Button>
                 </div>
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        <div className="rounded-lg border border-dashed bg-background/70 px-4 py-10 text-center text-sm text-primary/70">
-          No files added yet.
-        </div>
-      )}
+              ) : (
+                <p className="mt-2">{draft.quantity}</p>
+              )}
+            </div>
+            <EstimateSummary item={activeItem} slicingDirty={slicingDirty} />
+          </div>
 
-      {editable && hasFailedItems ? (
-        <div className="rounded-md border bg-background px-4 py-3 text-sm text-primary/70">
-          <p className="font-medium text-primary">Some files need manual review</p>
-          <p className="mt-1">
-            The instant quote may not be accurate for models that could not be sliced automatically.
-            Send this quote for review and we will calculate the correct price for those files.
-          </p>
-        </div>
-      ) : null}
+          <div className="border-t p-5">
+            <Label htmlFor={`model-note-${activeItem.id}`}>Model note</Label>
+            <Textarea
+              className="mt-2"
+              disabled={!editable}
+              id={`model-note-${activeItem.id}`}
+              onChange={(event) =>
+                dispatchDraft({ notes: event.target.value, type: 'set-model-note' })
+              }
+              rows={3}
+              value={draft.modelNote}
+            />
+          </div>
 
-      {editable ? (
-        <div className="flex flex-wrap justify-end gap-3 border-t pt-4">
-          {shouldAutoRefresh ? (
-            <p className="mr-auto self-center text-sm text-primary/70">
-              Updating estimates automatically while slicing finishes.
-            </p>
+          {editable ? (
+            <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-end gap-3 border-t bg-background/95 px-5 py-4 backdrop-blur">
+              {saveError ? <p className="mr-auto text-sm text-red-600">{saveError}</p> : null}
+              {dirty ? (
+                <span className="mr-auto text-xs text-primary/50">Unapplied changes</span>
+              ) : null}
+              <Button disabled={!dirty || pending} onClick={discardDraft} variant="outline">
+                Discard changes
+              </Button>
+              <Button disabled={!dirty || pending} onClick={applyDraft}>
+                {pending ? 'Applying...' : 'Apply changes'}
+              </Button>
+            </div>
           ) : null}
+        </QuoteItemEditor>
+      </div>
 
-          <form action={refreshEstimatesAction}>
-            <input name="quoteID" type="hidden" value={quoteID} />
-            {email ? <input name="email" type="hidden" value={email} /> : null}
-            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
-            <Button size="sm" type="submit" variant="outline">
-              Refresh estimate
-            </Button>
-          </form>
-
-          <form action={submitForReviewAction}>
-            <input name="quoteID" type="hidden" value={quoteID} />
-            {email ? <input name="email" type="hidden" value={email} /> : null}
-            {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
-            <Button size="sm" type="submit">
-              Send for review
-            </Button>
-          </form>
-        </div>
-      ) : null}
+      <OptionDialog
+        description="Choosing a material clears colour assignments that may no longer be available."
+        onSelect={(option) => dispatchDraft({ option, type: 'select-material' })}
+        open={materialOpen}
+        options={materialOptions}
+        selectedID={draft.filamentId}
+        setOpen={setMaterialOpen}
+        title="Choose a material"
+      />
+      <OptionDialog
+        description="Choose the colour for this assignment."
+        fallback={(option) => (
+          <ColourOptionPreview
+            className="h-16 w-full"
+            option={option as AvailableSpoolOption['colour']}
+          />
+        )}
+        onSelect={chooseColour}
+        open={colourSlot !== null}
+        options={availableColours}
+        selectedID={
+          colourSlot === null
+            ? ''
+            : (draft.sameColour ? draft.slots[0] : draft.slots[colourSlot])?.colourId || ''
+        }
+        setOpen={(open) => !open && setColourSlot(null)}
+        title={
+          draft.sameColour ? 'Choose a colour' : `Choose a colour for slot ${(colourSlot ?? 0) + 1}`
+        }
+      />
+      <OptionDialog
+        description="Choose the print process for this model."
+        onSelect={(option) => dispatchDraft({ option, type: 'select-process' })}
+        open={processOpen}
+        options={qualityOptions}
+        selectedID={draft.processId}
+        setOpen={setProcessOpen}
+        title="Choose a print process"
+      />
     </div>
   )
+}
+
+export const QuoteDetailsWorkspace = (props: QuoteDetailsWorkspaceProps) => {
+  const itemStateKey = props.items.map((item) => item.id).join('|')
+  return <QuoteDetailsWorkspaceState key={itemStateKey} {...props} />
 }

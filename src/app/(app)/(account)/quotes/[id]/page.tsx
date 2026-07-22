@@ -1,102 +1,36 @@
 import type { Metadata } from 'next'
-import type { Quote, QuoteStatus } from '@/payload-types'
+import type { QuoteStatus } from '@/payload-types'
 
-import { QuoteCustomerNotesForm, QuoteDetailsWorkspace } from '@/components/QuoteDetailsWorkspace'
+import { QuoteDetailsWorkspace } from '@/components/QuoteDetailsWorkspace'
 import { Price } from '@/components/Price'
 import { AddAllQuoteItemsToCartButton } from '@/components/QuoteActions/AddAllQuoteItemsToCartButton'
 import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
 import { getVisibleAdminNotes } from '@/utilities/quotes/getVisibleAdminNotes'
-import {
-  buildAvailableSpoolOptions,
-  getCatalogImageRendition,
-  uniqueOptions,
-  type AvailableProcessOption,
-  type CatalogImage,
-} from '@/lib/spoolAvailability'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
-import { resolveRelationID } from '@/utilities/resolveRelationID'
+import { findAccessibleQuote } from '@/lib/quotes/findAccessibleQuote'
+import {
+  addQuoteModelsAction,
+  removeQuoteItemAction,
+  saveQuoteItemAction,
+  submitQuoteForReviewAction,
+} from '@/lib/quotes/workspaceActions'
+import { isEditableQuoteStatus } from '@/lib/quotes/workspaceData'
+import { buildQuoteWorkspaceViewModel } from '@/lib/quotes/workspaceViewModel'
 import { ChevronLeftIcon } from 'lucide-react'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
 export const dynamic = 'force-dynamic'
 
 type PageProps = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ email?: string; accessToken?: string }>
+  searchParams: Promise<{ email?: string; accessToken?: string; item?: string }>
 }
-
-type QuoteOptionResponse = {
-  id: number
-  name: string
-  description?: string | null
-  image?: CatalogImage | number | null
-}
-
-const editableStatuses = new Set<QuoteStatus>(['new', 'queued', 'sliced'])
-const inProgressGcodeStatuses = new Set(['queued', 'collecting-context', 'slicing', 'parsing'])
-
-const normalizeProcessOption = (option: QuoteOptionResponse): AvailableProcessOption => {
-  return {
-    description: typeof option.description === 'string' ? option.description : null,
-    ...getCatalogImageRendition(option.image),
-    id: option.id,
-    kind: 'process',
-    name: option.name,
-  }
-}
-
-const toNumericRelationID = (value: unknown): number | null => {
-  const relationID = resolveRelationID(value)
-  return typeof relationID === 'number' ? relationID : null
-}
-
-const serializeQuoteItem = (item: Quote['items'][number]) => {
-  const model = toNumericRelationID(item.model)
-  const spool = toNumericRelationID(item.spool)
-  const filament = toNumericRelationID(item.filament)
-  const colour = toNumericRelationID(item.colour)
-  const process = toNumericRelationID(item.process)
-
-  if (!model || !filament || !colour || !process) {
-    return null
-  }
-
-  return {
-    id: item.id ?? undefined,
-    model,
-    quantity: item.quantity,
-    spool: spool ?? undefined,
-    filament,
-    colour,
-    process,
-    machine: toNumericRelationID(item.machine) ?? undefined,
-    gcode: toNumericRelationID(item.gcode) ?? undefined,
-  }
-}
-
-const getQuotePath = (quoteID: number, customerEmail: string, accessToken: string) => {
-  const queryParams = new URLSearchParams()
-
-  if (customerEmail) {
-    queryParams.set('email', customerEmail)
-  }
-
-  if (accessToken) {
-    queryParams.set('accessToken', accessToken)
-  }
-
-  const queryString = queryParams.toString()
-
-  return `/quotes/${quoteID}${queryString ? `?${queryString}` : ''}`
-}
-
-const isEditableQuoteStatus = (status: QuoteStatus) => editableStatuses.has(status)
 
 const getReadOnlyQuoteMessage = (status: QuoteStatus) => {
   switch (status) {
@@ -128,118 +62,20 @@ const getReadOnlyQuoteMessage = (status: QuoteStatus) => {
   }
 }
 
-const findAccessibleQuote = async ({
-  accessToken,
-  customerEmail,
-  payloadInstance,
-  quoteID,
-  quoteUser,
-}: {
-  accessToken: string
-  customerEmail: string
-  payloadInstance: Awaited<ReturnType<typeof getPayload>>
-  quoteID: number | string
-  quoteUser: Awaited<ReturnType<Awaited<ReturnType<typeof getPayload>>['auth']>>['user']
-}) => {
-  if (!quoteUser && !accessToken) {
-    return null
-  }
-
-  const {
-    docs: [quoteResult],
-  } = await payloadInstance.find({
-    collection: 'quotes',
-    user: quoteUser,
-    overrideAccess: !Boolean(quoteUser),
-    depth: 2,
-    where: {
-      and: [
-        {
-          id: {
-            equals: quoteID,
-          },
-        },
-        ...(quoteUser
-          ? [
-              {
-                customer: {
-                  equals: quoteUser.id,
-                },
-              },
-            ]
-          : [
-              {
-                accessToken: {
-                  equals: accessToken,
-                },
-              },
-              ...(customerEmail
-                ? [
-                    {
-                      customerEmail: {
-                        equals: customerEmail,
-                      },
-                    },
-                  ]
-                : []),
-            ]),
-      ],
-    },
-    select: {
-      id: true,
-      subtotal: true,
-      currency: true,
-      items: true,
-      customerEmail: true,
-      accessToken: true,
-      customer: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-      notes: true,
-      adminNotes: true,
-    },
-  })
-
-  const quoteAccessToken =
-    quoteResult && 'accessToken' in quoteResult ? quoteResult.accessToken : undefined
-
-  const canAccessAsGuest =
-    !quoteUser &&
-    accessToken &&
-    quoteResult &&
-    quoteAccessToken &&
-    quoteAccessToken === accessToken &&
-    (!customerEmail || (quoteResult.customerEmail && quoteResult.customerEmail === customerEmail))
-
-  const canAccessAsUser =
-    quoteUser &&
-    quoteResult &&
-    quoteResult.customer &&
-    (typeof quoteResult.customer === 'object' ? quoteResult.customer.id : quoteResult.customer) ===
-      quoteUser.id
-
-  if (quoteResult && (canAccessAsGuest || canAccessAsUser)) {
-    return quoteResult
-  }
-
-  return null
-}
-
 export default async function QuotePage({ params, searchParams }: PageProps) {
   const headers = await getHeaders()
   const payload = await getPayload({ config: configPromise })
   const { user } = await payload.auth({ headers })
 
   const { id } = await params
-  const { email = '', accessToken = '' } = await searchParams
+  const { email = '', accessToken = '', item: selectedItemID = '' } = await searchParams
 
   const quote = await findAccessibleQuote({
     accessToken,
     customerEmail: email,
-    payloadInstance: payload,
+    payload,
     quoteID: id,
-    quoteUser: user,
+    user,
   }).catch((error) => {
     console.error(error)
     return null
@@ -253,530 +89,14 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
   const readOnlyMessage = !editable ? getReadOnlyQuoteMessage(quote.status) : null
   const visibleAdminNotes = getVisibleAdminNotes(quote)
 
-  const optionQuery = {
-    depth: 1,
-    limit: 200,
-    pagination: false,
-    sort: 'name',
-    where: {
-      active: {
-        equals: true,
-      },
-    },
-  } as const
-
-  const spoolQuery = {
-    depth: 2,
-    limit: 500,
-    pagination: false,
-    sort: 'id',
-    where: {
-      active: {
-        equals: true,
-      },
-    },
-  } as const
-
-  const [spoolsResult, processesResult] = await Promise.all([
-    payload.find({
-      collection: 'spools',
-      overrideAccess: true,
-      ...spoolQuery,
-    }),
-    payload.find({
-      collection: 'processes',
-      overrideAccess: true,
-      ...optionQuery,
-    }),
-  ])
-
-  const spoolOptions = buildAvailableSpoolOptions(spoolsResult.docs)
-  const materialOptions = uniqueOptions(spoolOptions, 'filament')
-  const colourOptions = uniqueOptions(spoolOptions, 'colour')
-  const qualityOptions = (processesResult.docs as QuoteOptionResponse[]).map(normalizeProcessOption)
-
-  const relatedProductsResult =
-    quote.items.length > 0
-      ? await payload.find({
-          collection: 'products',
-          depth: 0,
-          limit: quote.items.length * 2,
-          pagination: false,
-          user,
-          overrideAccess: false,
-          where: {
-            quote: {
-              equals: quote.id,
-            },
-          },
-          select: {
-            id: true,
-            slug: true,
-            quoteItemID: true,
-          },
-        })
-      : null
-
-  const productByQuoteItemID = new Map<string, { id: number; slug?: string | null }>()
-
-  if (relatedProductsResult?.docs?.length) {
-    for (const product of relatedProductsResult.docs) {
-      if (typeof product.quoteItemID !== 'string' || product.quoteItemID.length === 0) continue
-
-      if (!productByQuoteItemID.has(product.quoteItemID)) {
-        productByQuoteItemID.set(product.quoteItemID, { id: product.id, slug: product.slug })
-      }
-    }
-  }
-
-  const workspaceItems = quote.items.map((item, index) => {
-    const relatedProduct =
-      typeof item.id === 'string' && item.id.length > 0
-        ? productByQuoteItemID.get(item.id)
-        : undefined
-
-    return {
-      id: item.id ?? `${quote.id}-${index}`,
-      modelLabel:
-        typeof item.model === 'object' && item.model?.originalFilename
-          ? item.model.originalFilename
-          : `Model ${index + 1}`,
-      quantity: item.quantity,
-      spoolId: String(resolveRelationID(item.spool) ?? ''),
-      filamentId: String(resolveRelationID(item.filament) ?? ''),
-      filamentLabel:
-        typeof item.filament === 'object' && item.filament?.name ? item.filament.name : 'Material',
-      colourId: String(resolveRelationID(item.colour) ?? ''),
-      colourLabel:
-        typeof item.colour === 'object' && item.colour?.name ? item.colour.name : 'Colour',
-      processId: String(resolveRelationID(item.process) ?? ''),
-      processLabel:
-        typeof item.process === 'object' && item.process?.name ? item.process.name : 'Quality',
-      gcodeDuration: typeof item.gcodeDuration === 'number' ? item.gcodeDuration : null,
-      gcodePrice: typeof item.gcodePrice === 'number' ? item.gcodePrice : null,
-      gcodeStatus: typeof item.gcodeStatus === 'string' ? item.gcodeStatus : null,
-      gcodeWeight: typeof item.gcodeWeight === 'number' ? item.gcodeWeight : null,
-      productID: relatedProduct?.id,
-      productSlug: relatedProduct?.slug ?? undefined,
-    }
-  })
-
-  const addableItems = workspaceItems.reduce<Array<{ productID: number; quantity: number }>>(
-    (acc, item) => {
-      if (typeof item.productID !== 'number') return acc
-
-      acc.push({
-        productID: item.productID,
-        quantity: item.quantity,
-      })
-
-      return acc
-    },
-    [],
-  )
-
-  const hasPendingLineItemPrice = workspaceItems.some((item) => item.gcodePrice === null)
-  const hasFailedLineItems = workspaceItems.some((item) => item.gcodeStatus === 'failed')
-  const hasInProgressLineItems = workspaceItems.some(
-    (item) => item.gcodeStatus && inProgressGcodeStatuses.has(item.gcodeStatus),
-  )
-
-  const updatePriceAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-
-    if (!Number.isInteger(quoteID) || quoteID < 1) return
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data: {
-          status: 'queued',
-        },
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data: {
-          status: 'queued',
-        },
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
-
-  const saveItemAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const itemID = String(formData.get('itemID') ?? '')
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-    const quantity = Number.parseInt(String(formData.get('quantity') ?? ''), 10)
-    const spool = Number.parseInt(String(formData.get('spool') ?? ''), 10)
-    const filament = Number.parseInt(String(formData.get('filament') ?? ''), 10)
-    const colour = Number.parseInt(String(formData.get('colour') ?? ''), 10)
-    const process = Number.parseInt(String(formData.get('process') ?? ''), 10)
-
-    if (
-      !Number.isInteger(quoteID) ||
-      quoteID < 1 ||
-      !itemID ||
-      !Number.isInteger(quantity) ||
-      quantity < 1 ||
-      !Number.isInteger(spool) ||
-      !Number.isInteger(filament) ||
-      !Number.isInteger(colour) ||
-      !Number.isInteger(process)
-    ) {
-      return
-    }
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-
-    const nextItems = accessibleQuote.items
-      .map((item) => {
-        const serializedItem = serializeQuoteItem(item)
-        if (!serializedItem) return null
-
-        if (item.id !== itemID) {
-          return serializedItem
-        }
-
-        return {
-          ...serializedItem,
-          quantity,
-          spool,
-          filament,
-          colour,
-          process,
-        }
-      })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data: {
-          items: nextItems,
-        },
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data: {
-          items: nextItems,
-        },
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
-
-  const removeItemAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const itemID = String(formData.get('itemID') ?? '')
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-
-    if (!Number.isInteger(quoteID) || quoteID < 1 || !itemID) return
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-    if (accessibleQuote.items.length <= 1) return
-
-    const nextItems = accessibleQuote.items
-      .filter((item) => item.id !== itemID)
-      .map(serializeQuoteItem)
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data: {
-          items: nextItems,
-        },
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data: {
-          items: nextItems,
-        },
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
-
-  const saveNotesAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-    const notes = String(formData.get('notes') ?? '').trim()
-
-    if (!Number.isInteger(quoteID) || quoteID < 1) return
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-
-    const data = {
-      notes: notes.length > 0 ? notes : null,
-    }
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data,
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data,
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
-
-  const addModelsAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-    const fallbackSpool = spoolOptions[0]
-    const spool = Number.parseInt(String(formData.get('spool') ?? ''), 10) || fallbackSpool?.id
-    const filament =
-      Number.parseInt(String(formData.get('filament') ?? ''), 10) || fallbackSpool?.filament.id
-    const colour =
-      Number.parseInt(String(formData.get('colour') ?? ''), 10) || fallbackSpool?.colour.id
-    const process =
-      Number.parseInt(String(formData.get('process') ?? ''), 10) || qualityOptions[0]?.id
-
-    if (
-      !Number.isInteger(quoteID) ||
-      quoteID < 1 ||
-      !Number.isInteger(spool) ||
-      !Number.isInteger(filament) ||
-      !Number.isInteger(colour) ||
-      !Number.isInteger(process)
-    ) {
-      return
-    }
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-
-    const files = formData
-      .getAll('files')
-      .filter((value): value is File => value instanceof File && value.size > 0)
-
-    if (files.length === 0) return
-
-    const createdModels = []
-
-    for (const file of files) {
-      const uploadFile = {
-        name: file.name,
-        data: Buffer.from(await file.arrayBuffer()),
-        mimetype: file.type || 'application/octet-stream',
-        size: file.size,
-      }
-
-      const createdModel = await payload.create({
-        collection: 'models',
-        file: uploadFile,
-        user,
-        overrideAccess: !Boolean(user),
-        data: user ? {} : { customerEmail },
-      })
-
-      createdModels.push(createdModel)
-    }
-
-    const existingItems = accessibleQuote.items
-      .map(serializeQuoteItem)
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-
-    const newItems = createdModels.map((model) => ({
-      model: model.id,
-      quantity: 1,
-      spool,
-      filament,
-      colour,
-      process,
-    }))
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data: {
-          items: [...existingItems, ...newItems],
-        },
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data: {
-          items: [...existingItems, ...newItems],
-        },
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
-
-  const submitForReviewAction = async (formData: FormData) => {
-    'use server'
-
-    const payload = await getPayload({ config: configPromise })
-    const headers = await getHeaders()
-    const { user } = await payload.auth({ headers })
-
-    const quoteID = Number.parseInt(String(formData.get('quoteID') ?? ''), 10)
-    const customerEmail = String(formData.get('email') ?? '')
-      .trim()
-      .toLowerCase()
-    const accessToken = String(formData.get('accessToken') ?? '').trim()
-
-    if (!Number.isInteger(quoteID) || quoteID < 1) return
-
-    const accessibleQuote = await findAccessibleQuote({
-      accessToken,
-      customerEmail,
-      payloadInstance: payload,
-      quoteID,
-      quoteUser: user,
-    })
-
-    if (!accessibleQuote || !isEditableQuoteStatus(accessibleQuote.status)) return
-
-    if (user) {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        user,
-        overrideAccess: false,
-        data: {
-          status: 'ready-for-review',
-        },
-      })
-    } else {
-      await payload.update({
-        collection: 'quotes',
-        id: quoteID,
-        overrideAccess: true,
-        data: {
-          status: 'ready-for-review',
-        },
-      })
-    }
-
-    redirect(getQuotePath(quoteID, customerEmail, accessToken))
-  }
+  const {
+    addableItems,
+    hasPendingLineItemPrice,
+    items: workspaceItems,
+    materialOptions,
+    qualityOptions,
+    spoolOptions,
+  } = await buildQuoteWorkspaceViewModel({ accessToken, email, payload, quote, user })
 
   return (
     <div>
@@ -854,16 +174,6 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           </div>
         ) : null}
 
-        {editable ? (
-          <QuoteCustomerNotesForm
-            accessToken={accessToken}
-            email={email}
-            quoteID={quote.id}
-            quoteNotes={quote.notes}
-            saveNotesAction={saveNotesAction}
-          />
-        ) : null}
-
         <div>
           <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-mono uppercase text-primary/50">Items</h2>
@@ -871,24 +181,21 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           </div>
 
           <QuoteDetailsWorkspace
-            addModelsAction={addModelsAction}
-            colourOptions={colourOptions}
+            addModelsAction={addQuoteModelsAction}
             currencyCode={quote.currency ?? undefined}
             editable={editable}
             email={email}
             accessToken={accessToken}
-            hasFailedItems={hasFailedLineItems}
-            hasInProgressItems={hasInProgressLineItems}
-            hasPendingPrices={hasPendingLineItemPrice}
+            initialItemID={selectedItemID}
             items={workspaceItems}
             materialOptions={materialOptions}
             qualityOptions={qualityOptions}
             quoteID={quote.id}
+            quoteNotes={quote.notes}
             quoteStatus={quote.status}
-            refreshEstimatesAction={updatePriceAction}
-            removeItemAction={removeItemAction}
-            saveItemAction={saveItemAction}
-            submitForReviewAction={submitForReviewAction}
+            removeItemAction={removeQuoteItemAction}
+            saveItemAction={saveQuoteItemAction}
+            submitForReviewAction={submitQuoteForReviewAction}
             spoolOptions={spoolOptions}
           />
         </div>

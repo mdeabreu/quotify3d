@@ -1,45 +1,18 @@
 import type { CollectionBeforeValidateHook } from 'payload'
-import { APIError } from 'payload'
 
 import { toNumericRelationID } from '@/lib/spoolAvailability'
 
 type QuoteItemInput = {
   colour?: unknown
+  filamentSlots?: unknown
   filament?: unknown
   id?: unknown
   machine?: unknown
   model?: unknown
+  notes?: unknown
   process?: unknown
   quantity?: unknown
   spool?: unknown
-}
-
-const trackedItemFields = [
-  'model',
-  'quantity',
-  'spool',
-  'filament',
-  'colour',
-  'process',
-  'machine',
-] as const
-
-const itemSelectionUnchanged = ({
-  item,
-  originalItem,
-}: {
-  item: QuoteItemInput
-  originalItem: QuoteItemInput | undefined
-}) => {
-  if (!originalItem) return false
-
-  return trackedItemFields.every((field) => {
-    if (field === 'quantity') {
-      return item.quantity === originalItem.quantity
-    }
-
-    return toNumericRelationID(item[field]) === toNumericRelationID(originalItem[field])
-  })
 }
 
 const getActiveSpoolForPair = async ({
@@ -93,88 +66,58 @@ const getActiveSpoolForPair = async ({
   })
 }
 
-const resolveActiveSpool = async ({
+const getModelFilamentSlotCount = async ({
   item,
   req,
 }: {
   item: QuoteItemInput
   req: Parameters<CollectionBeforeValidateHook>[0]['req']
 }) => {
-  const spoolID = toNumericRelationID(item.spool)
-  const filamentID = toNumericRelationID(item.filament)
-  const colourID = toNumericRelationID(item.colour)
+  const modelID = toNumericRelationID(item.model)
+  if (!modelID) return 1
 
-  if (spoolID) {
-    const spool = await req.payload.findByID({
-      collection: 'spools',
-      id: spoolID,
-      depth: 1,
-      req,
-      overrideAccess: true,
-    })
-
-    const spoolFilamentID = toNumericRelationID(spool.material)
-    const spoolColourID = toNumericRelationID(spool.colour)
-    const material = typeof spool.material === 'object' ? spool.material : null
-    const colour = typeof spool.colour === 'object' ? spool.colour : null
-
-    if (!spool.active || !material?.active || !colour?.active) {
-      throw new APIError('Selected spool is no longer available.', 400)
-    }
-
-    if (filamentID && spoolFilamentID !== filamentID) {
-      throw new APIError('Selected spool does not match the selected material.', 400)
-    }
-
-    if (colourID && spoolColourID !== colourID) {
-      throw new APIError('Selected spool does not match the selected colour.', 400)
-    }
-
-    return {
-      colour: spoolColourID,
-      filament: spoolFilamentID,
-      spool: spool.id,
-    }
-  }
-
-  if (!filamentID || !colourID) {
-    return null
-  }
-
-  const spool = await getActiveSpoolForPair({
-    colourID,
-    filamentID,
+  const model = await req.payload.findByID({
+    collection: 'models',
+    id: modelID,
+    depth: 0,
     req,
+    overrideAccess: true,
   })
 
-  if (!spool) {
-    throw new APIError('Selected material and colour combination is not available.', 400)
-  }
-
-  return {
-    colour: colourID,
-    filament: filamentID,
-    spool: spool.id,
-  }
+  return typeof model.filamentSlotCount === 'number' && model.filamentSlotCount > 0
+    ? Math.floor(model.filamentSlotCount)
+    : 1
 }
 
-export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
-  data,
-  operation,
-  originalDoc,
-  req,
+const normalizeFilamentSlots = ({
+  colourID,
+  item,
+  slotCount,
+}: {
+  colourID: number | null
+  item: QuoteItemInput
+  slotCount: number
 }) => {
-  if (!data || !Array.isArray(data.items)) {
-    return data
+  const slots = Array.isArray(item.filamentSlots) ? item.filamentSlots : []
+  const fallbackColourID = slots.length === 0 ? colourID : null
+  const normalized = slots.slice(0, slotCount).map((slot) => ({
+    colour: toNumericRelationID(slot?.colour) ?? fallbackColourID ?? undefined,
+    description:
+      typeof slot?.description === 'string' && slot.description.trim()
+        ? slot.description.trim()
+        : undefined,
+  }))
+
+  while (normalized.length < slotCount) {
+    normalized.push({ colour: fallbackColourID ?? undefined, description: undefined })
   }
 
-  const originalItemsByID = new Map<string, QuoteItemInput>()
-  if (operation === 'update' && Array.isArray(originalDoc?.items)) {
-    for (const originalItem of originalDoc.items) {
-      if (typeof originalItem?.id === 'string') {
-        originalItemsByID.set(originalItem.id, originalItem as QuoteItemInput)
-      }
-    }
+  return normalized
+}
+
+export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({ data, req }) => {
+  if (!data || !Array.isArray(data.items)) {
+    return data
   }
 
   const items = await Promise.all(
@@ -182,27 +125,27 @@ export const normalizeQuoteItemSpools: CollectionBeforeValidateHook = async ({
       if (!item || typeof item !== 'object') return item
       const typedItem = item as QuoteItemInput
 
-      if (
-        operation === 'update' &&
-        typeof typedItem.id === 'string' &&
-        itemSelectionUnchanged({
-          item: typedItem,
-          originalItem: originalItemsByID.get(typedItem.id),
-        })
-      ) {
-        return item
-      }
-
-      const resolved = await resolveActiveSpool({
+      const slotCount = await getModelFilamentSlotCount({
         item: typedItem,
         req,
       })
-
-      if (!resolved) return item
+      const slots = normalizeFilamentSlots({
+        colourID: toNumericRelationID(typedItem.colour),
+        item: typedItem,
+        slotCount,
+      })
+      const filamentID = toNumericRelationID(typedItem.filament)
+      const firstColourID = toNumericRelationID(slots[0]?.colour)
+      const spool =
+        filamentID && firstColourID
+          ? await getActiveSpoolForPair({ colourID: firstColourID, filamentID, req })
+          : null
 
       return {
         ...item,
-        ...resolved,
+        colour: firstColourID,
+        spool: spool?.id ?? null,
+        filamentSlots: slots,
       }
     }),
   )

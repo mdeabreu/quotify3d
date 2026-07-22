@@ -8,8 +8,13 @@ import { publicAccess } from '@/access/publicAccess'
 import { checkRole } from '@/access/utilities'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
+import {
+  deleteQuoteGcodes,
+  deleteQuoteModels,
+} from '@/collections/Quotes/hooks/cleanupQuoteAssets'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { ensurePricedItemsBeforeApproval } from '@/collections/Quotes/hooks/ensurePricedItemsBeforeApproval'
+import { ensureQuoteReadyForReview } from '@/collections/Quotes/hooks/ensureQuoteReadyForReview'
 import { normalizeQuoteItemSpools } from '@/collections/Quotes/hooks/normalizeQuoteItemSpools'
 import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
 import { sendQuoteApprovedEmail } from '@/collections/Quotes/hooks/sendQuoteApprovedEmail'
@@ -155,10 +160,12 @@ export const Quotes: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeDelete: [deleteQuoteGcodes],
     beforeValidate: [normalizeQuoteItemSpools, applyDefaultMachine],
     beforeChange: [
       normalizeCustomerOrEmail,
       resetStatusWhenSlicedQuoteChanges,
+      ensureQuoteReadyForReview,
       ensurePricedItemsBeforeApproval,
     ],
     afterChange: [
@@ -168,5 +175,6 @@ export const Quotes: CollectionConfig = {
       sendQuoteApprovedEmail,
       sendQuoteReadyForReviewAdminEmail,
     ],
+    afterDelete: [deleteQuoteModels],
   },
 }

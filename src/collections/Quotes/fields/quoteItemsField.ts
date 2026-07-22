@@ -69,7 +69,6 @@ export const quoteItemsField = (): Field => ({
           label: 'Material',
           type: 'relationship',
           relationTo: 'filaments',
-          required: true,
           admin: {
             width: '33%',
           },
@@ -78,12 +77,42 @@ export const quoteItemsField = (): Field => ({
           name: 'colour',
           type: 'relationship',
           relationTo: 'colours',
-          required: true,
           admin: {
             width: '33%',
           },
         },
       ],
+    },
+    {
+      name: 'filamentSlots',
+      label: 'Filament slots',
+      type: 'array',
+      admin: {
+        description: 'Colour assignments in model slot order.',
+        initCollapsed: true,
+      },
+      fields: [
+        {
+          name: 'colour',
+          type: 'relationship',
+          relationTo: 'colours',
+        },
+        {
+          name: 'description',
+          type: 'text',
+          admin: {
+            description: 'Optional description of the model parts assigned to this slot.',
+          },
+        },
+      ],
+    },
+    {
+      name: 'notes',
+      label: 'Model notes',
+      type: 'textarea',
+      admin: {
+        description: 'Optional instructions or context for this model.',
+      },
     },
     {
       type: 'row',
@@ -92,7 +121,6 @@ export const quoteItemsField = (): Field => ({
           name: 'process',
           type: 'relationship',
           relationTo: 'processes',
-          required: true,
           admin: {
             width: '50%',
           },
@@ -112,6 +140,7 @@ export const quoteItemsField = (): Field => ({
       fields: [
         {
           name: 'gcode',
+          label: 'Current G-code',
           type: 'relationship',
           relationTo: 'gcodes',
           admin: {

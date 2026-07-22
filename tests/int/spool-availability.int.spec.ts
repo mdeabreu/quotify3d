@@ -81,14 +81,42 @@ describe('buildAvailableSpoolOptions', () => {
 })
 
 describe('normalizeQuoteItemSpools', () => {
-  it('accepts an active spool and populates the quote item pair', async () => {
-    const findByID = vi.fn().mockResolvedValue({
-      active: true,
-      colour: activeColour,
-      id: 21,
-      material: activeMaterial,
-    })
+  it('preserves ordered quote slots with unassigned colours', async () => {
+    const findByID = vi.fn().mockResolvedValue({ filamentSlotCount: 3 })
     const req = makeReq({ findByID })
+
+    await expect(
+      normalizeQuoteItemSpools({
+        data: {
+          items: [
+            {
+              filament: 1,
+              filamentSlots: [{ description: 'Body' }, { colour: 10, description: 'Eyes' }, {}],
+              model: 7,
+            },
+          ],
+        },
+        operation: 'create',
+        req,
+      } as never),
+    ).resolves.toMatchObject({
+      items: [
+        {
+          filamentSlots: [
+            { colour: undefined, description: 'Body' },
+            { colour: 10, description: 'Eyes' },
+            { colour: undefined, description: undefined },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('accepts an active spool and populates the quote item pair', async () => {
+    const find = vi.fn().mockResolvedValue({
+      docs: [{ active: true, colour: activeColour, id: 21, material: activeMaterial }],
+    })
+    const req = makeReq({ find })
 
     await expect(
       normalizeQuoteItemSpools({
@@ -115,17 +143,18 @@ describe('normalizeQuoteItemSpools', () => {
     })
   })
 
-  it('rejects inactive spool-backed combinations', async () => {
-    const findByID = vi.fn().mockResolvedValue({
-      active: true,
-      colour: activeColour,
-      id: 21,
-      material: {
-        ...activeMaterial,
-        active: false,
-      },
+  it('preserves an unavailable selection and clears its legacy spool', async () => {
+    const find = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          active: true,
+          colour: activeColour,
+          id: 21,
+          material: { ...activeMaterial, active: false },
+        },
+      ],
     })
-    const req = makeReq({ findByID })
+    const req = makeReq({ find })
 
     await expect(
       normalizeQuoteItemSpools({
@@ -141,7 +170,16 @@ describe('normalizeQuoteItemSpools', () => {
         operation: 'create',
         req,
       } as never),
-    ).rejects.toThrow('Selected spool is no longer available.')
+    ).resolves.toMatchObject({
+      items: [
+        {
+          colour: 10,
+          filament: 1,
+          filamentSlots: [{ colour: 10 }],
+          spool: null,
+        },
+      ],
+    })
   })
 
   it('derives a canonical active spool from a material and colour pair', async () => {

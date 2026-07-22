@@ -216,6 +216,7 @@
 
 html {
   opacity: 0;
+  scrollbar-gutter: stable;
 }
 
 html[data-theme='dark'],

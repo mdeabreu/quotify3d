@@ -2,6 +2,8 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { recomputeQuoteFromOwnedGcodes } from '@/collections/Quotes/hooks/recomputeQuoteFromOwnedGcodes'
+import { resetStatusWhenSlicedQuoteChanges } from '@/collections/Quotes/hooks/resetStatusWhenSlicedQuoteChanges'
+import { hasRelevantGcodeChanges } from '@/collections/Gcodes/hooks/syncOwningQuote'
 import { calculateGcodePrice } from '@/jobs/workflows/helpers/gcodeHelpers'
 import type { Gcode, Quote } from '@/payload-types'
 import { toMinorUnitAmount } from '@/utilities/currency'
@@ -42,22 +44,47 @@ describe('quote money normalization', () => {
     const update = vi.fn()
     const req = {
       payload: {
-        find: vi.fn(async () => ({
-          docs: [
-            {
-              id: 1,
-              quoteItemID: 'line-one',
-              priceOverride: 966.3500000000001,
-              status: 'sliced',
-            },
-            {
-              id: 2,
-              quoteItemID: 'line-two',
-              estimatedPrice: 500.4,
-              status: 'sliced',
-            },
-          ] satisfies Partial<Gcode>[],
-        })),
+        find: vi.fn(async ({ collection }: { collection: string }) =>
+          collection === 'gcodes'
+            ? {
+                docs: [
+                  {
+                    filament: 1,
+                    filamentSlots: [{ colour: 1 }],
+                    id: 1,
+                    machine: 1,
+                    model: 1,
+                    process: 1,
+                    quoteItemID: 'line-one',
+                    priceOverride: 966.3500000000001,
+                    status: 'sliced',
+                  },
+                  {
+                    filament: 1,
+                    filamentSlots: [{ colour: 1 }],
+                    id: 2,
+                    machine: 1,
+                    model: 2,
+                    process: 1,
+                    quoteItemID: 'line-two',
+                    estimatedPrice: 500.4,
+                    status: 'sliced',
+                  },
+                ] satisfies Partial<Gcode>[],
+              }
+            : {
+                docs: [
+                  {
+                    active: true,
+                    colour: { active: true, id: 1 },
+                    material: { active: true, id: 1 },
+                  },
+                ],
+              },
+        ),
+        findByID: vi.fn(async ({ collection }: { collection: string }) =>
+          collection === 'models' ? { filamentSlotCount: 1 } : { active: true },
+        ),
         update,
       },
     }
@@ -68,8 +95,26 @@ describe('quote money normalization', () => {
         status: 'queued',
         subtotal: 0,
         items: [
-          { id: 'line-one', quantity: 2 },
-          { id: 'line-two', quantity: 1 },
+          {
+            id: 'line-one',
+            quantity: 2,
+            model: 1,
+            filament: 1,
+            filamentSlots: [{ colour: 1 }],
+            process: 1,
+            machine: 1,
+            gcode: 1,
+          },
+          {
+            id: 'line-two',
+            quantity: 1,
+            model: 2,
+            filament: 1,
+            filamentSlots: [{ colour: 1 }],
+            process: 1,
+            machine: 1,
+            gcode: 2,
+          },
         ],
       } as Quote,
       reconcileOwnedGcodes: false,
@@ -85,5 +130,73 @@ describe('quote money normalization', () => {
         }),
       }),
     )
+  })
+
+  it('treats direct G-code configuration updates as quote-relevant', () => {
+    const previousDoc = {
+      filament: 1,
+      filamentSlots: [{ colour: 1 }],
+      machine: 1,
+      model: 1,
+      process: 1,
+      status: 'sliced',
+    }
+
+    expect(
+      hasRelevantGcodeChanges({
+        doc: { ...previousDoc, filamentSlots: [{ colour: 2 }] } as Gcode,
+        operation: 'update',
+        previousDoc: previousDoc as Gcode,
+      }),
+    ).toBe(true)
+  })
+})
+
+describe('sliced quote invalidation', () => {
+  const configuredItem = {
+    id: 'line-one',
+    model: 1,
+    quantity: 1,
+    filament: 1,
+    colour: 1,
+    spool: 1,
+    filamentSlots: [{ colour: 1, description: 'Body' }],
+    process: 1,
+    machine: 1,
+  }
+
+  it('preserves sliced status for quantity, notes, and slot-description changes', async () => {
+    const data = {
+      items: [
+        {
+          ...configuredItem,
+          quantity: 3,
+          notes: 'Handle carefully',
+          filamentSlots: [{ colour: 1, description: 'Updated description' }],
+        },
+      ],
+    }
+
+    await resetStatusWhenSlicedQuoteChanges({
+      data,
+      operation: 'update',
+      originalDoc: { items: [configuredItem], notes: null, status: 'sliced' },
+    } as never)
+
+    expect(data).not.toHaveProperty('status')
+  })
+
+  it('invalidates sliced status when an ordered slot colour changes', async () => {
+    const data: Record<string, unknown> = {
+      items: [{ ...configuredItem, filamentSlots: [{ colour: 2 }] }],
+    }
+
+    await resetStatusWhenSlicedQuoteChanges({
+      data,
+      operation: 'update',
+      originalDoc: { items: [configuredItem], status: 'sliced' },
+    } as never)
+
+    expect(data.status).toBe('new')
   })
 })

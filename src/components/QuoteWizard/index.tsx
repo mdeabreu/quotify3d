@@ -1,21 +1,8 @@
 'use client'
 
-import { ColourOptionPreview } from '@/components/ColourPreview'
-import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  buildAvailableSpoolOptions,
-  findSpoolForPair,
-  getCatalogImageRendition,
-  uniqueOptions,
-  type AvailableOption,
-  type AvailableProcessOption,
-  type AvailableSpoolOption,
-  type CatalogImage,
-} from '@/lib/spoolAvailability'
 import {
   getUnsupportedModelFilesMessage,
   getUnsupportedModelFilenames,
@@ -23,729 +10,135 @@ import {
   MODEL_UPLOAD_FORMAT_LABEL,
 } from '@/lib/modelUploadFormats'
 import { useAuth } from '@/providers/Auth'
-import { cn } from '@/utilities/cn'
+import { FileUpIcon, UserIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { toast } from 'sonner'
+import { useActionState, useState } from 'react'
 
-type WizardStep = 0 | 1 | 2 | 3 | 4
+export type StartQuoteState = { error?: string }
 
-type QuoteOptionResponse = {
-  id: number
-  name: string
-  description?: string | null
-  image?: CatalogImage | number | null
+type Props = {
+  startQuoteAction: (state: StartQuoteState, formData: FormData) => Promise<StartQuoteState>
 }
 
-type QuoteOptionsResponse = {
-  processes: AvailableProcessOption[]
-  spools: AvailableSpoolOption[]
-}
-
-type RestFindResponse<T> = {
-  docs: T[]
-}
-
-type ModelLine = {
-  file: File
-  quantity: number
-}
-
-type OptionCardProps = {
-  fallbackPreview?: ReactNode
-  showMaterialPrice?: boolean
-  onSelect: (value: string) => void
-  option: AvailableOption
-  selected: boolean
-}
-
-const steps = ['Upload files', 'Material', 'Color', 'Print quality', 'Contact']
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-const shortenDescription = (description: string | null): string | null => {
-  if (!description || !description.trim()) return null
-
-  const normalized = description.trim()
-  if (normalized.length <= 120) return normalized
-
-  return `${normalized.slice(0, 117).trimEnd()}...`
-}
-
-const normalizeProcessOption = (option: QuoteOptionResponse): AvailableProcessOption => {
-  return {
-    description: typeof option.description === 'string' ? option.description : null,
-    ...getCatalogImageRendition(option.image),
-    id: option.id,
-    kind: 'process',
-    name: option.name,
-  }
-}
-
-const OptionCard: React.FC<OptionCardProps> = ({
-  fallbackPreview,
-  showMaterialPrice = false,
-  onSelect,
-  option,
-  selected,
-}) => {
-  const shortDescription = shortenDescription(option.description)
-
-  return (
-    <button
-      className={cn(
-        'text-left rounded-md border bg-card p-3 transition hover:border-primary/60 hover:bg-primary/5',
-        selected && 'border-primary bg-primary/10',
-      )}
-      onClick={() => onSelect(String(option.id))}
-      type="button"
-    >
-      {option.imageUrl ? (
-        <img
-          alt={option.name}
-          className="h-32 w-full rounded-sm border object-cover bg-background"
-          height={option.imageHeight ?? undefined}
-          src={option.imageUrl}
-          width={option.imageWidth ?? undefined}
-        />
-      ) : fallbackPreview ? (
-        fallbackPreview
-      ) : (
-        <div className="h-32 w-full rounded-sm border bg-muted/40 flex items-center justify-center text-xs font-mono uppercase tracking-wider text-primary/50">
-          Preview unavailable
-        </div>
-      )}
-
-      <p className="mt-3 font-medium">{option.name}</p>
-      {showMaterialPrice && 'pricePerGram' in option && typeof option.pricePerGram === 'number' ? (
-        <p className="mt-1 text-sm text-primary/70">
-          <Price amount={option.pricePerGram} as="span" className="font-medium" /> / gram
-        </p>
-      ) : null}
-      {shortDescription ? <p className="mt-1 text-sm text-primary/70">{shortDescription}</p> : null}
-    </button>
-  )
-}
-
-export const QuoteWizard = () => {
-  const router = useRouter()
+export const QuoteWizard = ({ startQuoteAction }: Props) => {
   const { user } = useAuth()
-
-  const [step, setStep] = useState<WizardStep>(0)
-  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const [options, setOptions] = useState<QuoteOptionsResponse>({
-    processes: [],
-    spools: [],
-  })
-
-  const [customerEmail, setCustomerEmail] = useState('')
-  const [notes, setNotes] = useState('')
-  const [filament, setFilament] = useState('')
-  const [colour, setColour] = useState('')
-  const [process, setProcess] = useState('')
-  const [modelLines, setModelLines] = useState<ModelLine[]>([])
-
-  const [error, setError] = useState<string | null>(null)
-
-  const isGuest = user === null
-  const authLoading = typeof user === 'undefined'
-
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const query = '?depth=1&limit=200&pagination=false&sort=name&where[active][equals]=true'
-        const spoolQuery = '?depth=2&limit=500&pagination=false&sort=id&where[active][equals]=true'
-
-        const [spoolsResponse, processesResponse] = await Promise.all([
-          fetch(`/api/spools${spoolQuery}`, { method: 'GET', credentials: 'include' }),
-          fetch(`/api/processes${query}`, { method: 'GET', credentials: 'include' }),
-        ])
-
-        if (!spoolsResponse.ok || !processesResponse.ok) {
-          throw new Error('Unable to load quote options.')
-        }
-
-        const [spoolsJSON, processesJSON] = await Promise.all([
-          spoolsResponse.json() as Promise<
-            RestFindResponse<Parameters<typeof buildAvailableSpoolOptions>[0][number]>
-          >,
-          processesResponse.json() as Promise<RestFindResponse<QuoteOptionResponse>>,
-        ])
-
-        setOptions({
-          processes: (processesJSON.docs ?? []).map(normalizeProcessOption),
-          spools: buildAvailableSpoolOptions(spoolsJSON.docs ?? []),
-        })
-      } catch (loadError) {
-        console.error(loadError)
-        setError('Unable to load quote options right now. Please refresh and try again.')
-      } finally {
-        setIsLoadingOptions(false)
-      }
-    }
-
-    void loadOptions()
-  }, [])
-
-  const selectedSpool = useMemo(
-    () =>
-      findSpoolForPair(options.spools, {
-        colour,
-        filament,
-      }),
-    [colour, filament, options.spools],
-  )
-
-  const availableMaterials = useMemo(() => {
-    const colourID = Number.parseInt(colour, 10)
-
-    return uniqueOptions(
-      Number.isInteger(colourID)
-        ? options.spools.filter((spool) => spool.colour.id === colourID)
-        : options.spools,
-      'filament',
-    )
-  }, [colour, options.spools])
-
-  const availableColours = useMemo(() => {
-    const filamentID = Number.parseInt(filament, 10)
-
-    return uniqueOptions(
-      Number.isInteger(filamentID)
-        ? options.spools.filter((spool) => spool.filament.id === filamentID)
-        : options.spools,
-      'colour',
-    )
-  }, [filament, options.spools])
-
-  const canContinue = useMemo(() => {
-    if (step === 0) {
-      return (
-        modelLines.length > 0 &&
-        modelLines.every((line) => Number.isInteger(line.quantity) && line.quantity >= 1)
-      )
-    }
-
-    if (step === 1) {
-      return Boolean(filament)
-    }
-
-    if (step === 2) {
-      return Boolean(colour && selectedSpool)
-    }
-
-    if (step === 3) {
-      return Boolean(process)
-    }
-
-    if (authLoading) return false
-    if (!isGuest) return true
-
-    return EMAIL_REGEX.test(customerEmail.trim())
-  }, [
-    authLoading,
-    colour,
-    customerEmail,
-    filament,
-    isGuest,
-    modelLines,
-    process,
-    selectedSpool,
-    step,
-  ])
-
-  const onSelectFiles = (fileList: FileList | null): boolean => {
-    if (!fileList) return true
-
-    const files = Array.from(fileList)
-    const unsupportedFilenames = getUnsupportedModelFilenames(files)
-
-    if (unsupportedFilenames.length > 0) {
-      setError(getUnsupportedModelFilesMessage(unsupportedFilenames))
-      return false
-    }
-
-    const nextLines: ModelLine[] = files
-      .filter((file) => file.size > 0)
-      .map((file) => ({
-        file,
-        quantity: 1,
-      }))
-
-    setError(null)
-    setModelLines(nextLines)
-    return true
-  }
-
-  const updateQuantity = (index: number, quantityValue: string) => {
-    const quantity = Number.parseInt(quantityValue, 10)
-
-    setModelLines((previous) =>
-      previous.map((line, lineIndex) => {
-        if (lineIndex !== index) return line
-
-        return {
-          ...line,
-          quantity: Number.isInteger(quantity) && quantity >= 1 ? quantity : 1,
-        }
-      }),
-    )
-  }
-
-  const removeLine = (index: number) => {
-    setModelLines((previous) => previous.filter((_, lineIndex) => lineIndex !== index))
-  }
-
-  const goToNextStep = () => {
-    if (!canContinue) {
-      setError('Please complete the required fields before continuing.')
-      return
-    }
-
-    setError(null)
-    setStep((previous) => Math.min(previous + 1, 4) as WizardStep)
-  }
-
-  const goToPreviousStep = () => {
-    setError(null)
-    setStep((previous) => Math.max(previous - 1, 0) as WizardStep)
-  }
-
-  const submitWizard = async () => {
-    setError(null)
-
-    if (!canContinue || step !== 4 || !selectedSpool) {
-      setError('Please complete all steps before continuing.')
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const normalizedEmail = customerEmail.trim().toLowerCase()
-      const guestEmailPayload = normalizedEmail ? { customerEmail: normalizedEmail } : {}
-      const modelIDs: number[] = []
-
-      for (const line of modelLines) {
-        const modelForm = new FormData()
-        modelForm.append('file', line.file)
-
-        if (normalizedEmail) {
-          modelForm.append(
-            '_payload',
-            JSON.stringify({
-              customerEmail: normalizedEmail,
-            }),
-          )
-        }
-
-        const modelResponse = await fetch('/api/models', {
-          method: 'POST',
-          credentials: 'include',
-          body: modelForm,
-        })
-
-        const modelJSON = await modelResponse.json().catch(() => ({}))
-        if (!modelResponse.ok) {
-          throw new Error(
-            typeof modelJSON?.errors?.[0]?.message === 'string'
-              ? modelJSON.errors[0].message
-              : typeof modelJSON.error === 'string'
-                ? modelJSON.error
-                : 'Unable to upload model files.',
-          )
-        }
-
-        const modelID =
-          typeof modelJSON?.doc?.id === 'number'
-            ? modelJSON.doc.id
-            : typeof modelJSON?.id === 'number'
-              ? modelJSON.id
-              : null
-
-        if (!modelID) {
-          throw new Error('Model upload response is missing an ID.')
-        }
-
-        modelIDs.push(modelID)
-      }
-
-      const quotePayload = {
-        status: 'queued',
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-        ...guestEmailPayload,
-        items: modelLines.map((line, index) => ({
-          model: modelIDs[index],
-          quantity: line.quantity,
-          spool: selectedSpool.id,
-          filament: Number.parseInt(filament, 10),
-          colour: Number.parseInt(colour, 10),
-          process: Number.parseInt(process, 10),
-        })),
-      }
-
-      const quoteResponse = await fetch('/api/quotes', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(quotePayload),
-      })
-
-      const quoteJSON = await quoteResponse.json().catch(() => ({}))
-      if (!quoteResponse.ok) {
-        throw new Error(
-          typeof quoteJSON?.errors?.[0]?.message === 'string'
-            ? quoteJSON.errors[0].message
-            : typeof quoteJSON.error === 'string'
-              ? quoteJSON.error
-              : 'Unable to create quote.',
-        )
-      }
-
-      const quoteID =
-        typeof quoteJSON?.doc?.id === 'number'
-          ? quoteJSON.doc.id
-          : typeof quoteJSON?.id === 'number'
-            ? quoteJSON.id
-            : null
-      const quoteAccessToken =
-        typeof quoteJSON?.doc?.accessToken === 'string'
-          ? quoteJSON.doc.accessToken
-          : typeof quoteJSON?.accessToken === 'string'
-            ? quoteJSON.accessToken
-            : null
-
-      if (!quoteID) throw new Error('Quote creation response is missing an ID.')
-      if (isGuest && !quoteAccessToken) {
-        throw new Error('Quote creation response is missing an access token.')
-      }
-
-      toast.success('Quote draft created. Opening your workspace...')
-      router.push(
-        isGuest
-          ? `/quotes/${quoteID}?email=${encodeURIComponent(normalizedEmail)}&accessToken=${encodeURIComponent(quoteAccessToken || '')}`
-          : `/quotes/${quoteID}`,
-      )
-    } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : 'Unable to create quote.'
-      setError(message)
-      toast.error(message)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const selectedFilament = availableMaterials.find((option) => String(option.id) === filament)
-  const selectedColour = availableColours.find((option) => String(option.id) === colour)
-  const selectedProcess = options.processes.find((option) => String(option.id) === process)
-
-  const selectFilament = (value: string) => {
-    setFilament(value)
-
-    if (colour && !findSpoolForPair(options.spools, { colour, filament: value })) {
-      setColour('')
-    }
-  }
-
-  const selectColour = (value: string) => {
-    setColour(value)
-
-    if (filament && !findSpoolForPair(options.spools, { colour: value, filament })) {
-      setFilament('')
-    }
-  }
+  const [state, action, pending] = useActionState(startQuoteAction, {})
+  const [filename, setFilename] = useState('')
+  const [fileError, setFileError] = useState<string | null>(null)
 
   return (
-    <section className="border rounded-lg bg-card p-6 md:p-8">
-      <div className="max-w-3xl">
-        <p className="text-xs uppercase tracking-widest font-mono text-primary/60">Quote Wizard</p>
-        <h1 className="text-3xl md:text-4xl font-medium mt-2">Request a 3D print quote</h1>
-        <p className="text-primary/70 mt-4">
-          Upload your files, choose starting options for every model, then continue to your quote
-          workspace to review and edit each file before sending it for review.
+    <section className="mx-auto max-w-5xl rounded-lg border bg-card">
+      <div className="border-b px-6 py-8 text-center md:px-10">
+        <h1 className="text-3xl font-medium">Start your quote</h1>
+        <p className="mt-2 text-primary/65">
+          Add a 3D model and tell us how to reach you. You can configure and estimate it next.
         </p>
       </div>
 
-      <ol className="mt-8 grid gap-3 md:grid-cols-5">
-        {steps.map((stepLabel, index) => (
-          <li
-            key={stepLabel}
-            className={cn('rounded-md border bg-background px-4 py-3', {
-              'border-primary': index === step,
-            })}
+      <form action={action} className="grid md:grid-cols-2">
+        <div className="border-b p-6 md:border-r md:border-b-0 md:p-10">
+          <div className="flex items-start gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full border text-sm">
+              1
+            </span>
+            <div>
+              <h2 className="font-medium">Add your first file</h2>
+              <p className="mt-1 text-sm text-primary/60">
+                Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}
+              </p>
+            </div>
+          </div>
+
+          <Label
+            className="mt-6 flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-background px-6 text-center transition hover:border-primary/60"
+            htmlFor="quote-model"
           >
-            <p className="text-xs uppercase tracking-wider font-mono text-primary/50">
-              Step {index + 1}
-            </p>
-            <p className="mt-1 text-sm">{stepLabel}</p>
-          </li>
-        ))}
-      </ol>
+            <FileUpIcon className="size-9 text-primary/50" />
+            <span className="mt-4 font-medium">Choose a 3D model</span>
+            <span className="mt-1 max-w-full break-all text-sm text-primary/60">
+              {filename || 'Select one file to begin'}
+            </span>
+          </Label>
+          <Input
+            accept={MODEL_UPLOAD_ACCEPT}
+            className="sr-only"
+            id="quote-model"
+            name="file"
+            onChange={(event) => {
+              const files = event.target.files ?? []
+              const unsupported = getUnsupportedModelFilenames(files)
+              if (unsupported.length > 0) {
+                setFileError(getUnsupportedModelFilesMessage(unsupported))
+                setFilename('')
+                event.target.value = ''
+                return
+              }
 
-      <div className="mt-8 rounded-md border bg-background p-4 md:p-6 space-y-4">
-        {step === 0 && (
-          <div className="space-y-4">
-            <h2 className="font-medium">Upload your files</h2>
-            <p className="text-sm text-primary/70">
-              Add one or more 3D model files. Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}. You can
-              set a quantity for each file before continuing.
-            </p>
-            <Input
-              accept={MODEL_UPLOAD_ACCEPT}
-              multiple
-              onChange={(event) => {
-                if (!onSelectFiles(event.target.files)) {
-                  event.target.value = ''
-                }
-              }}
-              type="file"
-            />
+              setFileError(null)
+              setFilename(files[0]?.name ?? '')
+            }}
+            required
+            type="file"
+          />
+          {fileError ? <p className="mt-3 text-sm text-red-500">{fileError}</p> : null}
+        </div>
 
-            {modelLines.length > 0 && (
-              <ul className="space-y-3">
-                {modelLines.map((line, index) => (
-                  <li
-                    className="rounded-md border px-3 py-3"
-                    key={`${line.file.name}-${line.file.size}-${index}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium break-all">{line.file.name}</p>
-                        <p className="text-xs text-primary/60">
-                          {(line.file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`quantity-${index}`}>Quantity</Label>
-                        <Input
-                          className="w-24"
-                          id={`quantity-${index}`}
-                          min={1}
-                          onChange={(event) => updateQuantity(index, event.target.value)}
-                          type="number"
-                          value={line.quantity}
-                        />
-                        <Button
-                          onClick={() => removeLine(index)}
-                          size="sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="space-y-4">
-            <h2 className="font-medium">Choose a material</h2>
-            <p className="text-sm text-primary/70">
-              This starting selection will apply to every file. You can adjust individual files in
-              the quote workspace next.
-            </p>
-
-            {isLoadingOptions ? (
-              <p className="text-sm text-primary/70">Loading materials...</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {availableMaterials.map((option) => (
-                  <OptionCard
-                    key={option.id}
-                    onSelect={selectFilament}
-                    option={option}
-                    selected={String(option.id) === filament}
-                    showMaterialPrice
-                  />
-                ))}
-              </div>
-            )}
-            {!isLoadingOptions && availableMaterials.length === 0 ? (
-              <p className="text-sm text-primary/70">
-                No materials are available for the selected color.
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-4">
-            <h2 className="font-medium">Choose a color</h2>
-            <p className="text-sm text-primary/70">
-              This starting selection will apply to every file. You can adjust individual files in
-              the quote workspace next.
-            </p>
-
-            {isLoadingOptions ? (
-              <p className="text-sm text-primary/70">Loading colors...</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {availableColours.map((option) => (
-                  <OptionCard
-                    fallbackPreview={
-                      <ColourOptionPreview className="h-32 w-full" option={option} />
-                    }
-                    key={option.id}
-                    onSelect={selectColour}
-                    option={option}
-                    selected={String(option.id) === colour}
-                  />
-                ))}
-              </div>
-            )}
-            {!isLoadingOptions && availableColours.length === 0 ? (
-              <p className="text-sm text-primary/70">
-                No colors are available for the selected material.
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
-            <h2 className="font-medium">Choose print quality</h2>
-            <p className="text-sm text-primary/70">
-              This starting selection will apply to every file. You can adjust individual files in
-              the quote workspace next.
-            </p>
-
-            {isLoadingOptions ? (
-              <p className="text-sm text-primary/70">Loading quality options...</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {options.processes.map((option) => (
-                  <OptionCard
-                    key={option.id}
-                    onSelect={setProcess}
-                    option={option}
-                    selected={String(option.id) === process}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="space-y-4">
-            <h2 className="font-medium">Review your starting options</h2>
-            <p className="text-sm text-primary/70">
-              Double-check your files and selections, then continue to the quote workspace for
-              detailed edits and final review.
-            </p>
-
-            <div className="rounded-md border px-4 py-3">
-              <p className="text-xs uppercase tracking-widest font-mono text-primary/50">Files</p>
-              <ul className="mt-2 space-y-1 text-sm">
-                {modelLines.map((line, index) => (
-                  <li key={`${line.file.name}-${line.file.size}-${index}`}>
-                    {line.file.name} x{line.quantity}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-md border px-4 py-3 text-sm space-y-1">
-              <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Material</span>
-                {selectedFilament?.name ?? 'Not selected'}
-              </p>
-              <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">Color</span>
-                {selectedColour?.name ?? 'Not selected'}
-              </p>
-              <p>
-                <span className="font-mono uppercase text-primary/50 text-xs mr-2">
-                  Print quality
-                </span>
-                {selectedProcess?.name ?? 'Not selected'}
+        <div className="p-6 md:p-10">
+          <div className="flex items-start gap-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full border text-sm">
+              2
+            </span>
+            <div>
+              <h2 className="font-medium">Your details</h2>
+              <p className="mt-1 text-sm text-primary/60">
+                We will send your draft link and quote updates here.
               </p>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
-              <Textarea
-                id="notes"
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Any context, deadlines, or requirements..."
-                rows={4}
-                value={notes}
+          {typeof user === 'undefined' ? (
+            <p className="mt-8 text-sm text-primary/60">Checking your account...</p>
+          ) : user ? (
+            <div className="mt-8 flex items-center gap-3 rounded-md border bg-background p-4">
+              <UserIcon className="size-5 text-primary/55" />
+              <div className="min-w-0">
+                <p className="text-sm text-primary/55">Continuing as</p>
+                <p className="truncate font-medium">{user.email}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-8 space-y-3">
+              <Label htmlFor="customerEmail">Email address</Label>
+              <Input
+                autoComplete="email"
+                id="customerEmail"
+                name="customerEmail"
+                placeholder="name@example.com"
+                required
+                type="email"
               />
-            </div>
-
-            {authLoading ? (
-              <p className="text-sm text-primary/70">Checking session...</p>
-            ) : isGuest ? (
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">Contact email</Label>
-                <Input
-                  id="customerEmail"
-                  onChange={(event) => setCustomerEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  type="email"
-                  value={customerEmail}
-                />
-                <p className="text-xs text-primary/60">
-                  We will use this email to help you return to the quote workspace and receive
-                  updates later.
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-primary/70">
-                Signed in as <span className="font-medium">{user.email}</span>. This quote request
-                will be saved to your account.
+              <p className="text-xs text-primary/55">
+                Prefer an account? <Link className="underline" href="/login">Log in</Link> or{' '}
+                <Link className="underline" href="/create-account">create one</Link>.
               </p>
-            )}
+            </div>
+          )}
 
-            <p className="text-xs text-primary/60">
-              After you continue, we will start processing your files and show estimates in the
-              quote workspace as soon as they are ready.
-            </p>
-          </div>
-        )}
+          {state.error ? <p className="mt-5 text-sm text-red-500">{state.error}</p> : null}
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
-      </div>
-
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        <Button asChild variant="outline">
-          <Link href="/quotes">Back to quotes</Link>
-        </Button>
-
-        {step > 0 && (
-          <Button onClick={goToPreviousStep} type="button" variant="outline">
-            Previous
-          </Button>
-        )}
-
-        {step < 4 && (
           <Button
-            disabled={
-              !canContinue || ((step === 1 || step === 2 || step === 3) && isLoadingOptions)
-            }
-            onClick={goToNextStep}
-            type="button"
+            className="mt-8 w-full"
+            disabled={pending || typeof user === 'undefined' || !filename || Boolean(fileError)}
+            size="lg"
+            type="submit"
           >
-            Continue
+            {pending ? 'Creating your draft...' : 'Continue to quote'}
           </Button>
-        )}
-
-        {step === 4 && (
-          <Button disabled={isSubmitting || !canContinue} onClick={submitWizard} type="button">
-            {isSubmitting ? 'Continuing...' : 'Continue to quote workspace'}
-          </Button>
-        )}
-      </div>
+          <p className="mt-3 text-center text-xs text-primary/50">
+            Your file uploads and your resumable draft is created when you continue.
+          </p>
+        </div>
+      </form>
     </section>
   )
 }

@@ -1,24 +1,13 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { resolveRelationID } from '@/utilities/resolveRelationID'
+import { getSlicingSelectionKey, type QuoteItem } from '@/lib/quotes/quoteItemConfiguration'
 
 const hasOwn = (value: unknown, key: string): boolean =>
   Boolean(value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key))
 
 const serializeItems = (items: unknown): string => {
   if (!Array.isArray(items)) return '[]'
-
-  return JSON.stringify(
-    items.map((item) => ({
-      model: resolveRelationID(item?.model) ?? null,
-      spool: resolveRelationID(item?.spool) ?? null,
-      filament: resolveRelationID(item?.filament) ?? null,
-      colour: resolveRelationID(item?.colour) ?? null,
-      process: resolveRelationID(item?.process) ?? null,
-      machine: resolveRelationID(item?.machine) ?? null,
-      quantity: typeof item?.quantity === 'number' ? item.quantity : null,
-    })),
-  )
+  return JSON.stringify(items.map((item) => getSlicingSelectionKey(item as QuoteItem)))
 }
 
 export const resetStatusWhenSlicedQuoteChanges: CollectionBeforeChangeHook = async ({
@@ -38,13 +27,10 @@ export const resetStatusWhenSlicedQuoteChanges: CollectionBeforeChangeHook = asy
     return data
   }
 
-  const notesChanged =
-    hasOwn(data, 'notes') &&
-    (typeof data.notes === 'string' ? data.notes : null) !== originalDoc.notes
   const itemsChanged =
     hasOwn(data, 'items') && serializeItems(data.items) !== serializeItems(originalDoc.items)
 
-  if (!notesChanged && !itemsChanged) {
+  if (!itemsChanged) {
     return data
   }
 

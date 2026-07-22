@@ -1,12 +1,13 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { recomputeQuoteFromOwnedGcodes } from '@/collections/Quotes/hooks/recomputeQuoteFromOwnedGcodes'
+import { getSlicingSelectionKey } from '@/lib/quotes/quoteItemConfiguration'
 import type { Quote } from '@/payload-types'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
 const TERMINAL_GCODE_STATUSES = new Set(['sliced', 'failed'])
 
-const hasRelevantChanges = ({
+export const hasRelevantGcodeChanges = ({
   doc,
   operation,
   previousDoc,
@@ -21,9 +22,10 @@ const hasRelevantChanges = ({
   return (
     operation === 'create' ||
     movedToTerminalStatus ||
+    Boolean(previousDoc && getSlicingSelectionKey(previousDoc) !== getSlicingSelectionKey(doc)) ||
     previousDoc?.estimatedPrice !== doc.estimatedPrice ||
-  previousDoc?.priceOverride !== doc.priceOverride ||
-  resolveRelationID(previousDoc?.quote) !== resolveRelationID(doc.quote) ||
+    previousDoc?.priceOverride !== doc.priceOverride ||
+    resolveRelationID(previousDoc?.quote) !== resolveRelationID(doc.quote) ||
     previousDoc?.quoteItemID !== doc.quoteItemID
   )
 }
@@ -40,7 +42,7 @@ export const syncOwningQuote: CollectionAfterChangeHook = async ({
   }
 
   const quoteID = resolveRelationID(doc.quote)
-  if (!quoteID || !hasRelevantChanges({ doc, operation, previousDoc })) {
+  if (!quoteID || !hasRelevantGcodeChanges({ doc, operation, previousDoc })) {
     return doc
   }
 
@@ -54,7 +56,7 @@ export const syncOwningQuote: CollectionAfterChangeHook = async ({
 
   await recomputeQuoteFromOwnedGcodes({
     quote: quote as Quote,
-    reconcileOwnedGcodes: false,
+    reconcileOwnedGcodes: true,
     req,
   })
 

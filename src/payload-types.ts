@@ -1063,9 +1063,26 @@ export interface Quote {
     model: number | Model;
     quantity: number;
     spool?: (number | null) | Spool;
-    filament: number | Filament;
-    colour: number | Colour;
-    process: number | Process;
+    filament?: (number | null) | Filament;
+    colour?: (number | null) | Colour;
+    /**
+     * Colour assignments in model slot order.
+     */
+    filamentSlots?:
+      | {
+          colour?: (number | null) | Colour;
+          /**
+           * Optional description of the model parts assigned to this slot.
+           */
+          description?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    /**
+     * Optional instructions or context for this model.
+     */
+    notes?: string | null;
+    process?: (number | null) | Process;
     machine?: (number | null) | Machine;
     gcode?: (number | null) | Gcode;
     gcodeStatus?: ('new' | 'queued' | 'collecting-context' | 'slicing' | 'parsing' | 'sliced' | 'failed') | null;
@@ -1092,6 +1109,10 @@ export interface Quote {
 export interface Model {
   id: number;
   originalFilename?: string | null;
+  /**
+   * Detected filament slots. Multi-colour 3MF files may have more than one.
+   */
+  filamentSlotCount?: number | null;
   customer?: (number | null) | User;
   /**
    * Used when the requester is not logged in.
@@ -1308,6 +1329,15 @@ export interface Gcode {
   filament: number | Filament;
   process: number | Process;
   machine: number | Machine;
+  /**
+   * Colour assignments in model slot order used for this slice.
+   */
+  filamentSlots?:
+    | {
+        colour: number | Colour;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Optional override for total weight (grams).
    */
@@ -2258,6 +2288,7 @@ export interface ProcessesSelect<T extends boolean = true> {
  */
 export interface ModelsSelect<T extends boolean = true> {
   originalFilename?: T;
+  filamentSlotCount?: T;
   customer?: T;
   customerEmail?: T;
   updatedAt?: T;
@@ -2291,6 +2322,14 @@ export interface QuotesSelect<T extends boolean = true> {
         spool?: T;
         filament?: T;
         colour?: T;
+        filamentSlots?:
+          | T
+          | {
+              colour?: T;
+              description?: T;
+              id?: T;
+            };
+        notes?: T;
         process?: T;
         machine?: T;
         gcode?: T;
@@ -2318,6 +2357,12 @@ export interface GcodesSelect<T extends boolean = true> {
   filament?: T;
   process?: T;
   machine?: T;
+  filamentSlots?:
+    | T
+    | {
+        colour?: T;
+        id?: T;
+      };
   weightOverride?: T;
   durationOverride?: T;
   priceOverride?: T;
