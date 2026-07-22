@@ -8,6 +8,10 @@ import { publicAccess } from '@/access/publicAccess'
 import { checkRole } from '@/access/utilities'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
+import {
+  deleteQuoteGcodes,
+  deleteQuoteModels,
+} from '@/collections/Quotes/hooks/cleanupQuoteAssets'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { ensurePricedItemsBeforeApproval } from '@/collections/Quotes/hooks/ensurePricedItemsBeforeApproval'
 import { ensureQuoteReadyForReview } from '@/collections/Quotes/hooks/ensureQuoteReadyForReview'
@@ -156,6 +160,7 @@ export const Quotes: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeDelete: [deleteQuoteGcodes],
     beforeValidate: [normalizeQuoteItemSpools, applyDefaultMachine],
     beforeChange: [
       normalizeCustomerOrEmail,
@@ -170,5 +175,6 @@ export const Quotes: CollectionConfig = {
       sendQuoteApprovedEmail,
       sendQuoteReadyForReviewAdminEmail,
     ],
+    afterDelete: [deleteQuoteModels],
   },
 }
