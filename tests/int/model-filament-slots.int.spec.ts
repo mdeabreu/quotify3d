@@ -10,6 +10,8 @@ import {
   analyze3MFFilamentSlotCount,
   decodePaintStates,
   detectModelFilamentSlotCount,
+  ModelArchiveLimitError,
+  unzipModelArchive,
 } from '@/lib/modelFilamentSlots'
 
 const encoder = new TextEncoder()
@@ -150,5 +152,39 @@ describe('detectModelFilamentSlotCount', () => {
 describe('decodePaintStates', () => {
   it('decodes extended paint states', () => {
     expect(decodePaintStates('1c')).toEqual([4])
+  })
+})
+
+describe('unzipModelArchive', () => {
+  const limits = {
+    compressedBytes: 1024,
+    entries: 2,
+    uncompressedBytes: 1024,
+  }
+
+  it('rejects archives whose expanded contents exceed the configured limit', () => {
+    const archive = zipSync({
+      '3D/3dmodel.model': asBytes('x'.repeat(1025)),
+    })
+
+    expect(() => unzipModelArchive(archive, limits)).toThrow(ModelArchiveLimitError)
+  })
+
+  it('rejects archives with too many entries', () => {
+    const archive = zipSync({
+      one: asBytes('1'),
+      three: asBytes('3'),
+      two: asBytes('2'),
+    })
+
+    expect(() => unzipModelArchive(archive, limits)).toThrow(ModelArchiveLimitError)
+  })
+
+  it('rejects compressed archives larger than the configured limit', () => {
+    const archive = zipSync({ model: asBytes('model') })
+
+    expect(() =>
+      unzipModelArchive(archive, { ...limits, compressedBytes: archive.length - 1 }),
+    ).toThrow(ModelArchiveLimitError)
   })
 })

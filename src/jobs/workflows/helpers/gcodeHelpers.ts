@@ -1,11 +1,12 @@
 import { execFile } from 'child_process'
-import { unzipSync, zipSync } from 'fflate'
+import { zipSync } from 'fflate'
 import fs from 'fs/promises'
 import path from 'path'
 import type { PayloadRequest } from 'payload'
 import { promisify } from 'util'
 
 import { extractColourSwatches } from '@/lib/colourSwatches'
+import { unzipModelArchive } from '@/lib/modelFilamentSlots'
 import { toMinorUnitAmount } from '@/utilities/currency'
 import { resolveRelationID } from '@/utilities/resolveRelationID'
 
@@ -165,7 +166,7 @@ const prepareModelForOrcaCli = async (
 ) => {
   if (path.extname(modelPath).toLowerCase() !== '.3mf') return modelPath
 
-  const archive = unzipSync(await fs.readFile(modelPath))
+  const archive = unzipModelArchive(await fs.readFile(modelPath))
   const isBambuProject = Boolean(archive[MODEL_SETTINGS])
 
   // Orca's CLI already treats Prusa-painted projects as single colour unless their

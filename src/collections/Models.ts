@@ -1,6 +1,5 @@
 import {
   APIError,
-  type CollectionBeforeChangeHook,
   type CollectionConfig,
 } from 'payload'
 
@@ -10,27 +9,16 @@ import { fileURLToPath } from 'url'
 
 import { adminOrCustomerOwner } from '@/access/adminOrCustomerOwner'
 import { publicAccess } from '@/access/publicAccess'
-import { analyzeModelFilamentSlotCount } from '@/lib/modelFilamentSlots'
+import {
+  analyzeModelFilamentSlotCount,
+  ModelArchiveLimitError,
+} from '@/lib/modelFilamentSlots'
 import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 import { isSupportedModelFilename, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const modelsDir = path.resolve(dirname, '../../data/models')
-
-const normalizeOptionalModelOwner: CollectionBeforeChangeHook = async (args) => {
-  if (
-    args.req.user ||
-    args.data?.customer ||
-    args.data?.customerEmail ||
-    args.originalDoc?.customer ||
-    args.originalDoc?.customerEmail
-  ) {
-    return normalizeCustomerOrEmail(args)
-  }
-
-  return args.data
-}
 
 export const Models: CollectionConfig = {
   slug: 'models',
@@ -104,6 +92,10 @@ export const Models: CollectionConfig = {
               req.file.data,
             )
           } catch (error) {
+            if (error instanceof ModelArchiveLimitError) {
+              throw new APIError(error.message, 400)
+            }
+
             req.payload.logger.warn({
               err: error,
               msg: `Could not detect filament slots for ${req.file.name}; defaulting to one slot.`,
@@ -125,7 +117,7 @@ export const Models: CollectionConfig = {
         }
       },
     ],
-    beforeChange: [normalizeOptionalModelOwner],
+    beforeChange: [normalizeCustomerOrEmail],
   },
   upload: {
     staticDir: modelsDir,
