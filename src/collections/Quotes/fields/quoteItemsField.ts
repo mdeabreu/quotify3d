@@ -140,6 +140,7 @@ export const quoteItemsField = (): Field => ({
       fields: [
         {
           name: 'gcode',
+          label: 'Current G-code',
           type: 'relationship',
           relationTo: 'gcodes',
           admin: {

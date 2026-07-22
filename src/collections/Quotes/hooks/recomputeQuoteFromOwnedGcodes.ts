@@ -24,6 +24,8 @@ const IN_PROGRESS_GCODE_STATUSES = new Set<Gcode['status']>([
   'parsing',
 ])
 
+const TERMINAL_GCODE_STATUSES = new Set<Gcode['status']>(['sliced', 'failed'])
+
 const clearSlicingResults = {
   plates: [],
   estimatedWeight: null,
@@ -53,23 +55,17 @@ const getManagedQuoteStatus = (status: QuoteStatus): ManagedQuoteStatus | null =
 }
 
 const getDesiredGcodeStatus = ({
-  configurationChanged,
   currentStatus,
   quoteStatus,
 }: {
-  configurationChanged: boolean
   currentStatus: Gcode['status']
   quoteStatus: ManagedQuoteStatus | null
 }): Gcode['status'] => {
-  if (configurationChanged) {
-    return quoteStatus === 'queued' ? 'queued' : 'new'
-  }
-
   if (quoteStatus !== 'queued') {
     return currentStatus
   }
 
-  if (currentStatus === 'sliced' || IN_PROGRESS_GCODE_STATUSES.has(currentStatus)) {
+  if (TERMINAL_GCODE_STATUSES.has(currentStatus) || IN_PROGRESS_GCODE_STATUSES.has(currentStatus)) {
     return currentStatus
   }
 
@@ -180,8 +176,50 @@ const findOwnedGcodes = async ({ quoteID, req }: { quoteID: number; req: Payload
     },
   })
 
-const buildOwnedGcodeMap = (gcodes: Gcode[]) =>
-  new Map<string, Gcode>(gcodes.map((gcode) => [String(gcode.quoteItemID), gcode] as const))
+const groupOwnedGcodesByItemID = (gcodes: Gcode[]) => {
+  const grouped = new Map<string, Gcode[]>()
+
+  for (const gcode of gcodes) {
+    const quoteItemID = String(gcode.quoteItemID)
+    grouped.set(quoteItemID, [...(grouped.get(quoteItemID) ?? []), gcode])
+  }
+
+  return grouped
+}
+
+const buildLinkedGcodeMap = ({
+  gcodes,
+  items,
+}: {
+  gcodes: Gcode[]
+  items: QuoteItem[]
+}) => {
+  const gcodeByID = new Map(gcodes.map((gcode) => [gcode.id, gcode] as const))
+  const linked = new Map<string, Gcode>()
+
+  for (const item of items) {
+    const quoteItemID = getQuoteItemID(item)
+    const gcode = gcodeByID.get(toNumericRelationID(item.gcode) ?? -1)
+    if (quoteItemID && gcode?.quoteItemID === quoteItemID) {
+      linked.set(quoteItemID, gcode)
+    }
+  }
+
+  return linked
+}
+
+const findMatchingSnapshot = ({
+  analysis,
+  currentGcodeID,
+  snapshots,
+}: {
+  analysis: QuoteItemConfigurationAnalysis
+  currentGcodeID: number | null
+  snapshots: Gcode[]
+}) => {
+  const matching = snapshots.filter((gcode) => gcodeMatchesConfiguration(gcode, analysis))
+  return matching.find((gcode) => gcode.id === currentGcodeID) ?? matching[0]
+}
 
 const reconcileOwnedGcodesForQuote = async ({
   analyses,
@@ -198,7 +236,8 @@ const reconcileOwnedGcodesForQuote = async ({
   const itemIDs = items.map(getQuoteItemID).filter((itemID): itemID is string => Boolean(itemID))
   const managedQuoteStatus = getManagedQuoteStatus(quote.status)
 
-  const gcodeByItemID = buildOwnedGcodeMap(existingGcodes)
+  const snapshotsByItemID = groupOwnedGcodesByItemID(existingGcodes)
+  const linkedGcodeByItemID = new Map<string, Gcode>()
   const nextItems = [...items]
   let itemsChanged = false
 
@@ -212,7 +251,7 @@ const reconcileOwnedGcodesForQuote = async ({
       overrideAccess: true,
     })
 
-    gcodeByItemID.delete(gcode.quoteItemID)
+    snapshotsByItemID.delete(gcode.quoteItemID)
   }
 
   for (const [index, item] of items.entries()) {
@@ -221,7 +260,7 @@ const reconcileOwnedGcodesForQuote = async ({
 
     const analysis = analyses.get(quoteItemID)
     const configuration = analysis?.configuration
-    const existing = gcodeByItemID.get(quoteItemID)
+    const snapshots = snapshotsByItemID.get(quoteItemID) ?? []
 
     if (!configuration) {
       if (toNumericRelationID(item.gcode)) {
@@ -233,7 +272,14 @@ const reconcileOwnedGcodesForQuote = async ({
 
     const { model, filament, filamentSlots, process, machine } = configuration
 
-    if (!existing) {
+    const currentGcodeID = toNumericRelationID(item.gcode)
+    let resolvedGcode = findMatchingSnapshot({
+      analysis,
+      currentGcodeID,
+      snapshots,
+    })
+
+    if (!resolvedGcode) {
       const created = await req.payload.create({
         collection: 'gcodes',
         depth: 0,
@@ -255,61 +301,34 @@ const reconcileOwnedGcodesForQuote = async ({
         },
       })
 
-      gcodeByItemID.set(quoteItemID, created)
-
-      if (toNumericRelationID(item.gcode) !== created.id) {
-        nextItems[index] = {
-          ...item,
-          gcode: created.id,
-        }
-        itemsChanged = true
-      }
-
-      continue
-    }
-
-    const configurationChanged = !gcodeMatchesConfiguration(existing, analysis)
-    const desiredStatus = getDesiredGcodeStatus({
-      configurationChanged,
-      currentStatus: existing.status,
-      quoteStatus: managedQuoteStatus,
-    })
-
-    const shouldUpdateGcode =
-      configurationChanged ||
-      desiredStatus !== existing.status ||
-      toNumericRelationID(existing.quote) !== quote.id ||
-      existing.quoteItemID !== quoteItemID
-
-    let resolvedGcode = existing
-
-    if (shouldUpdateGcode) {
-      resolvedGcode = await req.payload.update({
-        collection: 'gcodes',
-        id: existing.id,
-        depth: 0,
-        req,
-        overrideAccess: true,
-        context: {
-          skipQuoteRefresh: true,
-        },
-        data: {
-          quote: quote.id,
-          quoteItemID,
-          status: desiredStatus,
-          model,
-          filament,
-          filamentSlots,
-          process,
-          machine,
-          ...(configurationChanged ? clearSlicingResults : {}),
-        },
+      snapshotsByItemID.set(quoteItemID, [...snapshots, created])
+      resolvedGcode = created
+    } else {
+      const desiredStatus = getDesiredGcodeStatus({
+        currentStatus: resolvedGcode.status,
+        quoteStatus: managedQuoteStatus,
       })
 
-      gcodeByItemID.set(quoteItemID, resolvedGcode)
+      if (desiredStatus !== resolvedGcode.status) {
+        resolvedGcode = await req.payload.update({
+          collection: 'gcodes',
+          id: resolvedGcode.id,
+          depth: 0,
+          req,
+          overrideAccess: true,
+          context: {
+            skipQuoteRefresh: true,
+          },
+          data: {
+            status: desiredStatus,
+          },
+        })
+      }
     }
 
-    if (toNumericRelationID(item.gcode) !== resolvedGcode.id) {
+    linkedGcodeByItemID.set(quoteItemID, resolvedGcode)
+
+    if (currentGcodeID !== resolvedGcode.id) {
       nextItems[index] = {
         ...item,
         gcode: resolvedGcode.id,
@@ -319,7 +338,7 @@ const reconcileOwnedGcodesForQuote = async ({
   }
 
   return {
-    gcodeByItemID,
+    gcodeByItemID: linkedGcodeByItemID,
     itemsChanged,
     nextItems,
   }
@@ -366,7 +385,7 @@ export const recomputeQuoteFromOwnedGcodes = async ({
         req,
       })
     : {
-        gcodeByItemID: buildOwnedGcodeMap(existingGcodes),
+        gcodeByItemID: buildLinkedGcodeMap({ gcodes: existingGcodes, items }),
         itemsChanged: false,
         nextItems: items,
       }
