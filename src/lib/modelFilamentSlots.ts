@@ -15,9 +15,9 @@ export {
 import { analyze3MFFilamentSlotCount } from '@/lib/model/threeMfAnalysis'
 
 const DEFAULT_ARCHIVE_LIMITS = {
-  compressedBytes: 128 * 1024 * 1024,
+  compressedBytes: 256 * 1024 * 1024,
   entries: 2048,
-  uncompressedBytes: 256 * 1024 * 1024,
+  uncompressedBytes: 1024 * 1024 * 1024,
 } as const
 
 type ModelArchiveLimits = {
