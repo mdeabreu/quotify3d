@@ -294,6 +294,48 @@ describe('QuoteDetailsWorkspace', () => {
     expect(screen.getByRole('heading', { name: 'second.3mf' })).toBeTruthy()
     expect(confirm).toHaveBeenCalledTimes(2)
   })
+
+  it('resets slot and preview state when the active model is deleted', () => {
+    const deleted = item({
+      filamentSlots: [
+        { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+        { colourId: '11', colourLabel: 'Black', description: '', hex: '#111111' },
+        { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+      ],
+      id: 'deleted-item',
+      modelLabel: 'deleted.3mf',
+      modelSlotCount: 3,
+    })
+    const remaining = item({
+      filamentSlots: [
+        { colourId: '11', colourLabel: 'Black', description: '', hex: '#111111' },
+      ],
+      id: 'remaining-item',
+      modelLabel: 'remaining.3mf',
+      modelSlotCount: 1,
+    })
+    const rendered = render(
+      <QuoteDetailsWorkspace
+        {...props}
+        initialItemID={deleted.id}
+        items={[deleted, remaining]}
+      />,
+    )
+
+    expect(screen.getByTestId('model-preview').textContent).toBe('#ff0000,#111111,#ff0000')
+
+    rendered.rerender(
+      <QuoteDetailsWorkspace
+        {...props}
+        initialItemID={remaining.id}
+        items={[remaining]}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'remaining.3mf' })).toBeTruthy()
+    expect(screen.getByText('1 colour slot')).toBeTruthy()
+    expect(screen.getByTestId('model-preview').textContent).toBe('#111111')
+  })
 })
 
 describe('shouldAutoRefreshQuote', () => {

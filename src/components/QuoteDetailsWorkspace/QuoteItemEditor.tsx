@@ -83,6 +83,7 @@ export const QuoteItemEditor = ({
         <ModelPreviewer
           colors={colors}
           fallbackSrc={fallbackSrc}
+          key={item.id}
           model={{ name: item.modelLabel, size: item.modelSize, url: item.modelURL }}
         />
       </div>

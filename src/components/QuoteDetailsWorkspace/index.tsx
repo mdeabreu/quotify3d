@@ -95,7 +95,7 @@ const AccessFields = ({
   </>
 )
 
-export const QuoteDetailsWorkspace = ({
+const QuoteDetailsWorkspaceState = ({
   accessToken = '',
   addModelsAction,
   currencyCode,
@@ -583,4 +583,9 @@ export const QuoteDetailsWorkspace = ({
       />
     </div>
   )
+}
+
+export const QuoteDetailsWorkspace = (props: QuoteDetailsWorkspaceProps) => {
+  const itemStateKey = props.items.map((item) => item.id).join('|')
+  return <QuoteDetailsWorkspaceState key={itemStateKey} {...props} />
 }
