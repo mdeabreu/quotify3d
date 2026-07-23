@@ -32,9 +32,10 @@ export const EstimateSummary = ({
       </span>
     </div>
     {item.gcodeStatus === 'failed' ? (
-      <p className="mt-2 inline-flex items-center gap-2 text-sm text-red-600">
+      <p className="mt-2 inline-flex items-center gap-2 text-sm text-amber-700">
         <AlertTriangleIcon className="size-4" />
-        Automatic estimate failed; manual review is available.
+        We couldn&apos;t create an automatic estimate for this model. You can still submit it for
+        manual pricing.
       </p>
     ) : null}
   </div>

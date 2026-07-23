@@ -8,10 +8,10 @@ export default async function ProcessesPage() {
 
   return (
     <LibraryPage
-      description="Review the print process options we offer and compare the balance of speed, finish, and output quality for each workflow."
-      emptyMessage="No processes are available to browse right now."
+      description="Compare print profiles for speed, finish, output quality, and strength before choosing one for your model."
+      emptyMessage="No print profiles are available to browse right now."
       isEmpty={processes.length === 0}
-      title="Processes"
+      title="Print profiles"
     >
       {processes.map((item) => (
         <ProcessLibraryCard item={item} key={item.id} />
@@ -21,10 +21,10 @@ export default async function ProcessesPage() {
 }
 
 export const metadata = {
-  description: 'Browse available 3D print process options before requesting a quote.',
+  description: 'Browse available 3D print profiles before requesting a quote.',
   openGraph: mergeOpenGraph({
-    title: 'Processes',
+    title: 'Print profiles',
     url: '/processes',
   }),
-  title: 'Processes',
+  title: 'Print profiles',
 }

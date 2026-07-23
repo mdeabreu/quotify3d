@@ -4,7 +4,8 @@ export const getVisibleAdminNotes = ({
   adminNotes,
   status,
 }: Pick<Quote, 'adminNotes' | 'status'>): string | null => {
-  if (status !== 'approved' || typeof adminNotes !== 'string') return null
+  if ((status !== 'approved' && status !== 'rejected') || typeof adminNotes !== 'string')
+    return null
 
   const trimmedNotes = adminNotes.trim()
 

@@ -8,6 +8,7 @@ import { QuoteStatus as QuoteStatusBadge } from '@/components/QuoteStatus'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
 import { getVisibleAdminNotes } from '@/utilities/quotes/getVisibleAdminNotes'
+import { getQuoteEstimateDisplay } from '@/utilities/quotes/presentation'
 import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import { findAccessibleQuote } from '@/lib/quotes/findAccessibleQuote'
 import {
@@ -36,23 +37,23 @@ const getReadOnlyQuoteMessage = (status: QuoteStatus) => {
   switch (status) {
     case 'ready-for-review':
       return {
-        title: 'Your quote is waiting for review.',
-        body: 'We have everything we need and will take a look shortly. Once reviewed, we will approve it or follow up if anything needs attention.',
+        title: 'Your quote request has been submitted.',
+        body: 'We have everything we need and will review the files and pricing shortly. We’ll email you when your quote is approved.',
       }
     case 'in-review':
       return {
         title: 'We are reviewing your quote.',
-        body: 'Our team is checking the files and pricing now. We will update this quote as soon as the review is complete.',
+        body: 'Our team is checking the files, printability, and pricing now. We’ll email you when your quote is approved.',
       }
     case 'approved':
       return {
         title: 'Your quote has been approved.',
-        body: 'Everything is ready on our side. You can review the items below and continue when you are ready.',
+        body: 'Review the approved items below, add them to your cart, and continue to checkout when you’re ready.',
       }
     case 'rejected':
       return {
-        title: 'This quote needs an update before it can move forward.',
-        body: 'We were not able to approve this quote as submitted. Review the details below and contact us if you need help with the next step.',
+        title: 'We’re unable to quote this request.',
+        body: 'This request is closed and can’t be edited or resubmitted. Review our note below, or start a new quote with updated files or selections.',
       }
     default:
       return {
@@ -91,12 +92,12 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
 
   const {
     addableItems,
-    hasPendingLineItemPrice,
     items: workspaceItems,
     materialOptions,
     qualityOptions,
     spoolOptions,
   } = await buildQuoteWorkspaceViewModel({ accessToken, email, payload, quote, user })
+  const estimate = getQuoteEstimateDisplay({ items: workspaceItems, status: quote.status })
 
   return (
     <div>
@@ -122,7 +123,7 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
       <div className="flex flex-col gap-10 rounded-lg border bg-card px-6 py-4">
         <div className="flex flex-col gap-6 lg:flex-row lg:justify-between">
           <div>
-            <p className="mb-1 text-sm font-mono uppercase text-primary/50">Quote Date</p>
+            <p className="mb-1 text-sm font-mono uppercase text-primary/50">Created</p>
             <p className="text-lg">
               <time dateTime={quote.createdAt}>
                 {formatDateTime({ date: quote.createdAt, format: 'MMMM dd, yyyy' })}
@@ -131,25 +132,15 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
           </div>
 
           <div>
-            <p
-              className={
-                hasPendingLineItemPrice
-                  ? 'mb-1 text-sm font-mono uppercase text-primary/40'
-                  : 'mb-1 text-sm font-mono uppercase text-primary/50'
-              }
-            >
-              Total
-            </p>
-            {typeof quote.subtotal === 'number' ? (
+            <p className="mb-1 text-sm font-mono uppercase text-primary/50">{estimate.label}</p>
+            {estimate.amount !== null ? (
               <Price
-                amount={quote.subtotal}
-                className={hasPendingLineItemPrice ? 'text-lg text-primary/55' : 'text-lg'}
+                amount={estimate.amount}
+                className="text-lg"
                 currencyCode={quote.currency ?? undefined}
               />
             ) : (
-              <p className={hasPendingLineItemPrice ? 'text-primary/55' : 'text-primary/50'}>
-                Pending
-              </p>
+              <p className="text-primary/50">No amount available yet</p>
             )}
           </div>
 
@@ -167,9 +158,18 @@ export default async function QuotePage({ params, searchParams }: PageProps) {
             <p className="mt-1">{readOnlyMessage?.body}</p>
             {visibleAdminNotes ? (
               <div className="mt-3 border-l-2 border-primary/20 pl-3">
-                <p className="text-xs font-mono uppercase text-primary/50">A note from our team</p>
+                <p className="text-xs font-mono uppercase text-primary/50">
+                  {quote.status === 'rejected'
+                    ? 'Why we couldn’t quote this'
+                    : 'A note from our team'}
+                </p>
                 <p className="mt-1 whitespace-pre-wrap">{visibleAdminNotes}</p>
               </div>
+            ) : null}
+            {quote.status === 'rejected' ? (
+              <Button asChild className="mt-4" size="sm">
+                <Link href="/quotes/new">Start a new quote</Link>
+              </Button>
             ) : null}
           </div>
         ) : null}

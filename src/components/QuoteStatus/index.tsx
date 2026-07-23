@@ -1,5 +1,6 @@
 import { QuoteStatus as StatusOptions } from '@/payload-types'
 import { cn } from '@/utilities/cn'
+import { getCustomerQuoteStatusLabel } from '@/utilities/quotes/presentation'
 
 type Props = {
   status: StatusOptions
@@ -23,7 +24,7 @@ export const QuoteStatus: React.FC<Props> = ({ status, className }) => {
         },
       )}
     >
-      {status}
+      {getCustomerQuoteStatusLabel(status)}
     </div>
   )
 }

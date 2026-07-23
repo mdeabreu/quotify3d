@@ -29,7 +29,14 @@ import {
 import type { QuoteStatus } from '@/payload-types'
 import { useBranding } from '@/providers/Branding'
 import { cn } from '@/utilities/cn'
-import { FilePlus2Icon, Layers3Icon, PaletteIcon, PrinterIcon } from 'lucide-react'
+import { getQuoteEstimateDisplay } from '@/utilities/quotes/presentation'
+import {
+  AlertTriangleIcon,
+  FilePlus2Icon,
+  Layers3Icon,
+  PaletteIcon,
+  PrinterIcon,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   useEffect,
@@ -95,6 +102,13 @@ const AccessFields = ({
   </>
 )
 
+const MissingValue = ({ children }: { children: string }) => (
+  <p className="inline-flex items-center gap-1.5 text-sm text-amber-700">
+    <AlertTriangleIcon aria-hidden="true" className="size-4 shrink-0" />
+    <span>{children}</span>
+  </p>
+)
+
 const QuoteDetailsWorkspaceState = ({
   accessToken = '',
   addModelsAction,
@@ -157,11 +171,7 @@ const QuoteDetailsWorkspaceState = ({
     editable &&
     items.length > 0 &&
     items.every((item) => item.configured && TERMINAL.has(item.gcodeStatus ?? ''))
-  const subtotal = items.reduce(
-    (total, item) =>
-      total + (item.configured && item.gcodePrice !== null ? item.gcodePrice * item.quantity : 0),
-    0,
-  )
+  const estimate = getQuoteEstimateDisplay({ items, status: quoteStatus })
   const refresh = useEffectEvent(() => router.refresh())
 
   useEffect(() => {
@@ -176,7 +186,7 @@ const QuoteDetailsWorkspaceState = ({
 
   const selectItem = (itemID: string) => {
     if (itemID === activeItem.id) return
-    if (dirty && !window.confirm('Discard your unapplied changes and switch models?')) return
+    if (dirty && !window.confirm('Discard your unsaved changes and switch models?')) return
     const nextItem = items.find((item) => item.id === itemID)
     if (!nextItem) return
     const nextDraft = createDraft(nextItem)
@@ -278,7 +288,7 @@ const QuoteDetailsWorkspaceState = ({
                   <DialogHeader>
                     <DialogTitle>Add another model</DialogTitle>
                     <DialogDescription>
-                      The new item starts without material, colour, or process selections.
+                      After uploading, you&apos;ll choose its material, colours, and print profile.
                     </DialogDescription>
                   </DialogHeader>
                   <form action={addModelsAction} onSubmit={validateUpload}>
@@ -312,16 +322,14 @@ const QuoteDetailsWorkspaceState = ({
 
           <div className="border-t p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-primary/60">
-                {items.some((item) => item.gcodePrice === null)
-                  ? 'Partial estimate'
-                  : 'Estimated total'}
-              </span>
-              <Price
-                amount={subtotal}
-                className="text-xl font-medium"
-                currencyCode={currencyCode}
-              />
+              <span className="text-sm text-primary/60">{estimate.label}</span>
+              {estimate.amount !== null ? (
+                <Price
+                  amount={estimate.amount}
+                  className="text-xl font-medium"
+                  currencyCode={currencyCode}
+                />
+              ) : null}
             </div>
             {editable ? (
               <SubmissionDialog
@@ -340,7 +348,7 @@ const QuoteDetailsWorkspaceState = ({
                 aria-hidden={canSubmit}
                 className={cn('mt-2 min-h-4 text-xs text-primary/50', canSubmit && 'invisible')}
               >
-                Complete every item and wait for each estimate to finish.
+                Complete every model and wait for each estimate to finish.
               </p>
             ) : null}
           </div>
@@ -362,7 +370,11 @@ const QuoteDetailsWorkspaceState = ({
               <Layers3Icon className="size-5 text-primary/50" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">Material</p>
-                <p className="text-sm text-primary/55">{draft.filamentLabel || 'Not selected'}</p>
+                {draft.filamentLabel ? (
+                  <p className="text-sm text-primary/55">{draft.filamentLabel}</p>
+                ) : (
+                  <MissingValue>Material required</MissingValue>
+                )}
               </div>
               {editable ? (
                 <Button onClick={() => setMaterialOpen(true)} variant="outline">
@@ -377,7 +389,9 @@ const QuoteDetailsWorkspaceState = ({
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">Colours</p>
                   <p className="text-sm text-primary/55">
-                    {draft.sameColour ? 'One colour for the whole model' : 'Assigned by model slot'}
+                    {draft.sameColour
+                      ? 'One colour for the whole model'
+                      : 'Choose a colour for each detected group'}
                   </p>
                 </div>
                 {editable && activeItem.modelSlotCount > 1 ? (
@@ -391,7 +405,7 @@ const QuoteDetailsWorkspaceState = ({
                       onClick={() => setSameColour(true)}
                       type="button"
                     >
-                      Same colour
+                      One colour
                     </button>
                     <button
                       aria-pressed={!draft.sameColour}
@@ -402,7 +416,7 @@ const QuoteDetailsWorkspaceState = ({
                       onClick={() => setSameColour(false)}
                       type="button"
                     >
-                      By slot
+                      By colour group
                     </button>
                   </div>
                 ) : null}
@@ -418,11 +432,13 @@ const QuoteDetailsWorkspaceState = ({
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          {draft.sameColour ? 'Whole model' : `Slot ${index + 1}`}
+                          {draft.sameColour ? 'Whole model' : `Colour group ${index + 1}`}
                         </p>
-                        <p className="truncate text-sm text-primary/55">
-                          {slot.colourLabel || 'No colour selected'}
-                        </p>
+                        {slot.colourLabel ? (
+                          <p className="truncate text-sm text-primary/55">{slot.colourLabel}</p>
+                        ) : (
+                          <MissingValue>Colour required</MissingValue>
+                        )}
                       </div>
                       {editable ? (
                         <Button
@@ -465,8 +481,12 @@ const QuoteDetailsWorkspaceState = ({
             <div className="flex items-center gap-4 px-5 py-4">
               <PrinterIcon className="size-5 text-primary/50" />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">Print process</p>
-                <p className="text-sm text-primary/55">{draft.processLabel || 'Not selected'}</p>
+                <p className="font-medium">Print profile</p>
+                {draft.processLabel ? (
+                  <p className="text-sm text-primary/55">{draft.processLabel}</p>
+                ) : (
+                  <MissingValue>Print profile required</MissingValue>
+                )}
               </div>
               {editable ? (
                 <Button onClick={() => setProcessOpen(true)} variant="outline">
@@ -512,7 +532,7 @@ const QuoteDetailsWorkspaceState = ({
           </div>
 
           <div className="border-t p-5">
-            <Label htmlFor={`model-note-${activeItem.id}`}>Model note</Label>
+            <Label htmlFor={`model-note-${activeItem.id}`}>Notes for this model (optional)</Label>
             <Textarea
               className="mt-2"
               disabled={!editable}
@@ -520,6 +540,7 @@ const QuoteDetailsWorkspaceState = ({
               onChange={(event) =>
                 dispatchDraft({ notes: event.target.value, type: 'set-model-note' })
               }
+              placeholder="Dimensions, intended use, deadline, or other instructions"
               rows={3}
               value={draft.modelNote}
             />
@@ -529,13 +550,13 @@ const QuoteDetailsWorkspaceState = ({
             <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-end gap-3 border-t bg-background/95 px-5 py-4 backdrop-blur">
               {saveError ? <p className="mr-auto text-sm text-red-600">{saveError}</p> : null}
               {dirty ? (
-                <span className="mr-auto text-xs text-primary/50">Unapplied changes</span>
+                <span className="mr-auto text-xs text-primary/50">Unsaved changes</span>
               ) : null}
               <Button disabled={!dirty || pending} onClick={discardDraft} variant="outline">
                 Discard changes
               </Button>
               <Button disabled={!dirty || pending} onClick={applyDraft}>
-                {pending ? 'Applying...' : 'Apply changes'}
+                {pending ? 'Saving...' : 'Save changes'}
               </Button>
             </div>
           ) : null}
@@ -543,7 +564,7 @@ const QuoteDetailsWorkspaceState = ({
       </div>
 
       <OptionDialog
-        description="Choosing a material clears colour assignments that may no longer be available."
+        description="Changing material may clear colours that aren’t available in the new material."
         onSelect={(option) => dispatchDraft({ option, type: 'select-material' })}
         open={materialOpen}
         options={materialOptions}
@@ -552,7 +573,7 @@ const QuoteDetailsWorkspaceState = ({
         title="Choose a material"
       />
       <OptionDialog
-        description="Choose the colour for this assignment."
+        description="Choose the colour for this part of the model."
         fallback={(option) => (
           <ColourOptionPreview
             className="h-16 w-full"
@@ -569,17 +590,19 @@ const QuoteDetailsWorkspaceState = ({
         }
         setOpen={(open) => !open && setColourSlot(null)}
         title={
-          draft.sameColour ? 'Choose a colour' : `Choose a colour for slot ${(colourSlot ?? 0) + 1}`
+          draft.sameColour
+            ? 'Choose a colour'
+            : `Choose a colour for colour group ${(colourSlot ?? 0) + 1}`
         }
       />
       <OptionDialog
-        description="Choose the print process for this model."
+        description="Choose how this model should be printed."
         onSelect={(option) => dispatchDraft({ option, type: 'select-process' })}
         open={processOpen}
         options={qualityOptions}
         selectedID={draft.processId}
         setOpen={setProcessOpen}
-        title="Choose a print process"
+        title="Choose a print profile"
       />
     </div>
   )

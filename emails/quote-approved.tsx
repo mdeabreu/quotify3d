@@ -13,7 +13,7 @@ export default function QuoteApprovedEmail({ quoteID, quoteURL }: QuoteApprovedE
         'You can now return to your quote, add the approved items to your cart, and complete checkout.',
       ]}
       cta={{
-        label: `View quote #${quoteID}`,
+        label: `Review quote #${quoteID} and checkout`,
         url: quoteURL,
       }}
       eyebrow="Quote approved"

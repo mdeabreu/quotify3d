@@ -3,6 +3,7 @@ import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import { Quote } from '@/payload-types'
 import { formatDateTime } from '@/utilities/formatDateTime'
+import { getQuoteEstimateDisplay, getQuoteListActionLabel } from '@/utilities/quotes/presentation'
 import Link from 'next/link'
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 export const QuoteItem: React.FC<Props> = ({ quote }) => {
   const itemsLabel = quote.items?.length === 1 ? 'Item' : 'Items'
+  const estimate = getQuoteEstimateDisplay({ items: quote.items, status: quote.status })
 
   return (
     <div className="bg-card border rounded-lg px-4 py-2 md:px-6 md:py-4 flex flex-col sm:flex-row gap-12 sm:items-center sm:justify-between">
@@ -31,21 +33,26 @@ export const QuoteItem: React.FC<Props> = ({ quote }) => {
           <span>
             {quote.items?.length} {itemsLabel}
           </span>
-          {typeof quote.subtotal === 'number' && (
-            <>
-              <span>•</span>
-              <Price
-                as="span"
-                amount={quote.subtotal}
-                currencyCode={quote.currency ?? undefined}
-              />
-            </>
-          )}
+          <>
+            <span>•</span>
+            {estimate.amount !== null ? (
+              <span>
+                {estimate.label}:{' '}
+                <Price
+                  as="span"
+                  amount={estimate.amount}
+                  currencyCode={quote.currency ?? undefined}
+                />
+              </span>
+            ) : (
+              <span>{estimate.label}</span>
+            )}
+          </>
         </p>
       </div>
 
       <Button variant="outline" asChild className="self-start sm:self-auto">
-        <Link href={`/quotes/${quote.id}`}>View Quote</Link>
+        <Link href={`/quotes/${quote.id}`}>{getQuoteListActionLabel(quote.status)}</Link>
       </Button>
     </div>
   )

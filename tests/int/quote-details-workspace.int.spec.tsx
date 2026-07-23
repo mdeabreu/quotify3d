@@ -130,10 +130,42 @@ describe('QuoteDetailsWorkspace', () => {
   it('shows incomplete items and keeps submission disabled', () => {
     render(<QuoteDetailsWorkspace {...props} />)
 
-    expect(screen.getAllByText('Needs setup').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('No colour selected')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Submit for review' }).hasAttribute('disabled')).toBe(
+    expect(screen.getAllByText('Setup needed').length).toBeGreaterThan(0)
+    expect(screen.getByText('Material required').parentElement?.querySelector('svg')).toBeTruthy()
+    expect(screen.getAllByText('Colour required')).toHaveLength(2)
+    expect(
+      screen.getByText('Print profile required').parentElement?.querySelector('svg'),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send for review' }).hasAttribute('disabled')).toBe(
       true,
+    )
+  })
+
+  it('uses a muted warning treatment when an estimate needs manual pricing', () => {
+    render(
+      <QuoteDetailsWorkspace
+        {...props}
+        items={[
+          item({
+            configured: true,
+            filamentId: '1',
+            filamentLabel: 'PLA',
+            filamentSlots: [
+              { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+              { colourId: '10', colourLabel: 'Red', description: '', hex: '#ff0000' },
+            ],
+            gcodeStatus: 'failed',
+            processId: '20',
+            processLabel: 'Standard',
+          }),
+        ]}
+        quoteStatus="queued"
+      />,
+    )
+
+    expect(screen.getAllByText('Manual pricing')).toHaveLength(3)
+    expect(screen.getByText(/We couldn't create an automatic estimate/).className).toContain(
+      'text-amber-700',
     )
   })
 
@@ -160,12 +192,12 @@ describe('QuoteDetailsWorkspace', () => {
       />,
     )
 
-    const submit = screen.getByRole('button', { name: 'Submit for review' })
+    const submit = screen.getByRole('button', { name: 'Send for review' })
     expect(submit.hasAttribute('disabled')).toBe(false)
     fireEvent.click(submit)
-    expect(screen.getByText('Submit this quote?')).toBeTruthy()
+    expect(screen.getByText('Ready to send your quote request?')).toBeTruthy()
     expect(
-      screen.getByRole('button', { name: 'Confirm submission' }).parentElement?.className,
+      screen.getByRole('button', { name: 'Send quote request' }).parentElement?.className,
     ).toContain('mt-5')
   })
 
@@ -178,14 +210,14 @@ describe('QuoteDetailsWorkspace', () => {
     expect(screen.queryByText('Choose a material')).toBeNull()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Select' })[0])
-    expect(screen.getByText('Choose a colour for slot 1')).toBeTruthy()
+    expect(screen.getByText('Choose a colour for colour group 1')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Red/ }))
-    expect(screen.queryByText('Choose a colour for slot 1')).toBeNull()
+    expect(screen.queryByText('Choose a colour for colour group 1')).toBeNull()
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Select' }).at(-1)!)
-    expect(screen.getByText('Choose a print process')).toBeTruthy()
+    expect(screen.getByText('Choose a print profile')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Standard/ }))
-    expect(screen.queryByText('Choose a print process')).toBeNull()
+    expect(screen.queryByText('Choose a print profile')).toBeNull()
   })
 
   it('updates one persistent preview and applies ordered partial slots once', async () => {
@@ -205,7 +237,7 @@ describe('QuoteDetailsWorkspace', () => {
 
     const descriptions = screen.getAllByLabelText(/What should this colour apply to/)
     fireEvent.change(descriptions[0], { target: { value: 'Body' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() => expect(saveItemAction).toHaveBeenCalledOnce())
     const formData = saveItemAction.mock.calls[0][0]
@@ -239,7 +271,7 @@ describe('QuoteDetailsWorkspace', () => {
     expect(screen.queryByLabelText(/What should this colour apply to/)).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[1])
     fireEvent.click(screen.getByRole('button', { name: /Black/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
 
     await waitFor(() => expect(saveItemAction).toHaveBeenCalledOnce())
     const formData = saveItemAction.mock.calls[0][0]
@@ -307,33 +339,23 @@ describe('QuoteDetailsWorkspace', () => {
       modelSlotCount: 3,
     })
     const remaining = item({
-      filamentSlots: [
-        { colourId: '11', colourLabel: 'Black', description: '', hex: '#111111' },
-      ],
+      filamentSlots: [{ colourId: '11', colourLabel: 'Black', description: '', hex: '#111111' }],
       id: 'remaining-item',
       modelLabel: 'remaining.3mf',
       modelSlotCount: 1,
     })
     const rendered = render(
-      <QuoteDetailsWorkspace
-        {...props}
-        initialItemID={deleted.id}
-        items={[deleted, remaining]}
-      />,
+      <QuoteDetailsWorkspace {...props} initialItemID={deleted.id} items={[deleted, remaining]} />,
     )
 
     expect(screen.getByTestId('model-preview').textContent).toBe('#ff0000,#111111,#ff0000')
 
     rendered.rerender(
-      <QuoteDetailsWorkspace
-        {...props}
-        initialItemID={remaining.id}
-        items={[remaining]}
-      />,
+      <QuoteDetailsWorkspace {...props} initialItemID={remaining.id} items={[remaining]} />,
     )
 
     expect(screen.getByRole('heading', { name: 'remaining.3mf' })).toBeTruthy()
-    expect(screen.getByText('1 colour slot')).toBeTruthy()
+    expect(screen.getByText('1 colour group')).toBeTruthy()
     expect(screen.getByTestId('model-preview').textContent).toBe('#111111')
   })
 })

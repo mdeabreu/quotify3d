@@ -31,7 +31,8 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
       <div className="border-b px-6 py-8 text-center md:px-10">
         <h1 className="text-3xl font-medium">Start your quote</h1>
         <p className="mt-2 text-primary/65">
-          Add a 3D model and tell us how to reach you. You can configure and estimate it next.
+          Upload a 3D model and add your email. Next, choose your material, colours, and print
+          profile.
         </p>
       </div>
 
@@ -42,7 +43,7 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
               1
             </span>
             <div>
-              <h2 className="font-medium">Add your first file</h2>
+              <h2 className="font-medium">Add your first model</h2>
               <p className="mt-1 text-sm text-primary/60">
                 Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}
               </p>
@@ -91,7 +92,7 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
             <div>
               <h2 className="font-medium">Your details</h2>
               <p className="mt-1 text-sm text-primary/60">
-                We will send your draft link and quote updates here.
+                We&apos;ll email a link to your draft so you can return anytime.
               </p>
             </div>
           </div>
@@ -118,8 +119,15 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
                 type="email"
               />
               <p className="text-xs text-primary/55">
-                Prefer an account? <Link className="underline" href="/login">Log in</Link> or{' '}
-                <Link className="underline" href="/create-account">create one</Link>.
+                Prefer an account?{' '}
+                <Link className="underline" href="/login">
+                  Log in
+                </Link>{' '}
+                or{' '}
+                <Link className="underline" href="/create-account">
+                  create one
+                </Link>
+                .
               </p>
             </div>
           )}
@@ -132,10 +140,10 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
             size="lg"
             type="submit"
           >
-            {pending ? 'Creating your draft...' : 'Continue to quote'}
+            {pending ? 'Creating your draft...' : 'Upload and continue'}
           </Button>
           <p className="mt-3 text-center text-xs text-primary/50">
-            Your file uploads and your resumable draft is created when you continue.
+            We&apos;ll create a draft and email you a link so you can return anytime.
           </p>
         </div>
       </form>

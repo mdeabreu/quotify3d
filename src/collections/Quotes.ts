@@ -8,10 +8,7 @@ import { publicAccess } from '@/access/publicAccess'
 import { checkRole } from '@/access/utilities'
 import { quoteItemsField } from '@/collections/Quotes/fields/quoteItemsField'
 import { applyDefaultMachine } from '@/collections/Quotes/hooks/applyDefaultMachine'
-import {
-  deleteQuoteGcodes,
-  deleteQuoteModels,
-} from '@/collections/Quotes/hooks/cleanupQuoteAssets'
+import { deleteQuoteGcodes, deleteQuoteModels } from '@/collections/Quotes/hooks/cleanupQuoteAssets'
 import { createProductsOnApproval } from '@/collections/Quotes/hooks/createProductsOnApproval'
 import { ensurePricedItemsBeforeApproval } from '@/collections/Quotes/hooks/ensurePricedItemsBeforeApproval'
 import { ensureQuoteReadyForReview } from '@/collections/Quotes/hooks/ensureQuoteReadyForReview'
@@ -27,7 +24,7 @@ import { normalizeCustomerOrEmail } from '@/hooks/normalizeCustomerOrEmail'
 export const adminNotesReadAccess: FieldAccess = ({ doc, req: { user } }) => {
   if (checkRole(['admin'], user)) return true
 
-  return doc?.status === 'approved'
+  return doc?.status === 'approved' || doc?.status === 'rejected'
 }
 
 export const Quotes: CollectionConfig = {
@@ -151,7 +148,7 @@ export const Quotes: CollectionConfig = {
               },
               admin: {
                 description:
-                  'Optional customer-facing notes shown on approved quotes, such as pricing changes or printability context.',
+                  'Optional customer-facing notes shown on approved or rejected quotes, such as pricing changes, printability context, or why a request could not be quoted.',
               },
             },
           ],
