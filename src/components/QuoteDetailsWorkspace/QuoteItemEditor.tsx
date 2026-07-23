@@ -18,11 +18,11 @@ const issueMessage = (item: QuoteWorkspaceItem) => {
     case 'unavailable-material':
       return 'The saved material is no longer available. Choose a replacement to continue.'
     case 'unavailable-process':
-      return 'The saved print process is no longer available. Choose a replacement to continue.'
+      return 'The saved print profile is no longer available. Choose a replacement to continue.'
     case 'unavailable-machine':
       return 'No active machine is available for this saved setup.'
     case 'unavailable-slot-colour':
-      return `Slot ${(issue.slotIndex ?? 0) + 1} uses a colour that is unavailable for this material.`
+      return `Colour group ${(issue.slotIndex ?? 0) + 1} uses a colour that is unavailable for this material.`
     default:
       return null
   }
@@ -62,7 +62,7 @@ export const QuoteItemEditor = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-sm border px-2 py-1 text-xs text-primary/60">
-            {item.modelSlotCount} colour slot{item.modelSlotCount === 1 ? '' : 's'}
+            {item.modelSlotCount} colour group{item.modelSlotCount === 1 ? '' : 's'}
           </span>
           {editable && itemCount > 1 ? (
             <form action={removeItemAction}>

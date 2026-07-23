@@ -38,14 +38,14 @@ export const SubmissionDialog = ({
   <Dialog>
     <DialogTrigger asChild>
       <Button className="mt-4 w-full" disabled={!canSubmit}>
-        Submit for review
+        Send for review
       </Button>
     </DialogTrigger>
     <DialogContent className="sm:max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Submit this quote?</DialogTitle>
+        <DialogTitle>Ready to send your quote request?</DialogTitle>
         <DialogDescription>
-          Your selections will be locked while our team reviews them.
+          We&apos;ll lock your selections while our team confirms printability and pricing.
         </DialogDescription>
       </DialogHeader>
       <div className="max-h-[45vh] divide-y overflow-y-auto rounded-md border">
@@ -58,7 +58,7 @@ export const SubmissionDialog = ({
               </p>
             </div>
             {item.gcodeStatus === 'failed' ? (
-              <span className="text-sm text-red-600">Manual review</span>
+              <span className="text-sm text-amber-700">Manual pricing</span>
             ) : (
               <Price amount={(item.gcodePrice ?? 0) * item.quantity} currencyCode={currencyCode} />
             )}
@@ -70,7 +70,7 @@ export const SubmissionDialog = ({
         {email ? <input name="email" type="hidden" value={email} /> : null}
         {accessToken ? <input name="accessToken" type="hidden" value={accessToken} /> : null}
         <div className="mt-4 space-y-2">
-          <Label htmlFor="quote-notes">Note for the whole quote</Label>
+          <Label htmlFor="quote-notes">Anything else we should know? (optional)</Label>
           <Textarea
             defaultValue={quoteNotes ?? ''}
             id="quote-notes"
@@ -80,7 +80,7 @@ export const SubmissionDialog = ({
           />
         </div>
         <DialogFooter className="mt-5">
-          <Button type="submit">Confirm submission</Button>
+          <Button type="submit">Send quote request</Button>
         </DialogFooter>
       </form>
     </DialogContent>

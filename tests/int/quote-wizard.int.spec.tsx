@@ -8,7 +8,9 @@ let currentUser: { email: string } | null | undefined = { email: 'customer@examp
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={typeof href === 'string' ? href : '#'} {...props}>{children}</a>
+    <a href={typeof href === 'string' ? href : '#'} {...props}>
+      {children}
+    </a>
   ),
 }))
 
@@ -38,7 +40,9 @@ describe('QuoteWizard', () => {
 
     expect(screen.getByLabelText('Email address')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Log in' }).getAttribute('href')).toBe('/login')
-    expect(screen.getByRole('link', { name: 'create one' }).getAttribute('href')).toBe('/create-account')
+    expect(screen.getByRole('link', { name: 'create one' }).getAttribute('href')).toBe(
+      '/create-account',
+    )
   })
 
   it('shows the selected model and enables continue', () => {
@@ -48,7 +52,9 @@ describe('QuoteWizard', () => {
     fireEvent.change(input, { target: { files: [new File(['solid'], 'model.3mf')] } })
 
     expect(screen.getByText('model.3mf')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Continue to quote' }).hasAttribute('disabled')).toBe(false)
+    expect(
+      screen.getByRole('button', { name: 'Upload and continue' }).hasAttribute('disabled'),
+    ).toBe(false)
   })
 
   it('rejects unsupported files before submission', () => {
@@ -58,6 +64,8 @@ describe('QuoteWizard', () => {
     fireEvent.change(input, { target: { files: [new File(['text'], 'notes.txt')] } })
 
     expect(screen.getByText(/Unsupported file format/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Continue to quote' }).hasAttribute('disabled')).toBe(true)
+    expect(
+      screen.getByRole('button', { name: 'Upload and continue' }).hasAttribute('disabled'),
+    ).toBe(true)
   })
 })

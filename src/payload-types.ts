@@ -1096,7 +1096,7 @@ export interface Quote {
    */
   notes?: string | null;
   /**
-   * Optional customer-facing notes shown on approved quotes, such as pricing changes or printability context.
+   * Optional customer-facing notes shown on approved or rejected quotes, such as pricing changes, printability context, or why a request could not be quoted.
    */
   adminNotes?: string | null;
   updatedAt: string;

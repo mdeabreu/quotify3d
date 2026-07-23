@@ -65,7 +65,7 @@ export const sendQuoteCreatedEmail: CollectionAfterChangeHook = async ({ doc, op
 
     await req.payload.sendEmail({
       to: recipient.email,
-      subject: `Your quote #${doc.id} has been created`,
+      subject: `Your draft quote #${doc.id} is ready`,
       html: await render(QuoteCreatedEmail({ quoteID: doc.id, quoteURL })),
     })
 

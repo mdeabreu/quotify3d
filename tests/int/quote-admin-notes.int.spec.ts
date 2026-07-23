@@ -18,6 +18,15 @@ describe('quote admin notes visibility', () => {
     ).toBe('Additional supports are needed for this print.')
   })
 
+  it('shows trimmed admin notes for rejected quotes', () => {
+    expect(
+      getVisibleAdminNotes({
+        adminNotes: '  The model cannot be printed reliably.  ',
+        status: 'rejected',
+      }),
+    ).toBe('The model cannot be printed reliably.')
+  })
+
   it('hides empty admin notes for approved quotes', () => {
     expect(
       getVisibleAdminNotes({
@@ -27,7 +36,7 @@ describe('quote admin notes visibility', () => {
     ).toBeNull()
   })
 
-  it('hides admin notes for non-approved quotes', () => {
+  it('hides admin notes for statuses that are neither approved nor rejected', () => {
     expect(
       getVisibleAdminNotes({
         adminNotes: 'This should wait until approval.',
@@ -39,10 +48,12 @@ describe('quote admin notes visibility', () => {
 
 describe('quote admin notes field access', () => {
   it('uses admin-only access for creating and updating admin notes', () => {
-    expect(adminNotesField && 'access' in adminNotesField ? adminNotesField.access?.create : null)
-      .toBeTypeOf('function')
-    expect(adminNotesField && 'access' in adminNotesField ? adminNotesField.access?.update : null)
-      .toBeTypeOf('function')
+    expect(
+      adminNotesField && 'access' in adminNotesField ? adminNotesField.access?.create : null,
+    ).toBeTypeOf('function')
+    expect(
+      adminNotesField && 'access' in adminNotesField ? adminNotesField.access?.update : null,
+    ).toBeTypeOf('function')
 
     expect(
       adminNotesField && 'access' in adminNotesField
@@ -73,6 +84,15 @@ describe('quote admin notes field access', () => {
     expect(
       adminNotesReadAccess({
         doc: { status: 'approved' },
+        req: { user: { roles: ['customer'] } },
+      } as Parameters<typeof adminNotesReadAccess>[0]),
+    ).toBe(true)
+  })
+
+  it('allows customers to read admin notes after rejection', () => {
+    expect(
+      adminNotesReadAccess({
+        doc: { status: 'rejected' },
         req: { user: { roles: ['customer'] } },
       } as Parameters<typeof adminNotesReadAccess>[0]),
     ).toBe(true)
