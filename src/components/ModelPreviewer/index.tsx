@@ -1,10 +1,9 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { RotateCcwIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Group, PerspectiveCamera, Scene } from 'three'
 import { readThreeMfProject, type ThreeMfProject } from './archive'
+import { PlateNavigator } from './PlateNavigator'
 import {
   applyFaceColours,
   centerModelOnPlate,
@@ -276,42 +275,30 @@ export const ModelPreviewer = ({
   )
 
   return (
-    <div className="relative size-full min-h-72 overflow-hidden bg-[#eef2f3]">
-      <div className="absolute top-3 right-3 z-10 flex gap-2">
-        {project && project.plates.length > 1
-          ? project.plates.map((plate, index) => (
-              <Button
-                aria-pressed={activePlate === index}
-                key={plate.id}
-                onClick={() => void selectPlate(index)}
-                size="sm"
-                type="button"
-                variant={activePlate === index ? 'default' : 'outline'}
-              >
-                {plate.name}
-              </Button>
-            ))
-          : null}
-        <Button onClick={resetView} size="icon" title="Reset view" type="button" variant="outline">
-          <RotateCcwIcon className="size-4" />
-          <span className="sr-only">Reset view</span>
-        </Button>
+    <div className="overflow-hidden bg-[#eef2f3]">
+      <PlateNavigator
+        activeIndex={activePlate}
+        onReset={resetView}
+        onSelect={(index) => void selectPlate(index)}
+        plates={project?.plates ?? []}
+      />
+      <div className="relative h-72 overflow-hidden bg-[#eef2f3] md:h-80 xl:h-96">
+        <div className="absolute inset-0" ref={hostRef} />
+        {error ? (
+          // The fallback URL is admin-configurable and may not use a Next.js image host.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt="Model preview unavailable"
+            className="absolute inset-0 size-full object-cover"
+            src={fallbackSrc}
+          />
+        ) : null}
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm">
+            Preparing preview...
+          </div>
+        ) : null}
       </div>
-      <div className="absolute inset-0" ref={hostRef} />
-      {error ? (
-        // The fallback URL is admin-configurable and may not use a Next.js image host.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt="Model preview unavailable"
-          className="absolute inset-0 size-full object-cover"
-          src={fallbackSrc}
-        />
-      ) : null}
-      {loading ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm">
-          Preparing preview...
-        </div>
-      ) : null}
     </div>
   )
 }

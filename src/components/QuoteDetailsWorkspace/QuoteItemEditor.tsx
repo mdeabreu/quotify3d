@@ -79,7 +79,7 @@ export const QuoteItemEditor = ({
         </div>
       </div>
 
-      <div className="h-72 overflow-hidden border-b md:h-80 xl:h-96">
+      <div className="overflow-hidden border-b">
         <ModelPreviewer
           colors={colors}
           fallbackSrc={fallbackSrc}
