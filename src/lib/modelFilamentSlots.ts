@@ -6,6 +6,7 @@ import { Unzip, UnzipInflate } from 'fflate'
 export {
   analyze3MFFilamentSlotCount,
   decodePaintStates,
+  extractExtruderSlotAssignments,
   extractExtruderSlots,
   extractPaintFaceSlots,
   get3MFFilamentSlotCount,

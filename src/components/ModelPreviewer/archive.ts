@@ -9,6 +9,11 @@ export type ThreeMfProject = {
   plates: PreviewPlate[]
 }
 
+export const resolveBuildExtruderSlots = (
+  buildObjectIds: string[],
+  assignments: Map<string, number[]>,
+) => buildObjectIds.flatMap((objectId) => assignments.get(objectId) ?? [1])
+
 export const expandSingleComponentProjects = (modelXml: Document, settingsXml: Document | null) => {
   let expanded = false
   Array.from(settingsXml?.querySelectorAll('config > object') ?? []).forEach((settingsObject) => {
@@ -82,7 +87,7 @@ export const readThreeMfProject = async (buffer: ArrayBuffer): Promise<ThreeMfPr
   return {
     buffer: output as ArrayBuffer,
     buildObjectIds,
-    meshSlots: analysis.meshSlots,
+    meshSlots: resolveBuildExtruderSlots(buildObjectIds, analysis.extruderSlotAssignments),
     paintFaceSlots: analysis.paintFaceSlots,
     plates,
   }
