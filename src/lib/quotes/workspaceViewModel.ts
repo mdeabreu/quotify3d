@@ -1,10 +1,7 @@
 import type { Payload } from 'payload'
 
 import type { QuoteWorkspaceItem } from '@/components/QuoteDetailsWorkspace/types'
-import {
-  analyzeQuoteItemConfiguration,
-  gcodeMatchesConfiguration,
-} from '@/lib/quotes/quoteItemConfiguration'
+import { analyzeQuoteItemConfiguration } from '@/lib/quotes/quoteItemConfiguration'
 import {
   buildAvailableSpoolOptions,
   getCatalogImageRendition,
@@ -100,8 +97,7 @@ export const buildQuoteWorkspaceViewModel = async ({
   const items: QuoteWorkspaceItem[] = await Promise.all(
     quote.items.map(async (item, index) => {
       const analysis = await analyzeQuoteItemConfiguration({ item, payload })
-      const gcode = typeof item.gcode === 'object' ? item.gcode : null
-      const hasCurrentEstimate = Boolean(gcode && gcodeMatchesConfiguration(gcode, analysis))
+      const hasLinkedEstimate = analysis.complete && numericRelationID(item.gcode) !== null
       const itemID = item.id ?? `${quote.id}-${index}`
       const model = typeof item.model === 'object' ? item.model : null
       const modelQuery = new URLSearchParams()
@@ -132,13 +128,13 @@ export const buildQuoteWorkspaceViewModel = async ({
           typeof item.filament === 'object' && item.filament?.name ? item.filament.name : '',
         filamentSlots,
         gcodeDuration:
-          hasCurrentEstimate && typeof item.gcodeDuration === 'number' ? item.gcodeDuration : null,
+          hasLinkedEstimate && typeof item.gcodeDuration === 'number' ? item.gcodeDuration : null,
         gcodePrice:
-          hasCurrentEstimate && typeof item.gcodePrice === 'number' ? item.gcodePrice : null,
+          hasLinkedEstimate && typeof item.gcodePrice === 'number' ? item.gcodePrice : null,
         gcodeStatus:
-          hasCurrentEstimate && typeof item.gcodeStatus === 'string' ? item.gcodeStatus : null,
+          hasLinkedEstimate && typeof item.gcodeStatus === 'string' ? item.gcodeStatus : null,
         gcodeWeight:
-          hasCurrentEstimate && typeof item.gcodeWeight === 'number' ? item.gcodeWeight : null,
+          hasLinkedEstimate && typeof item.gcodeWeight === 'number' ? item.gcodeWeight : null,
         id: itemID,
         modelLabel: model?.originalFilename || `Model ${index + 1}`,
         modelNote: typeof item.notes === 'string' ? item.notes : '',
