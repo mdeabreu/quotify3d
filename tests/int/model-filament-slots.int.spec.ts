@@ -10,6 +10,7 @@ import {
   analyze3MFFilamentSlotCount,
   decodePaintStates,
   detectModelFilamentSlotCount,
+  extractExtruderSlotAssignments,
   ModelArchiveLimitError,
   unzipModelArchive,
 } from '@/lib/modelFilamentSlots'
@@ -59,13 +60,16 @@ describe('detectModelFilamentSlotCount', () => {
     await expect(detectModelFilamentSlotCount(modelPath)).resolves.toBe(3)
   })
 
-  it('detects Bambu/Orca part extruders in model settings', async () => {
+  it('detects Bambu/Orca object defaults and part extruder overrides', async () => {
     const modelPath = await createThreeMf({
       '3D/3dmodel.model': '<model><resources /></model>',
       'Metadata/model_settings.config': `
         <config>
-          <part><metadata key="extruder" value="1" /></part>
-          <part><metadata key="extruder" value="4" /></part>
+          <object id="10">
+            <metadata key="extruder" value="2" />
+            <part id="11" />
+            <part id="12"><metadata key="extruder" value="4" /></part>
+          </object>
         </config>
       `,
     })
@@ -129,7 +133,7 @@ describe('detectModelFilamentSlotCount', () => {
           JSON.stringify({ filament_colour: ['#ff0000', '#000000'] }),
         ),
         'Metadata/model_settings.config': asBytes(
-          '<config><part><metadata key="extruder" value="3" /></part></config>',
+          '<config><object id="1"><metadata key="extruder" value="3" /></object></config>',
         ),
         '3D/Objects/object_1.model': asBytes(
           '<model><triangle v1="0" v2="1" v3="2" paint_color="1c" /></model>',
@@ -146,6 +150,42 @@ describe('detectModelFilamentSlotCount', () => {
     await fs.writeFile(modelPath, 'not a zip archive')
 
     await expect(detectModelFilamentSlotCount(modelPath)).resolves.toBe(1)
+  })
+})
+
+describe('extractExtruderSlotAssignments', () => {
+  it('inherits object slots, preserves part overrides, and rejects invalid slots', () => {
+    const assignments = extractExtruderSlotAssignments(`
+      <config>
+        <object id="10">
+          <metadata key="extruder" value="2" />
+          <part id="11" />
+          <part id="12"><metadata key="extruder" value="4" /></part>
+          <part id="13"><metadata key="extruder" value="invalid" /></part>
+        </object>
+        <object id="20">
+          <metadata key="extruder" value="0" />
+          <part id="21"><metadata key="extruder" value="-3" /></part>
+        </object>
+      </config>
+    `)
+
+    expect(Array.from(assignments.entries())).toEqual([
+      ['10', [2, 4, 2]],
+      ['20', [1]],
+    ])
+  })
+
+  it('assigns an object without parts its object slot', () => {
+    expect(
+      Array.from(
+        extractExtruderSlotAssignments(`
+          <config>
+            <object id="10"><metadata key="extruder" value="3" /></object>
+          </config>
+        `).entries(),
+      ),
+    ).toEqual([['10', [3]]])
   })
 })
 

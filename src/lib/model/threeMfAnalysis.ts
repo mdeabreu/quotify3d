@@ -29,6 +29,18 @@ const readAttributes = (source: string) => {
   return attributes
 }
 
+const parseExtruderSlot = (source: string): number | undefined => {
+  for (const metadata of source.matchAll(/<metadata\b([^>]*)\/?\s*>/g)) {
+    const attributes = readAttributes(metadata[1])
+    if (attributes.get('key') !== 'extruder') continue
+
+    const slot = Number(attributes.get('value'))
+    return Number.isInteger(slot) && slot > 0 ? slot : undefined
+  }
+
+  return undefined
+}
+
 export const get3MFFilamentSlotCount = (settings: JSONObject | undefined): number => {
   if (!settings) return 1
   return Math.max(
@@ -44,20 +56,28 @@ export const read3MFProjectSettings = (files: ThreeMfFiles): JSONObject | undefi
   return isObject(parsed) ? parsed : undefined
 }
 
-export const extractExtruderSlots = (settingsXml: string): number[] => {
-  const slots: number[] = []
-  for (const part of settingsXml.matchAll(/<part\b[^>]*>([\s\S]*?)<\/part>/g)) {
-    let slot = 1
-    for (const metadata of part[1].matchAll(/<metadata\b([^>]*)\/?\s*>/g)) {
-      const attributes = readAttributes(metadata[1])
-      if (attributes.get('key') !== 'extruder') continue
-      slot = Number.parseInt(attributes.get('value') ?? '1', 10) || 1
-      break
-    }
-    slots.push(slot)
+export const extractExtruderSlotAssignments = (settingsXml: string): Map<string, number[]> => {
+  const assignments = new Map<string, number[]>()
+  const partPattern = /<part\b([^>]*?)\/\s*>|<part\b([^>]*)>([\s\S]*?)<\/part\s*>/g
+
+  for (const object of settingsXml.matchAll(/<object\b([^>]*)>([\s\S]*?)<\/object\s*>/g)) {
+    const objectId = readAttributes(object[1]).get('id')
+    if (!objectId) continue
+
+    const objectContents = object[2]
+    const objectSlot = parseExtruderSlot(objectContents.replace(partPattern, ''))
+    const partSlots = Array.from(objectContents.matchAll(partPattern), (part) => {
+      return parseExtruderSlot(part[3] ?? '') ?? objectSlot ?? 1
+    })
+
+    assignments.set(objectId, partSlots.length > 0 ? partSlots : [objectSlot ?? 1])
   }
-  return slots
+
+  return assignments
 }
+
+export const extractExtruderSlots = (settingsXml: string): number[] =>
+  Array.from(extractExtruderSlotAssignments(settingsXml).values()).flat()
 
 export const decodePaintStates = (value: string): number[] => {
   const bits: number[] = []
@@ -125,7 +145,10 @@ export const analyzeThreeMfFiles = (files: ThreeMfFiles) => {
 
   const projectSlotCount = get3MFFilamentSlotCount(read3MFProjectSettings(files))
   const settings = files[MODEL_SETTINGS]
-  const meshSlots = settings ? extractExtruderSlots(decoder.decode(settings)) : []
+  const extruderSlotAssignments = settings
+    ? extractExtruderSlotAssignments(decoder.decode(settings))
+    : new Map<string, number[]>()
+  const meshSlots = Array.from(extruderSlotAssignments.values()).flat()
   const paintFaceSlots = Object.entries(files)
     .filter(
       ([filePath]) =>
@@ -141,7 +164,7 @@ export const analyzeThreeMfFiles = (files: ThreeMfFiles) => {
     (maximum, slot) => Math.max(maximum, slot),
     projectSlotCount,
   )
-  return { meshSlots, paintFaceSlots, slotCount }
+  return { extruderSlotAssignments, meshSlots, paintFaceSlots, slotCount }
 }
 
 export const analyze3MFFilamentSlotCount = (files: ThreeMfFiles): number =>

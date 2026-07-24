@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as THREE from 'three'
 
 import { expandSingleComponentProjects, resolvePreviewSlot } from '@/components/ModelPreviewer'
+import { resolveBuildExtruderSlots } from '@/components/ModelPreviewer/archive'
 import { centerModelOnPlate, visibleBounds } from '@/components/ModelPreviewer/scene'
 
 const parseXml = (contents: string) => new DOMParser().parseFromString(contents, 'application/xml')
@@ -79,6 +80,21 @@ describe('resolvePreviewSlot', () => {
 
   it('falls back to the containing mesh slot for unpainted faces', () => {
     expect(resolvePreviewSlot(0, 2)).toBe(2)
+  })
+})
+
+describe('resolveBuildExtruderSlots', () => {
+  it('aligns settings to build order and repeats referenced objects', () => {
+    const assignments = new Map([
+      ['10', [2, 4]],
+      ['20', [3]],
+    ])
+
+    expect(resolveBuildExtruderSlots(['20', '10', '20'], assignments)).toEqual([3, 2, 4, 3])
+  })
+
+  it('falls back to slot one for build objects missing from settings', () => {
+    expect(resolveBuildExtruderSlots(['10', 'missing'], new Map([['10', [2]]]))).toEqual([2, 1])
   })
 })
 
