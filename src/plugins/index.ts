@@ -10,6 +10,7 @@ import { adminOrPublishedStatus } from '@/access/adminOrPublishedStatus'
 import { customerOnlyFieldAccess } from '@/access/customerOnlyFieldAccess'
 import { isAdmin } from '@/access/isAdmin'
 import { isDocumentOwner } from '@/access/isDocumentOwner'
+import { publicAccess } from '@/access/publicAccess'
 import { sendOrderCreatedAdminEmail } from '@/collections/Orders/hooks/sendOrderCreatedAdminEmail'
 import { sendOrderCreatedEmail } from '@/collections/Orders/hooks/sendOrderCreatedEmail'
 import { ProductsCollection } from '@/collections/Products'
@@ -80,7 +81,7 @@ export const plugins: Plugin[] = [
     formOverrides: {
       access: {
         delete: isAdmin,
-        read: isAdmin,
+        read: publicAccess,
         update: isAdmin,
         create: isAdmin,
       },
