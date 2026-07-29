@@ -279,16 +279,17 @@ const QuoteDetailsWorkspaceState = ({
             {editable ? (
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button size="icon" title="Add model" variant="outline">
+                  <Button title="Add files" variant="outline">
                     <FilePlus2Icon className="size-4" />
-                    <span className="sr-only">Add model</span>
+                    Add files
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add another model</DialogTitle>
+                    <DialogTitle>Add files</DialogTitle>
                     <DialogDescription>
-                      After uploading, you&apos;ll choose its material, colours, and print profile.
+                      Add one or more models. After uploading, you&apos;ll choose the material,
+                      colours, and print profile for each one.
                     </DialogDescription>
                   </DialogHeader>
                   <form action={addModelsAction} onSubmit={validateUpload}>
@@ -305,7 +306,7 @@ const QuoteDetailsWorkspaceState = ({
                       <p className="mt-2 text-sm text-red-500">{uploadError}</p>
                     ) : null}
                     <DialogFooter className="mt-5">
-                      <Button type="submit">Upload</Button>
+                      <Button type="submit">Upload files</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>

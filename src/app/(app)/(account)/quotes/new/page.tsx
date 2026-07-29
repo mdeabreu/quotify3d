@@ -17,10 +17,14 @@ const startQuoteAction = async (
 ): Promise<StartQuoteState> => {
   'use server'
 
-  const file = formData.get('file')
-  if (!(file instanceof File) || file.size === 0) return { error: 'Choose a model file.' }
-  if (!isSupportedModelFilename(file.name)) {
-    return { error: `Unsupported file format. Accepted formats: ${MODEL_UPLOAD_FORMAT_LABEL}.` }
+  const files = formData
+    .getAll('files')
+    .filter((value): value is File => value instanceof File && value.size > 0)
+  if (!files.length) return { error: 'Choose at least one model file.' }
+  if (files.some((file) => !isSupportedModelFilename(file.name))) {
+    return {
+      error: `One or more files use an unsupported format. Accepted formats: ${MODEL_UPLOAD_FORMAT_LABEL}.`,
+    }
   }
 
   const payload = await getPayload({ config: configPromise })
@@ -40,12 +44,12 @@ const startQuoteAction = async (
   try {
     models = await uploadQuoteModels({
       customerEmail,
-      files: [file],
+      files,
       payload,
       user,
     })
-    const model = models[0]
-    if (!model) throw new Error('Model upload did not return a document')
+    if (models.length !== files.length)
+      throw new Error('Model uploads did not return all documents')
 
     const quote = await payload.create({
       collection: 'quotes',
@@ -54,7 +58,7 @@ const startQuoteAction = async (
       data: {
         ...(user ? { customer: user.id } : { customerEmail }),
         status: 'new',
-        items: [{ model: model.id, quantity: 1 }],
+        items: models.map((model) => ({ model: model.id, quantity: 1 })),
       },
     })
     quoteID = quote.id

@@ -127,6 +127,14 @@ afterEach(() => {
 })
 
 describe('QuoteDetailsWorkspace', () => {
+  it('shows a clearly labelled control for adding files', () => {
+    render(<QuoteDetailsWorkspace {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add files' }))
+    expect(screen.getByRole('heading', { name: 'Add files' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Upload files' })).toBeTruthy()
+  })
+
   it('shows incomplete items and keeps submission disabled', () => {
     render(<QuoteDetailsWorkspace {...props} />)
 

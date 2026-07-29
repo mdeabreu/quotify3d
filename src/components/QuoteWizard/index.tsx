@@ -23,7 +23,7 @@ type Props = {
 export const QuoteWizard = ({ startQuoteAction }: Props) => {
   const { user } = useAuth()
   const [state, action, pending] = useActionState(startQuoteAction, {})
-  const [filename, setFilename] = useState('')
+  const [filenames, setFilenames] = useState<string[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
 
   return (
@@ -31,8 +31,8 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
       <div className="border-b px-6 py-8 text-center md:px-10">
         <h1 className="text-3xl font-medium">Start your quote</h1>
         <p className="mt-2 text-primary/65">
-          Upload a 3D model and add your email. Next, choose your material, colours, and print
-          profile.
+          Upload one or more 3D models and add your email. Next, choose your material, colours, and
+          print profile.
         </p>
       </div>
 
@@ -43,7 +43,7 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
               1
             </span>
             <div>
-              <h2 className="font-medium">Add your first model</h2>
+              <h2 className="font-medium">Add your models</h2>
               <p className="mt-1 text-sm text-primary/60">
                 Accepted formats: {MODEL_UPLOAD_FORMAT_LABEL}
               </p>
@@ -55,28 +55,38 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
             htmlFor="quote-model"
           >
             <FileUpIcon className="size-9 text-primary/50" />
-            <span className="mt-4 font-medium">Choose a 3D model</span>
+            <span className="mt-4 font-medium">Choose 3D model files</span>
             <span className="mt-1 max-w-full break-all text-sm text-primary/60">
-              {filename || 'Select one file to begin'}
+              {filenames.length === 0
+                ? 'Select one or more files to begin'
+                : filenames.length === 1
+                  ? filenames[0]
+                  : `${filenames.length} files selected`}
             </span>
+            {filenames.length > 1 ? (
+              <span className="mt-1 max-w-full text-xs text-primary/50">
+                {filenames.join(', ')}
+              </span>
+            ) : null}
           </Label>
           <Input
             accept={MODEL_UPLOAD_ACCEPT}
             className="sr-only"
             id="quote-model"
-            name="file"
+            multiple
+            name="files"
             onChange={(event) => {
               const files = event.target.files ?? []
               const unsupported = getUnsupportedModelFilenames(files)
               if (unsupported.length > 0) {
                 setFileError(getUnsupportedModelFilesMessage(unsupported))
-                setFilename('')
+                setFilenames([])
                 event.target.value = ''
                 return
               }
 
               setFileError(null)
-              setFilename(files[0]?.name ?? '')
+              setFilenames(Array.from(files, (file) => file.name))
             }}
             required
             type="file"
@@ -136,11 +146,13 @@ export const QuoteWizard = ({ startQuoteAction }: Props) => {
 
           <Button
             className="mt-8 w-full"
-            disabled={pending || typeof user === 'undefined' || !filename || Boolean(fileError)}
+            disabled={
+              pending || typeof user === 'undefined' || !filenames.length || Boolean(fileError)
+            }
             size="lg"
             type="submit"
           >
-            {pending ? 'Creating your draft...' : 'Upload and continue'}
+            {pending ? 'Creating your draft...' : 'Upload files and continue'}
           </Button>
           <p className="mt-3 text-center text-xs text-primary/50">
             We&apos;ll create a draft and email you a link so you can return anytime.
