@@ -45,15 +45,21 @@ describe('QuoteWizard', () => {
     )
   })
 
-  it('shows the selected model and enables continue', () => {
+  it('shows selected models and enables continue', () => {
     const { container } = render(<QuoteWizard startQuoteAction={startQuoteAction} />)
     const input = container.querySelector('input[type="file"]') as HTMLInputElement
 
-    fireEvent.change(input, { target: { files: [new File(['solid'], 'model.3mf')] } })
+    fireEvent.change(input, {
+      target: {
+        files: [new File(['solid'], 'model.3mf'), new File(['mesh'], 'second.stl')],
+      },
+    })
 
-    expect(screen.getByText('model.3mf')).toBeTruthy()
+    expect(input.hasAttribute('multiple')).toBe(true)
+    expect(screen.getByText('2 files selected')).toBeTruthy()
+    expect(screen.getByText('model.3mf, second.stl')).toBeTruthy()
     expect(
-      screen.getByRole('button', { name: 'Upload and continue' }).hasAttribute('disabled'),
+      screen.getByRole('button', { name: 'Upload files and continue' }).hasAttribute('disabled'),
     ).toBe(false)
   })
 
@@ -65,7 +71,7 @@ describe('QuoteWizard', () => {
 
     expect(screen.getByText(/Unsupported file format/i)).toBeTruthy()
     expect(
-      screen.getByRole('button', { name: 'Upload and continue' }).hasAttribute('disabled'),
+      screen.getByRole('button', { name: 'Upload files and continue' }).hasAttribute('disabled'),
     ).toBe(true)
   })
 })
