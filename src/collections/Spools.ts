@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { adminOnly } from '@/access/adminOnly'
+import { generateSpoolName } from '@/collections/Spools/hooks/generateSpoolName'
 import { revalidateLibraryDelete, revalidateLibraryPage } from '@/hooks/revalidateLibrary'
 
 const libraryPaths = ['/materials', '/colours']
@@ -34,7 +35,9 @@ export const Spools: CollectionConfig = {
         {
           name: 'name',
           type: 'text',
-          required: true,
+          admin: {
+            description: 'Leave blank to generate a name from the vendor, colour, and material.',
+          },
         },
         {
           name: 'vendor',
@@ -118,6 +121,7 @@ export const Spools: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeValidate: [generateSpoolName],
     afterChange: [revalidateLibraryPage(libraryPaths)],
     afterDelete: [revalidateLibraryDelete(libraryPaths)],
   },
