@@ -15,14 +15,32 @@ export const Footer: GlobalConfig = {
   },
   fields: [
     {
-      name: 'navItems',
+      name: 'navGroups',
       type: 'array',
+      admin: {
+        initCollapsed: true,
+      },
       fields: [
-        link({
-          appearances: false,
-        }),
+        {
+          name: 'label',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'links',
+          type: 'array',
+          admin: {
+            initCollapsed: true,
+          },
+          fields: [
+            link({
+              appearances: false,
+            }),
+          ],
+          maxRows: 8,
+        },
       ],
-      maxRows: 6,
+      maxRows: 4,
     },
   ],
 }

@@ -26,17 +26,17 @@ export function HeaderClient({ branding, header }: Props) {
 
   return (
     <div className="relative z-20 border-b">
-      <nav className="flex items-center md:items-end justify-between container pt-2">
-        <div className="block flex-none md:hidden">
+      <nav className="container flex items-center justify-between pt-2 lg:items-end">
+        <div className="block flex-none lg:hidden">
           <Suspense fallback={null}>
             <MobileMenu menu={menu} />
           </Suspense>
         </div>
-        <div className="flex w-full items-end justify-between">
-          <div className="flex w-full items-end gap-6 md:w-1/3">
+        <div className="flex w-full items-end gap-6">
+          <div className="flex min-w-0 flex-1 items-end gap-6">
             <Link
               aria-label={branding.siteName}
-              className="flex w-full items-center justify-center pt-4 pb-4 md:w-auto"
+              className="flex w-full items-center justify-center pt-4 pb-4 lg:w-auto lg:shrink-0"
               href="/"
             >
               {branding.logo ? (
@@ -56,7 +56,7 @@ export function HeaderClient({ branding, header }: Props) {
               )}
             </Link>
             {menu.length ? (
-              <ul className="hidden gap-4 text-sm md:flex md:items-center">
+              <ul className="hidden items-center gap-4 whitespace-nowrap text-sm lg:flex">
                 {menu.map((item) => (
                   <li key={item.id}>
                     <CMSLink
@@ -76,7 +76,7 @@ export function HeaderClient({ branding, header }: Props) {
             ) : null}
           </div>
 
-          <div className="flex justify-end md:w-1/3 gap-4">
+          <div className="ml-auto flex shrink-0 justify-end gap-4">
             <Suspense fallback={<OpenCartButton />}>
               <Cart />
             </Suspense>

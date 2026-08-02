@@ -12,7 +12,7 @@ export async function Footer() {
   const footer: Footer = await getCachedGlobal('footer', 1)()
   const siteSettings = await getCachedGlobal('siteSettings', 1)()
   const branding = resolveBranding(siteSettings)
-  const menu = footer.navItems || []
+  const groups = footer.navGroups || []
   const currentYear = new Date().getFullYear()
   const copyrightDate = 2026 + (currentYear > 2026 ? `-${currentYear}` : '')
   const skeleton = 'w-full h-6 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700'
@@ -45,19 +45,8 @@ export async function Footer() {
               <span className="sr-only">{branding.siteName}</span>
             </Link>
           </div>
-          <Suspense
-            fallback={
-              <div className="flex h-[188px] w-[200px] flex-col gap-2">
-                <div className={skeleton} />
-                <div className={skeleton} />
-                <div className={skeleton} />
-                <div className={skeleton} />
-                <div className={skeleton} />
-                <div className={skeleton} />
-              </div>
-            }
-          >
-            <FooterMenu menu={menu} />
+          <Suspense fallback={<div className={`${skeleton} max-w-3xl flex-1`} />}>
+            <FooterMenu groups={groups} />
           </Suspense>
           <div className="md:ml-auto flex flex-col gap-4 items-end">
             <ThemeSelector />
