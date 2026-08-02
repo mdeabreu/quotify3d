@@ -1137,10 +1137,13 @@ export interface Model {
 export interface Spool {
   id: number;
   active: boolean;
-  name: string;
+  /**
+   * Leave blank to generate a name from the vendor, colour, and material.
+   */
+  name?: string | null;
   vendor: number | Vendor;
-  material: number | Filament;
   colour: number | Colour;
+  material: number | Filament;
   purchases?:
     | {
         date: string;
@@ -1164,6 +1167,35 @@ export interface Vendor {
    * Public storefront or vendor URL
    */
   url: string;
+  spools?: {
+    docs?: (number | Spool)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "colours".
+ */
+export interface Colour {
+  id: number;
+  name: string;
+  description?: string | null;
+  image?: (number | null) | Media;
+  active: boolean;
+  finish: 'regular' | 'matte' | 'silk';
+  type: 'solid' | 'co-extrusion' | 'gradient';
+  swatches?:
+    | {
+        /**
+         * Hex value including #, e.g. #FFAA00
+         */
+        hexcode: string;
+        id?: string | null;
+      }[]
+    | null;
   spools?: {
     docs?: (number | Spool)[];
     hasNextPage?: boolean;
@@ -1209,35 +1241,6 @@ export interface FilamentConfig {
     | number
     | boolean
     | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "colours".
- */
-export interface Colour {
-  id: number;
-  name: string;
-  description?: string | null;
-  image?: (number | null) | Media;
-  active: boolean;
-  finish: 'regular' | 'matte' | 'silk';
-  type: 'solid' | 'co-extrusion' | 'gradient';
-  swatches?:
-    | {
-        /**
-         * Hex value including #, e.g. #FFAA00
-         */
-        hexcode: string;
-        id?: string | null;
-      }[]
-    | null;
-  spools?: {
-    docs?: (number | Spool)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -2390,8 +2393,8 @@ export interface SpoolsSelect<T extends boolean = true> {
   active?: T;
   name?: T;
   vendor?: T;
-  material?: T;
   colour?: T;
+  material?: T;
   purchases?:
     | T
     | {
