@@ -193,6 +193,12 @@ describe('sliceModel', () => {
     const result = await sliceModel(paths)
 
     expect(mockExecFile).toHaveBeenCalledTimes(1)
+    expect(mockExecFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Array),
+      expect.objectContaining({ cwd: paths.outputDir }),
+      expect.any(Function),
+    )
     expect(result.slicerOutput).toBe('baseline stdout\nbaseline stderr')
     expect(result.gcodePaths).toHaveLength(1)
     expect(result.commandString).toContain('--slice 0')
