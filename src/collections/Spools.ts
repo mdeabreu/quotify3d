@@ -14,7 +14,7 @@ export const Spools: CollectionConfig = {
     update: adminOnly,
   },
   admin: {
-    defaultColumns: ['name', 'active', 'material', 'colour', 'vendor'],
+    defaultColumns: ['name', 'active', 'vendor', 'colour', 'material'],
     group: 'Operations',
     useAsTitle: 'name',
   },
@@ -48,15 +48,15 @@ export const Spools: CollectionConfig = {
       type: 'row',
       fields: [
         {
-          name: 'material',
-          type: 'relationship',
-          relationTo: 'filaments',
-          required: true,
-        },
-        {
           name: 'colour',
           type: 'relationship',
           relationTo: 'colours',
+          required: true,
+        },
+        {
+          name: 'material',
+          type: 'relationship',
+          relationTo: 'filaments',
           required: true,
         },
       ],
