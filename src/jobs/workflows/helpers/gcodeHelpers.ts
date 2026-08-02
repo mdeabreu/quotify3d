@@ -504,6 +504,7 @@ export const sliceModel = async ({
     let slicerOutput = ''
     try {
       const { stdout, stderr } = await execFileAsync(getOrcaBinary(), args, {
+        cwd: outputDir,
         maxBuffer: 10 * 1024 * 1024,
       })
       slicerOutput = getSlicerOutput(stdout, stderr)
