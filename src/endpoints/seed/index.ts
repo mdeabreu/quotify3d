@@ -100,7 +100,7 @@ export const seed = async ({
     payload.updateGlobal({
       slug: 'footer',
       data: {
-        navItems: [],
+        navGroups: [],
       },
       depth: 0,
       context: {
@@ -553,35 +553,40 @@ export const seed = async ({
     payload.updateGlobal({
       slug: 'footer',
       data: {
-        navItems: [
+        navGroups: [
           {
-            link: {
-              type: 'custom',
-              label: 'Admin',
-              url: '/admin',
-            },
-          },
-          {
-            link: {
-              type: 'custom',
-              label: 'Find my order',
-              url: '/find-order',
-            },
-          },
-          {
-            link: {
-              type: 'custom',
-              label: 'Find my quote',
-              url: '/find-quote',
-            },
-          },
-          {
-            link: {
-              type: 'custom',
-              label: 'Source Code',
-              newTab: true,
-              url: 'https://github.com/mdeabreu/quotify3d',
-            },
+            label: 'Links',
+            links: [
+              {
+                link: {
+                  type: 'custom',
+                  label: 'Admin',
+                  url: '/admin',
+                },
+              },
+              {
+                link: {
+                  type: 'custom',
+                  label: 'Find my order',
+                  url: '/find-order',
+                },
+              },
+              {
+                link: {
+                  type: 'custom',
+                  label: 'Find my quote',
+                  url: '/find-quote',
+                },
+              },
+              {
+                link: {
+                  type: 'custom',
+                  label: 'Source Code',
+                  newTab: true,
+                  url: 'https://github.com/mdeabreu/quotify3d',
+                },
+              },
+            ],
           },
         ],
       },
