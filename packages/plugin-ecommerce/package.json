@@ -97,6 +97,8 @@
     "copyfiles": "^2.4.1",
     "payload": "3.88.0",
     "rimraf": "^6.0.1",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "stripe": "18.5.0",
     "typescript": "5.7.2"
   },
