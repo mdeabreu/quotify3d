@@ -33,11 +33,18 @@ export const sendOrderCreatedAdminEmail: CollectionAfterChangeHook = async ({
 
     const adminURL = `${getServerSideURL()}/admin/collections/orders/${doc.id}`
     const customerEmail = toOptionalString(doc.customerEmail)
+    const pickupContact = doc.pickupContact
+    const pickupContactName = [pickupContact?.firstName, pickupContact?.lastName]
+      .map(toOptionalString)
+      .filter(Boolean)
+      .join(' ')
     const html = await render(
       AdminOrderCreatedEmail({
         adminURL,
         customerEmail,
         orderID: doc.id,
+        pickupContactName: pickupContactName || undefined,
+        pickupContactPhone: toOptionalString(pickupContact?.phone),
       }),
     )
 

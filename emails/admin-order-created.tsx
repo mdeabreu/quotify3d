@@ -4,12 +4,16 @@ type AdminOrderCreatedEmailProps = {
   adminURL: string
   customerEmail?: string | null
   orderID: number
+  pickupContactName?: string
+  pickupContactPhone?: string
 }
 
 export default function AdminOrderCreatedEmail({
   adminURL,
   customerEmail,
   orderID,
+  pickupContactName,
+  pickupContactPhone,
 }: AdminOrderCreatedEmailProps) {
   return (
     <ActionEmail
@@ -18,6 +22,9 @@ export default function AdminOrderCreatedEmail({
         customerEmail
           ? `Customer contact: ${customerEmail}.`
           : 'No customer email is attached to this order.',
+        pickupContactName
+          ? `Pickup contact: ${pickupContactName}${pickupContactPhone ? `, ${pickupContactPhone}` : ''}.`
+          : 'No pickup contact is attached to this order.',
       ]}
       cta={{
         label: `Review order #${orderID}`,
@@ -35,4 +42,6 @@ AdminOrderCreatedEmail.PreviewProps = {
   adminURL: 'http://localhost:3000/admin/collections/orders/456',
   customerEmail: 'customer@example.com',
   orderID: 456,
+  pickupContactName: 'Alex Customer',
+  pickupContactPhone: '604-555-0100',
 }

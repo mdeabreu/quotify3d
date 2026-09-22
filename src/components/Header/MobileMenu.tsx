@@ -86,7 +86,7 @@ export function MobileMenu({ menu }: Props) {
                 <Link href="/quotes">Quotes</Link>
               </li>
               <li>
-                <Link href="/account/addresses">Addresses</Link>
+                <Link href="/account/addresses">Billing addresses</Link>
               </li>
               <li>
                 <Link href="/account">Manage account</Link>

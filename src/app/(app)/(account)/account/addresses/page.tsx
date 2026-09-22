@@ -47,7 +47,7 @@ export default async function AddressesPage() {
   return (
     <>
       <div className="border p-8 rounded-lg bg-primary-foreground">
-        <h1 className="text-3xl font-medium mb-8">Addresses</h1>
+        <h1 className="text-3xl font-medium mb-8">Billing addresses</h1>
 
         <div className="mb-8">
           <AddressListing />
@@ -60,10 +60,10 @@ export default async function AddressesPage() {
 }
 
 export const metadata: Metadata = {
-  description: 'Manage your addresses.',
+  description: 'Manage your billing addresses.',
   openGraph: mergeOpenGraph({
-    title: 'Addresses',
+    title: 'Billing addresses',
     url: '/account/addresses',
   }),
-  title: 'Addresses',
+  title: 'Billing addresses',
 }

@@ -4,9 +4,10 @@ import { cn } from '@/utilities/cn'
 type Props = {
   status: StatusOptions
   className?: string
+  label?: string
 }
 
-export const OrderStatus: React.FC<Props> = ({ status, className }) => {
+export const OrderStatus: React.FC<Props> = ({ status, className, label }) => {
   return (
     <div
       className={cn(
@@ -18,7 +19,7 @@ export const OrderStatus: React.FC<Props> = ({ status, className }) => {
         },
       )}
     >
-      {status}
+      {label ?? status}
     </div>
   )
 }
