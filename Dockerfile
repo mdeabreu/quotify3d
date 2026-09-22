@@ -1,7 +1,7 @@
 # To use this Dockerfile, you have to set `output: 'standalone'` in your next.config.js file.
 # From https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile
 
-FROM --platform=$TARGETPLATFORM node:22.18.0-trixie-slim AS base
+FROM --platform=$TARGETPLATFORM node:24.21.0-trixie-slim AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -139,7 +139,6 @@ ENV COREPACK_HOME=/app/.cache/node/corepack
 
 RUN mkdir -p "${COREPACK_HOME}" && \
   corepack enable pnpm && \
-  corepack prepare pnpm@11.7.0 --activate && \
   chown nextjs:nodejs /app && \
   chown -R nextjs:nodejs /app/.cache && \
   test -d "${ORCASLICER_PROFILES_DIR}"
