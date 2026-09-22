@@ -57,7 +57,11 @@ export const CreateAddressModal: React.FC<Props> = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{modalTitle}</DialogTitle>
-          <DialogDescription>This address will be connected to your account.</DialogDescription>
+          <DialogDescription>
+            {skipSubmission
+              ? 'This address will be used for this checkout only.'
+              : 'This address will be connected to your account.'}
+          </DialogDescription>
         </DialogHeader>
 
         <AddressForm

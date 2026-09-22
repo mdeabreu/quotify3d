@@ -12,7 +12,7 @@ import { loadStripe } from '@stripe/stripe-js'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as qs from 'qs-esm'
-import React, { Suspense, useEffect, useState } from 'react'
+import React, { Suspense, useState } from 'react'
 
 import { cssVariables } from '@/cssVariables'
 import { CheckoutForm } from '@/components/forms/CheckoutForm'
@@ -25,17 +25,22 @@ import {
 import { CheckoutAddresses } from '@/components/checkout/CheckoutAddresses'
 import { CreateAddressModal } from '@/components/addresses/CreateAddressModal'
 import { Address, Cart, Product, Variant } from '@/payload-types'
-import { Checkbox } from '@/components/ui/checkbox'
 import { getProductFallbackImage } from '@/utilities/products'
 import { useBranding } from '@/providers/Branding'
 import { AddressItem } from '@/components/addresses/AddressItem'
 import { FormItem } from '@/components/forms/FormItem'
 import { toast } from 'sonner'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  isCompletePickupContact,
+  type PickupContact,
+  type PublicPickupSettings,
+} from '@/utilities/fulfillment'
 
 const apiKey = `${process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}`
 const stripe = loadStripe(apiKey)
 const normalizeCouponCode = (code: string): string => code.trim().toUpperCase()
+const isValidEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 
 const getAPIErrorMessage = (data: unknown, fallbackError: string): string => {
   if (!data || typeof data !== 'object') return fallbackError
@@ -64,7 +69,11 @@ type PaymentSummary = {
   total: number
 }
 
-export const CheckoutPage: React.FC = () => {
+type Props = {
+  pickupSettings: PublicPickupSettings
+}
+
+export const CheckoutPage: React.FC<Props> = ({ pickupSettings }) => {
   const { quoteProductPlaceholder } = useBranding()
   const { user } = useAuth()
   const router = useRouter()
@@ -81,9 +90,13 @@ export const CheckoutPage: React.FC = () => {
   const { initiatePayment } = usePayments()
   const { currency } = useCurrency()
   const { addresses } = useAddresses()
-  const [shippingAddress, setShippingAddress] = useState<Partial<Address>>()
   const [billingAddress, setBillingAddress] = useState<Partial<Address>>()
-  const [billingAddressSameAsShipping, setBillingAddressSameAsShipping] = useState(true)
+  const [pickupContact, setPickupContact] = useState<PickupContact>({})
+  const [pickupTouched, setPickupTouched] = useState({
+    firstName: false,
+    lastName: false,
+    phone: false,
+  })
   const [isProcessingPayment, setProcessingPayment] = useState(false)
   const [couponCode, setCouponCode] = useState('')
   const [couponError, setCouponError] = useState<null | string>(null)
@@ -97,29 +110,37 @@ export const CheckoutPage: React.FC = () => {
   const displayCouponCode = appliedCoupon?.code || activeCart?.couponCode
   const couponTotal = typeof activeCart?.couponTotal === 'number' ? activeCart.couponTotal : null
   const couponDiscountAmount =
-    typeof activeCart?.couponDiscountAmount === 'number'
-      ? activeCart.couponDiscountAmount
-      : 0
+    typeof activeCart?.couponDiscountAmount === 'number' ? activeCart.couponDiscountAmount : 0
   const paymentSummary = paymentData?.summary as PaymentSummary | undefined
   const defaultBillingAddress = addresses?.[0]
   const effectiveBillingAddress = billingAddress ?? defaultBillingAddress
-  const effectiveShippingAddress = billingAddressSameAsShipping
-    ? effectiveBillingAddress
-    : shippingAddress
-
+  const hasValidCustomerContact = Boolean(user || isValidEmail(email))
+  const effectivePickupContact: PickupContact = {
+    firstName: pickupTouched.firstName
+      ? pickupContact.firstName
+      : pickupContact.firstName ||
+        activeCart?.pickupContact?.firstName ||
+        effectiveBillingAddress?.firstName ||
+        '',
+    lastName: pickupTouched.lastName
+      ? pickupContact.lastName
+      : pickupContact.lastName ||
+        activeCart?.pickupContact?.lastName ||
+        effectiveBillingAddress?.lastName ||
+        '',
+    phone: pickupTouched.phone
+      ? pickupContact.phone
+      : pickupContact.phone ||
+        activeCart?.pickupContact?.phone ||
+        effectiveBillingAddress?.phone ||
+        '',
+  }
   const canGoToPayment = Boolean(
-    (email || user) && effectiveBillingAddress && effectiveShippingAddress,
+    pickupSettings.pickupEnabled &&
+    hasValidCustomerContact &&
+    effectiveBillingAddress &&
+    isCompletePickupContact(effectivePickupContact),
   )
-
-  useEffect(() => {
-    return () => {
-      setShippingAddress(undefined)
-      setBillingAddress(undefined)
-      setBillingAddressSameAsShipping(true)
-      setEmail('')
-      setEmailEditable(true)
-    }
-  }, [])
 
   const getCartSecret = () => {
     if (typeof window === 'undefined') return undefined
@@ -153,20 +174,22 @@ export const CheckoutPage: React.FC = () => {
         couponCode: true,
         couponDiscountAmount: true,
         couponTotal: true,
+        fulfillmentMethod: true,
         items: true,
+        pickupContact: true,
         subtotal: true,
       },
     })}`
   }
 
-  const updateCoupon = async (nextCouponCode: null | string, fallbackError: string) => {
+  const updateCart = async (updates: Record<string, unknown>, fallbackError: string) => {
     if (!activeCart?.id) {
       throw new Error(fallbackError)
     }
 
     const response = await fetch(`/api/carts/${activeCart.id}${getCartQuery()}`, {
       body: JSON.stringify({
-        couponCode: nextCouponCode,
+        ...updates,
       }),
       credentials: 'include',
       headers: {
@@ -175,15 +198,18 @@ export const CheckoutPage: React.FC = () => {
       method: 'PATCH',
     })
 
-    const data = await response.json()
+    const responseData = await response.json()
 
     if (!response.ok) {
-      throw new Error(getAPIErrorMessage(data, fallbackError))
+      throw new Error(getAPIErrorMessage(responseData, fallbackError))
     }
 
     setPaymentData(null)
-    setCheckoutCart((data?.doc || data) as Cart)
+    setCheckoutCart((responseData?.doc || responseData) as Cart)
   }
+
+  const updateCoupon = async (nextCouponCode: null | string, fallbackError: string) =>
+    updateCart({ couponCode: nextCouponCode }, fallbackError)
 
   const applyCoupon = async () => {
     const normalizedCouponCode = normalizeCouponCode(couponCode)
@@ -230,12 +256,26 @@ export const CheckoutPage: React.FC = () => {
   }
 
   const initiatePaymentIntent = async (paymentID: string) => {
+    if (!canGoToPayment) return
+
     try {
+      setError(null)
+      await updateCart(
+        {
+          fulfillmentMethod: 'pickup',
+          pickupContact: {
+            firstName: effectivePickupContact.firstName?.trim(),
+            lastName: effectivePickupContact.lastName?.trim(),
+            phone: effectivePickupContact.phone?.trim(),
+          },
+        },
+        'Pickup details could not be saved.',
+      )
+
       const paymentData = (await initiatePayment(paymentID, {
         additionalData: {
           ...(email ? { customerEmail: email } : {}),
           billingAddress: effectiveBillingAddress,
-          shippingAddress: effectiveShippingAddress,
         },
       })) as Record<string, unknown>
 
@@ -243,11 +283,25 @@ export const CheckoutPage: React.FC = () => {
         setPaymentData(paymentData)
       }
     } catch (error) {
-      const errorData = error instanceof Error ? JSON.parse(error.message) : {}
+      let errorData: Record<string, unknown> = {}
+      if (error instanceof Error) {
+        try {
+          errorData = JSON.parse(error.message)
+        } catch {
+          errorData = { message: error.message }
+        }
+      }
       let errorMessage = 'An error occurred while initiating payment.'
 
-      if (errorData?.cause?.code === 'OutOfStock') {
+      const cause =
+        errorData.cause && typeof errorData.cause === 'object'
+          ? (errorData.cause as Record<string, unknown>)
+          : undefined
+
+      if (cause?.code === 'OutOfStock') {
         errorMessage = 'One or more items in your cart are out of stock.'
+      } else {
+        errorMessage = getAPIErrorMessage(errorData, errorMessage)
       }
 
       setError(errorMessage)
@@ -324,7 +378,7 @@ export const CheckoutPage: React.FC = () => {
               </FormItem>
 
               <Button
-                disabled={!email || !emailEditable}
+                disabled={!isValidEmail(email) || !emailEditable}
                 onClick={(e) => {
                   e.preventDefault()
                   setEmailEditable(false)
@@ -337,7 +391,7 @@ export const CheckoutPage: React.FC = () => {
           </div>
         )}
 
-        <h2 className="font-medium text-3xl">Address</h2>
+        <h2 className="font-medium text-3xl">Billing address</h2>
 
         {effectiveBillingAddress ? (
           <div>
@@ -366,10 +420,14 @@ export const CheckoutPage: React.FC = () => {
             />
           </div>
         ) : user ? (
-          <CheckoutAddresses heading="Billing address" setAddress={setBillingAddress} />
+          <CheckoutAddresses
+            heading="Billing address"
+            description="Choose a billing address for payment."
+            setAddress={setBillingAddress}
+          />
         ) : (
           <CreateAddressModal
-            disabled={!email || Boolean(emailEditable)}
+            disabled={!isValidEmail(email) || Boolean(emailEditable)}
             callback={(address) => {
               setBillingAddress(address)
             }}
@@ -377,55 +435,63 @@ export const CheckoutPage: React.FC = () => {
           />
         )}
 
-        <div className="flex gap-4 items-center">
-          <Checkbox
-            id="shippingTheSameAsBilling"
-            checked={billingAddressSameAsShipping}
-            disabled={Boolean(paymentData || (!user && (!email || Boolean(emailEditable))))}
-            onCheckedChange={(state) => {
-              setBillingAddressSameAsShipping(state as boolean)
-            }}
-          />
-          <Label htmlFor="shippingTheSameAsBilling">Shipping is the same as billing</Label>
-        </div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-medium text-3xl">{pickupSettings.pickupLabel}</h2>
+            <p className="mt-2 text-muted-foreground">{pickupSettings.pickupCheckoutDescription}</p>
+          </div>
 
-        {!billingAddressSameAsShipping && (
-          <>
-            {shippingAddress ? (
-              <div>
-                <AddressItem
-                  actions={
-                    <Button
-                      variant={'outline'}
-                      disabled={Boolean(paymentData)}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setShippingAddress(undefined)
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  }
-                  address={shippingAddress}
-                />
-              </div>
-            ) : user ? (
-              <CheckoutAddresses
-                heading="Shipping address"
-                description="Please select a shipping address."
-                setAddress={setShippingAddress}
-              />
-            ) : (
-              <CreateAddressModal
-                callback={(address) => {
-                  setShippingAddress(address)
+          {!pickupSettings.pickupEnabled && (
+            <Message error="Pickup checkout is currently unavailable." />
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormItem>
+              <Label htmlFor="pickupFirstName">Pickup first name*</Label>
+              <Input
+                disabled={Boolean(paymentData) || !pickupSettings.pickupEnabled}
+                id="pickupFirstName"
+                onChange={(event) => {
+                  setPickupTouched((current) => ({ ...current, firstName: true }))
+                  setPickupContact((current) => ({
+                    ...current,
+                    firstName: event.target.value,
+                  }))
                 }}
-                disabled={!email || Boolean(emailEditable)}
-                skipSubmission={true}
+                value={effectivePickupContact.firstName || ''}
               />
-            )}
-          </>
-        )}
+            </FormItem>
+            <FormItem>
+              <Label htmlFor="pickupLastName">Pickup last name*</Label>
+              <Input
+                disabled={Boolean(paymentData) || !pickupSettings.pickupEnabled}
+                id="pickupLastName"
+                onChange={(event) => {
+                  setPickupTouched((current) => ({ ...current, lastName: true }))
+                  setPickupContact((current) => ({
+                    ...current,
+                    lastName: event.target.value,
+                  }))
+                }}
+                value={effectivePickupContact.lastName || ''}
+              />
+            </FormItem>
+          </div>
+          <FormItem>
+            <Label htmlFor="pickupPhone">Pickup phone*</Label>
+            <Input
+              autoComplete="tel"
+              disabled={Boolean(paymentData) || !pickupSettings.pickupEnabled}
+              id="pickupPhone"
+              onChange={(event) => {
+                setPickupTouched((current) => ({ ...current, phone: true }))
+                setPickupContact((current) => ({ ...current, phone: event.target.value }))
+              }}
+              type="tel"
+              value={effectivePickupContact.phone || ''}
+            />
+          </FormItem>
+        </div>
 
         {!paymentData && (
           <Button
