@@ -176,11 +176,13 @@ export interface Config {
     header: Header;
     footer: Footer;
     siteSettings: SiteSetting;
+    fulfillmentSettings: FulfillmentSetting;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
     siteSettings: SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    fulfillmentSettings: FulfillmentSettingsSelect<false> | FulfillmentSettingsSelect<true>;
   };
   locale: null;
   widgets: {
@@ -332,6 +334,24 @@ export interface Order {
         }[]
       | null;
   };
+  /**
+   * Only local pickup is currently available.
+   */
+  fulfillmentMethod: 'pickup';
+  /**
+   * The person who will collect this order.
+   */
+  pickupContact?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+  };
+  /**
+   * Checking this sends pickup instructions to the customer and cannot be undone.
+   */
+  readyForPickup?: boolean | null;
+  readyForPickupAt?: string | null;
+  pickupInstructionsSnapshot?: string | null;
   accessToken?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1438,6 +1458,18 @@ export interface Transaction {
         }[]
       | null;
   };
+  /**
+   * Only local pickup is currently available.
+   */
+  fulfillmentMethod: 'pickup';
+  /**
+   * The person who will collect this order.
+   */
+  pickupContact?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -1461,6 +1493,18 @@ export interface Cart {
   status?: ('active' | 'purchased' | 'abandoned') | null;
   subtotal?: number | null;
   currency?: ('CAD' | 'USD') | null;
+  /**
+   * Only local pickup is currently available.
+   */
+  fulfillmentMethod: 'pickup';
+  /**
+   * The person who will collect this order.
+   */
+  pickupContact?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+  };
   appliedCoupon?: (number | null) | Coupon;
   couponCode?: string | null;
   couponDiscountAmount?: number | null;
@@ -2728,6 +2772,14 @@ export interface CartsSelect<T extends boolean = true> {
   status?: T;
   subtotal?: T;
   currency?: T;
+  fulfillmentMethod?: T;
+  pickupContact?:
+    | T
+    | {
+        firstName?: T;
+        lastName?: T;
+        phone?: T;
+      };
   appliedCoupon?: T;
   couponCode?: T;
   couponDiscountAmount?: T;
@@ -2784,6 +2836,17 @@ export interface OrdersSelect<T extends boolean = true> {
               id?: T;
             };
       };
+  fulfillmentMethod?: T;
+  pickupContact?:
+    | T
+    | {
+        firstName?: T;
+        lastName?: T;
+        phone?: T;
+      };
+  readyForPickup?: T;
+  readyForPickupAt?: T;
+  pickupInstructionsSnapshot?: T;
   accessToken?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2844,6 +2907,14 @@ export interface TransactionsSelect<T extends boolean = true> {
               metadata?: T;
               id?: T;
             };
+      };
+  fulfillmentMethod?: T;
+  pickupContact?:
+    | T
+    | {
+        firstName?: T;
+        lastName?: T;
+        phone?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -3006,6 +3077,22 @@ export interface SiteSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fulfillmentSettings".
+ */
+export interface FulfillmentSetting {
+  id: number;
+  pickupEnabled?: boolean | null;
+  pickupLabel: string;
+  pickupCheckoutDescription: string;
+  /**
+   * Exact address, hours, access details, or collection instructions. These are only revealed after an order is marked ready.
+   */
+  pickupReadyInstructions?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -3072,6 +3159,19 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         image?: T;
       };
   quoteProductPlaceholder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "fulfillmentSettings_select".
+ */
+export interface FulfillmentSettingsSelect<T extends boolean = true> {
+  pickupEnabled?: T;
+  pickupLabel?: T;
+  pickupCheckoutDescription?: T;
+  pickupReadyInstructions?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
