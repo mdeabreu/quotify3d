@@ -31,13 +31,17 @@ export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({ doc, op
       orderID: doc.id,
       recipientSource: recipient.source,
     })
-    const settings = await req.payload.findGlobal({
-      slug: 'fulfillmentSettings',
-      depth: 0,
-      overrideAccess: true,
-      req,
-    })
-    const pickupLabel = toOptionalString(settings.pickupLabel) || DEFAULT_PICKUP_LABEL
+    let pickupLabel: string | undefined
+
+    if (doc.fulfillmentMethod === 'pickup') {
+      const settings = await req.payload.findGlobal({
+        slug: 'fulfillmentSettings',
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+      pickupLabel = toOptionalString(settings.pickupLabel) || DEFAULT_PICKUP_LABEL
+    }
 
     await req.payload.sendEmail({
       to: recipient.email,

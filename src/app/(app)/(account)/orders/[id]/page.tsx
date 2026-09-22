@@ -15,7 +15,7 @@ import { getPayload } from 'payload'
 import { OrderStatus } from '@/components/OrderStatus'
 import { OrderSummaryLines } from '@/components/OrderSummaryLines'
 import { AddressItem } from '@/components/addresses/AddressItem'
-import { resolvePublicPickupSettings } from '@/utilities/fulfillment'
+import { getFulfillmentStatusLabel, resolvePublicPickupSettings } from '@/utilities/fulfillment'
 
 export const dynamic = 'force-dynamic'
 
@@ -127,14 +127,7 @@ export default async function Order({ params, searchParams }: PageProps) {
       overrideAccess: true,
     }),
   )
-  const pickupStatusLabel =
-    order.status === 'processing'
-      ? order.readyForPickup
-        ? 'Ready for pickup'
-        : 'Preparing for pickup'
-      : order.status === 'completed'
-        ? 'Picked up / completed'
-        : undefined
+  const pickupStatusLabel = getFulfillmentStatusLabel(order)
 
   return (
     <div className="">

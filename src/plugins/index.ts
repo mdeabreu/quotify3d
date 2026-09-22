@@ -208,7 +208,7 @@ export const plugins: Plugin[] = [
         },
         fields: [
           ...defaultCollection.fields,
-          ...fulfillmentFields({ readOnly: true }),
+          ...fulfillmentFields({ includeLegacyShipping: true, readOnly: true }),
           {
             name: 'readyForPickup',
             type: 'checkbox',
@@ -229,6 +229,17 @@ export const plugins: Plugin[] = [
               readOnly: true,
             },
             label: 'Ready for pickup at',
+          },
+          {
+            name: 'readyForPickupEmailSentAt',
+            type: 'date',
+            admin: {
+              description:
+                'If empty after the order is ready, saving the order retries the notification.',
+              position: 'sidebar',
+              readOnly: true,
+            },
+            label: 'Pickup-ready email sent at',
           },
           {
             name: 'pickupInstructionsSnapshot',
@@ -280,7 +291,10 @@ export const plugins: Plugin[] = [
     transactions: {
       transactionsCollectionOverride: ({ defaultCollection }) => ({
         ...defaultCollection,
-        fields: [...defaultCollection.fields, ...fulfillmentFields({ readOnly: true })],
+        fields: [
+          ...defaultCollection.fields,
+          ...fulfillmentFields({ includeLegacyShipping: true, readOnly: true }),
+        ],
         hooks: {
           ...defaultCollection.hooks,
           beforeValidate: [

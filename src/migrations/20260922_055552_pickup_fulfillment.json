@@ -11900,6 +11900,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "ready_for_pickup_email_sent_at": {
+          "name": "ready_for_pickup_email_sent_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "pickup_instructions_snapshot": {
           "name": "pickup_instructions_snapshot",
           "type": "text",

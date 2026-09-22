@@ -54,6 +54,20 @@ export const isCompletePickupContact = (contact: unknown): boolean => {
   return Boolean(normalized.firstName && normalized.lastName && normalized.phone)
 }
 
+export const getFulfillmentStatusLabel = (
+  order: Pick<Order, 'fulfillmentMethod' | 'readyForPickup' | 'status'>,
+): string | undefined => {
+  if (order.fulfillmentMethod !== 'pickup') return undefined
+
+  if (order.status === 'processing') {
+    return order.readyForPickup ? 'Ready for pickup' : 'Preparing for pickup'
+  }
+
+  if (order.status === 'completed') return 'Picked up / completed'
+
+  return undefined
+}
+
 export const validatePickupPayment: BeforeInitiatePaymentHook = async ({
   cart,
   req,

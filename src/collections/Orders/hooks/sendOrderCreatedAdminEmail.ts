@@ -42,6 +42,7 @@ export const sendOrderCreatedAdminEmail: CollectionAfterChangeHook = async ({
       AdminOrderCreatedEmail({
         adminURL,
         customerEmail,
+        isPickup: doc.fulfillmentMethod === 'pickup',
         orderID: doc.id,
         pickupContactName: pickupContactName || undefined,
         pickupContactPhone: toOptionalString(pickupContact?.phone),

@@ -7,12 +7,20 @@ import { getOrderURL, toOptionalString } from '@/utilities/orders/getOrderURL'
 import { render } from '@react-email/components'
 import OrderReadyForPickupEmail from 'emails/order-ready-for-pickup'
 
+export const SKIP_PICKUP_READY_EMAIL_CONTEXT = 'skipPickupReadyEmail'
+
 export const sendOrderReadyForPickupEmail: CollectionAfterChangeHook = async ({
   doc,
-  previousDoc,
   req,
 }) => {
-  if (!doc?.readyForPickup || previousDoc?.readyForPickup) return doc
+  if (
+    doc?.fulfillmentMethod !== 'pickup' ||
+    !doc?.readyForPickup ||
+    doc.readyForPickupEmailSentAt ||
+    req.context?.[SKIP_PICKUP_READY_EMAIL_CONTEXT]
+  ) {
+    return doc
+  }
 
   try {
     const recipient = await resolveCustomerRecipient({
@@ -59,6 +67,19 @@ export const sendOrderReadyForPickupEmail: CollectionAfterChangeHook = async ({
       html: await render(
         OrderReadyForPickupEmail({ instructions, orderID: doc.id, orderURL, pickupLabel }),
       ),
+    })
+
+    await req.payload.update({
+      collection: 'orders',
+      id: doc.id,
+      context: {
+        [SKIP_PICKUP_READY_EMAIL_CONTEXT]: true,
+      },
+      data: {
+        readyForPickupEmailSentAt: new Date().toISOString(),
+      },
+      overrideAccess: true,
+      req,
     })
 
     logSentEmail({

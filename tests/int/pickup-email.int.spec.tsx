@@ -18,6 +18,18 @@ describe('pickup order email copy', () => {
     expect(html).not.toContain('Shipping Address')
   })
 
+  it('omits pickup copy for a legacy shipping order', async () => {
+    const html = await render(
+      OrderCreatedEmail({
+        orderID: 123,
+        orderURL: 'https://example.com/orders/123',
+      }),
+    )
+
+    expect(html).not.toContain('local pickup')
+    expect(html).not.toContain('when it is ready')
+  })
+
   it('renders the frozen ready instructions and secure order URL', async () => {
     const html = await render(
       OrderReadyForPickupEmail({

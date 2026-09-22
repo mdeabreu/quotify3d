@@ -335,9 +335,9 @@ export interface Order {
       | null;
   };
   /**
-   * Only local pickup is currently available.
+   * Shipping is retained for orders created before pickup-only checkout.
    */
-  fulfillmentMethod: 'pickup';
+  fulfillmentMethod: 'pickup' | 'shipping';
   /**
    * The person who will collect this order.
    */
@@ -351,6 +351,10 @@ export interface Order {
    */
   readyForPickup?: boolean | null;
   readyForPickupAt?: string | null;
+  /**
+   * If empty after the order is ready, saving the order retries the notification.
+   */
+  readyForPickupEmailSentAt?: string | null;
   pickupInstructionsSnapshot?: string | null;
   accessToken?: string | null;
   updatedAt: string;
@@ -1459,9 +1463,9 @@ export interface Transaction {
       | null;
   };
   /**
-   * Only local pickup is currently available.
+   * Shipping is retained for orders created before pickup-only checkout.
    */
-  fulfillmentMethod: 'pickup';
+  fulfillmentMethod: 'pickup' | 'shipping';
   /**
    * The person who will collect this order.
    */
@@ -2846,6 +2850,7 @@ export interface OrdersSelect<T extends boolean = true> {
       };
   readyForPickup?: T;
   readyForPickupAt?: T;
+  readyForPickupEmailSentAt?: T;
   pickupInstructionsSnapshot?: T;
   accessToken?: T;
   updatedAt?: T;

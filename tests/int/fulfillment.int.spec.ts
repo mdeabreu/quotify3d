@@ -2,8 +2,13 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FulfillmentSettings } from '@/globals/FulfillmentSettings'
-import { sendOrderReadyForPickupEmail } from '@/collections/Orders/hooks/sendOrderReadyForPickupEmail'
 import {
+  sendOrderReadyForPickupEmail,
+  SKIP_PICKUP_READY_EMAIL_CONTEXT,
+} from '@/collections/Orders/hooks/sendOrderReadyForPickupEmail'
+import { fulfillmentFields } from '@/fields/fulfillment'
+import {
+  getFulfillmentStatusLabel,
   prepareReadyForPickup,
   resolvePublicPickupSettings,
   snapshotCartFulfillment,
@@ -44,6 +49,47 @@ const paymentArgs = ({
 }
 
 describe('pickup fulfillment', () => {
+  it('allows shipping only on read-only legacy snapshots', () => {
+    const cartMethod = fulfillmentFields().find(
+      (field) => 'name' in field && field.name === 'fulfillmentMethod',
+    )
+    const snapshotMethod = fulfillmentFields({ includeLegacyShipping: true, readOnly: true }).find(
+      (field) => 'name' in field && field.name === 'fulfillmentMethod',
+    )
+
+    expect(cartMethod).toMatchObject({
+      options: [{ value: 'pickup' }],
+    })
+    expect(snapshotMethod).toMatchObject({
+      admin: { readOnly: true },
+      options: [{ value: 'pickup' }, { value: 'shipping' }],
+    })
+  })
+
+  it('uses pickup statuses only for pickup orders', () => {
+    expect(
+      getFulfillmentStatusLabel({
+        fulfillmentMethod: 'pickup',
+        readyForPickup: false,
+        status: 'processing',
+      }),
+    ).toBe('Preparing for pickup')
+    expect(
+      getFulfillmentStatusLabel({
+        fulfillmentMethod: 'pickup',
+        readyForPickup: true,
+        status: 'processing',
+      }),
+    ).toBe('Ready for pickup')
+    expect(
+      getFulfillmentStatusLabel({
+        fulfillmentMethod: 'shipping',
+        readyForPickup: false,
+        status: 'processing',
+      }),
+    ).toBeUndefined()
+  })
+
   it('returns only public-safe checkout settings', () => {
     expect(
       resolvePublicPickupSettings({
@@ -147,6 +193,22 @@ describe('pickup fulfillment', () => {
     })
   })
 
+  it('preserves a legacy shipping transaction on its order', async () => {
+    const req = {
+      payload: {
+        findByID: vi.fn().mockResolvedValue({ fulfillmentMethod: 'shipping' }),
+      },
+    } as unknown as PayloadRequest
+
+    const order = await snapshotTransactionFulfillment({
+      data: { transactions: [20] },
+      operation: 'create',
+      req,
+    } as unknown as Parameters<typeof snapshotTransactionFulfillment>[0])
+
+    expect(order).toMatchObject({ fulfillmentMethod: 'shipping', pickupContact: {} })
+  })
+
   it('freezes current instructions on the one-way ready transition', async () => {
     const req = {
       payload: {
@@ -203,18 +265,21 @@ describe('pickup fulfillment', () => {
     ).rejects.toThrow('Configure ready-for-pickup instructions')
   })
 
-  it('sends the ready email only on the first ready transition', async () => {
+  it('records delivery and skips an already-sent ready email', async () => {
     const sendEmail = vi.fn().mockResolvedValue(undefined)
+    const update = vi.fn().mockResolvedValue(undefined)
     const req = {
       payload: {
         findGlobal: vi.fn().mockResolvedValue({ pickupLabel: 'Studio collection' }),
         logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
         sendEmail,
+        update,
       },
     } as unknown as PayloadRequest
     const doc = {
       accessToken: 'guest-secret',
       customerEmail: 'guest@example.com',
+      fulfillmentMethod: 'pickup',
       id: 123,
       pickupInstructionsSnapshot: 'Use the side entrance.',
       readyForPickup: true,
@@ -222,12 +287,10 @@ describe('pickup fulfillment', () => {
 
     await sendOrderReadyForPickupEmail({
       doc,
-      previousDoc: { readyForPickup: false },
       req,
     } as unknown as Parameters<typeof sendOrderReadyForPickupEmail>[0])
     await sendOrderReadyForPickupEmail({
-      doc,
-      previousDoc: { readyForPickup: true },
+      doc: { ...doc, readyForPickupEmailSentAt: new Date().toISOString() },
       req,
     } as unknown as Parameters<typeof sendOrderReadyForPickupEmail>[0])
 
@@ -238,5 +301,67 @@ describe('pickup fulfillment', () => {
         to: 'guest@example.com',
       }),
     )
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'orders',
+        context: { [SKIP_PICKUP_READY_EMAIL_CONTEXT]: true },
+        data: { readyForPickupEmailSentAt: expect.any(String) },
+        id: 123,
+        overrideAccess: true,
+        req,
+      }),
+    )
+  })
+
+  it('retries a ready email after a delivery failure', async () => {
+    const sendEmail = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('SMTP unavailable'))
+      .mockResolvedValueOnce(undefined)
+    const update = vi.fn().mockResolvedValue(undefined)
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
+    const req = {
+      payload: {
+        findGlobal: vi.fn().mockResolvedValue({ pickupLabel: 'Studio collection' }),
+        logger,
+        sendEmail,
+        update,
+      },
+    } as unknown as PayloadRequest
+    const doc = {
+      customerEmail: 'guest@example.com',
+      fulfillmentMethod: 'pickup',
+      id: 123,
+      pickupInstructionsSnapshot: 'Use the side entrance.',
+      readyForPickup: true,
+    }
+
+    await sendOrderReadyForPickupEmail({ doc, req } as unknown as Parameters<
+      typeof sendOrderReadyForPickupEmail
+    >[0])
+    await sendOrderReadyForPickupEmail({ doc, req } as unknown as Parameters<
+      typeof sendOrderReadyForPickupEmail
+    >[0])
+
+    expect(sendEmail).toHaveBeenCalledTimes(2)
+    expect(update).toHaveBeenCalledTimes(1)
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ msg: 'Failed to send pickup-ready email', orderID: 123 }),
+    )
+  })
+
+  it('does not recurse while recording ready-email delivery', async () => {
+    const sendEmail = vi.fn()
+    const req = {
+      context: { [SKIP_PICKUP_READY_EMAIL_CONTEXT]: true },
+      payload: { sendEmail },
+    } as unknown as PayloadRequest
+
+    await sendOrderReadyForPickupEmail({
+      doc: { fulfillmentMethod: 'pickup', id: 123, readyForPickup: true },
+      req,
+    } as unknown as Parameters<typeof sendOrderReadyForPickupEmail>[0])
+
+    expect(sendEmail).not.toHaveBeenCalled()
   })
 })

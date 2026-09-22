@@ -25,6 +25,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`ALTER TABLE \`orders\` ADD \`pickup_contact_phone\` text;`)
   await db.run(sql`ALTER TABLE \`orders\` ADD \`ready_for_pickup\` integer DEFAULT false;`)
   await db.run(sql`ALTER TABLE \`orders\` ADD \`ready_for_pickup_at\` text;`)
+  await db.run(sql`ALTER TABLE \`orders\` ADD \`ready_for_pickup_email_sent_at\` text;`)
   await db.run(sql`ALTER TABLE \`orders\` ADD \`pickup_instructions_snapshot\` text;`)
   await db.run(
     sql`ALTER TABLE \`transactions\` ADD \`fulfillment_method\` text DEFAULT 'pickup' NOT NULL;`,
@@ -32,16 +33,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`ALTER TABLE \`transactions\` ADD \`pickup_contact_first_name\` text;`)
   await db.run(sql`ALTER TABLE \`transactions\` ADD \`pickup_contact_last_name\` text;`)
   await db.run(sql`ALTER TABLE \`transactions\` ADD \`pickup_contact_phone\` text;`)
-  await db.run(sql`UPDATE \`transactions\`
-    SET
-      \`pickup_contact_first_name\` = NULLIF(TRIM(\`billing_address_first_name\`), ''),
-      \`pickup_contact_last_name\` = NULLIF(TRIM(\`billing_address_last_name\`), ''),
-      \`pickup_contact_phone\` = NULLIF(TRIM(\`billing_address_phone\`), '')`)
-  await db.run(sql`UPDATE \`orders\`
-    SET
-      \`pickup_contact_first_name\` = NULLIF(TRIM(\`shipping_address_first_name\`), ''),
-      \`pickup_contact_last_name\` = NULLIF(TRIM(\`shipping_address_last_name\`), ''),
-      \`pickup_contact_phone\` = NULLIF(TRIM(\`shipping_address_phone\`), '')`)
+  await db.run(sql`UPDATE \`transactions\` SET \`fulfillment_method\` = 'shipping'`)
+  await db.run(sql`UPDATE \`orders\` SET \`fulfillment_method\` = 'shipping'`)
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
@@ -56,6 +49,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`ALTER TABLE \`orders\` DROP COLUMN \`pickup_contact_phone\`;`)
   await db.run(sql`ALTER TABLE \`orders\` DROP COLUMN \`ready_for_pickup\`;`)
   await db.run(sql`ALTER TABLE \`orders\` DROP COLUMN \`ready_for_pickup_at\`;`)
+  await db.run(sql`ALTER TABLE \`orders\` DROP COLUMN \`ready_for_pickup_email_sent_at\`;`)
   await db.run(sql`ALTER TABLE \`orders\` DROP COLUMN \`pickup_instructions_snapshot\`;`)
   await db.run(sql`ALTER TABLE \`transactions\` DROP COLUMN \`fulfillment_method\`;`)
   await db.run(sql`ALTER TABLE \`transactions\` DROP COLUMN \`pickup_contact_first_name\`;`)
