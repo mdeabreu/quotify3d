@@ -66,6 +66,12 @@ const baseAddressUKData: Transaction['billingAddress'] = {
   country: 'GB',
 }
 
+const pickupContact = {
+  firstName: 'Otto',
+  lastName: 'Octavius',
+  phone: '1234567890',
+}
+
 // Next.js revalidation errors are normal when seeding the database without a server running
 // i.e. running `yarn seed` locally instead of using the admin UI within an active app
 // The app is not running to revalidate the pages and so the API routes are not available
@@ -374,6 +380,8 @@ export const seed = async ({
     data: {
       currency: 'USD',
       customer: customer.id,
+      fulfillmentMethod: 'pickup',
+      pickupContact,
       paymentMethod: 'stripe',
       stripe: {
         customerID: 'cus_123',
@@ -389,6 +397,8 @@ export const seed = async ({
     data: {
       currency: 'USD',
       customer: customer.id,
+      fulfillmentMethod: 'pickup',
+      pickupContact,
       paymentMethod: 'stripe',
       stripe: {
         customerID: 'cus_123',
@@ -413,6 +423,7 @@ export const seed = async ({
     data: {
       customer: customer.id,
       currency: 'USD',
+      fulfillmentMethod: 'pickup',
       items: [
         {
           product: productTshirt.id,
@@ -431,6 +442,7 @@ export const seed = async ({
     data: {
       currency: 'USD',
       createdAt: oldTimestamp,
+      fulfillmentMethod: 'pickup',
       items: [
         {
           product: productHat.id,
@@ -446,6 +458,7 @@ export const seed = async ({
     data: {
       customer: customer.id,
       currency: 'USD',
+      fulfillmentMethod: 'pickup',
       purchasedAt: new Date().toISOString(),
       subtotal: 7499,
       items: [
@@ -477,7 +490,8 @@ export const seed = async ({
       amount: 7499,
       currency: 'USD',
       customer: customer.id,
-      shippingAddress: baseAddressUSData,
+      fulfillmentMethod: 'pickup',
+      pickupContact,
       items: [
         {
           product: productTshirt.id,
@@ -501,7 +515,8 @@ export const seed = async ({
       amount: 7499,
       currency: 'USD',
       customer: customer.id,
-      shippingAddress: baseAddressUSData,
+      fulfillmentMethod: 'pickup',
+      pickupContact,
       items: [
         {
           product: productTshirt.id,

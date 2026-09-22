@@ -8,6 +8,7 @@ import * as migration_20260716_055340_quote_builder_overhaul from './20260716_05
 import * as migration_20260721_062716_nullable_quote_slot_colours from './20260721_062716_nullable_quote_slot_colours'
 import * as migration_20260728_054124_footer_nav_groups from './20260728_054124_footer_nav_groups'
 import * as migration_20260802_220501_optional_spool_name from './20260802_220501_optional_spool_name'
+import * as migration_20260922_055552_pickup_fulfillment from './20260922_055552_pickup_fulfillment'
 
 export const migrations = [
   {
@@ -59,5 +60,10 @@ export const migrations = [
     up: migration_20260802_220501_optional_spool_name.up,
     down: migration_20260802_220501_optional_spool_name.down,
     name: '20260802_220501_optional_spool_name',
+  },
+  {
+    up: migration_20260922_055552_pickup_fulfillment.up,
+    down: migration_20260922_055552_pickup_fulfillment.down,
+    name: '20260922_055552_pickup_fulfillment',
   },
 ]

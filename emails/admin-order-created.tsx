@@ -3,13 +3,19 @@ import { ActionEmail } from './components/action-email'
 type AdminOrderCreatedEmailProps = {
   adminURL: string
   customerEmail?: string | null
+  isPickup?: boolean
   orderID: number
+  pickupContactName?: string
+  pickupContactPhone?: string
 }
 
 export default function AdminOrderCreatedEmail({
   adminURL,
   customerEmail,
+  isPickup,
   orderID,
+  pickupContactName,
+  pickupContactPhone,
 }: AdminOrderCreatedEmailProps) {
   return (
     <ActionEmail
@@ -18,6 +24,13 @@ export default function AdminOrderCreatedEmail({
         customerEmail
           ? `Customer contact: ${customerEmail}.`
           : 'No customer email is attached to this order.',
+        ...(isPickup
+          ? [
+              pickupContactName
+                ? `Pickup contact: ${pickupContactName}${pickupContactPhone ? `, ${pickupContactPhone}` : ''}.`
+                : 'No pickup contact is attached to this order.',
+            ]
+          : []),
       ]}
       cta={{
         label: `Review order #${orderID}`,
@@ -34,5 +47,8 @@ export default function AdminOrderCreatedEmail({
 AdminOrderCreatedEmail.PreviewProps = {
   adminURL: 'http://localhost:3000/admin/collections/orders/456',
   customerEmail: 'customer@example.com',
+  isPickup: true,
   orderID: 456,
+  pickupContactName: 'Alex Customer',
+  pickupContactPhone: '604-555-0100',
 }

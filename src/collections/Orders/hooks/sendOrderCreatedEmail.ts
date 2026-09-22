@@ -2,41 +2,10 @@ import type { CollectionAfterChangeHook } from 'payload'
 
 import { resolveCustomerRecipient } from '@/utilities/email/resolveCustomerRecipient'
 import { logSentEmail } from '@/utilities/email/logSentEmail'
-import { getServerSideURL } from '@/utilities/getURL'
+import { DEFAULT_PICKUP_LABEL } from '@/utilities/fulfillment'
+import { getOrderURL, toOptionalString } from '@/utilities/orders/getOrderURL'
 import { render } from '@react-email/components'
 import OrderCreatedEmail from 'emails/order-created'
-
-const toOptionalString = (value: unknown): string | undefined => {
-  if (typeof value !== 'string') return undefined
-
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-const getOrderURL = ({
-  accessToken,
-  customerEmail,
-  orderID,
-  recipientSource,
-}: {
-  accessToken?: string
-  customerEmail?: string
-  orderID: number
-  recipientSource: 'customer' | 'guest'
-}) => {
-  const serverURL = getServerSideURL()
-
-  if (recipientSource === 'guest' && customerEmail && accessToken) {
-    const queryParams = new URLSearchParams({
-      accessToken,
-      email: customerEmail,
-    })
-
-    return `${serverURL}/orders/${orderID}?${queryParams.toString()}`
-  }
-
-  return `${serverURL}/orders/${orderID}`
-}
 
 export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (!doc || operation !== 'create') return doc
@@ -62,11 +31,22 @@ export const sendOrderCreatedEmail: CollectionAfterChangeHook = async ({ doc, op
       orderID: doc.id,
       recipientSource: recipient.source,
     })
+    let pickupLabel: string | undefined
+
+    if (doc.fulfillmentMethod === 'pickup') {
+      const settings = await req.payload.findGlobal({
+        slug: 'fulfillmentSettings',
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+      pickupLabel = toOptionalString(settings.pickupLabel) || DEFAULT_PICKUP_LABEL
+    }
 
     await req.payload.sendEmail({
       to: recipient.email,
       subject: `Your order #${doc.id} has been placed`,
-      html: await render(OrderCreatedEmail({ orderID: doc.id, orderURL })),
+      html: await render(OrderCreatedEmail({ orderID: doc.id, orderURL, pickupLabel })),
     })
 
     logSentEmail({

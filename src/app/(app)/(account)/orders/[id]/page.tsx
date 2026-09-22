@@ -15,6 +15,7 @@ import { getPayload } from 'payload'
 import { OrderStatus } from '@/components/OrderStatus'
 import { OrderSummaryLines } from '@/components/OrderSummaryLines'
 import { AddressItem } from '@/components/addresses/AddressItem'
+import { getFulfillmentStatusLabel, resolvePublicPickupSettings } from '@/utilities/fulfillment'
 
 export const dynamic = 'force-dynamic'
 
@@ -85,6 +86,11 @@ export default async function Order({ params, searchParams }: PageProps) {
         createdAt: true,
         updatedAt: true,
         shippingAddress: true,
+        fulfillmentMethod: true,
+        pickupContact: true,
+        readyForPickup: true,
+        readyForPickupAt: true,
+        pickupInstructionsSnapshot: true,
       },
     })
 
@@ -113,6 +119,15 @@ export default async function Order({ params, searchParams }: PageProps) {
   if (!order) {
     notFound()
   }
+
+  const pickupSettings = resolvePublicPickupSettings(
+    await payload.findGlobal({
+      slug: 'fulfillmentSettings',
+      depth: 0,
+      overrideAccess: true,
+    }),
+  )
+  const pickupStatusLabel = getFulfillmentStatusLabel(order)
 
   return (
     <div className="">
@@ -160,7 +175,7 @@ export default async function Order({ params, searchParams }: PageProps) {
           {order.status && (
             <div className="grow max-w-1/3">
               <p className="font-mono uppercase text-primary/50 mb-1 text-sm">Status</p>
-              <OrderStatus className="text-sm" status={order.status} />
+              <OrderStatus className="text-sm" status={order.status} label={pickupStatusLabel} />
             </div>
           )}
         </div>
@@ -198,7 +213,30 @@ export default async function Order({ params, searchParams }: PageProps) {
 
         <OrderSummaryLines currencyCode={order.currency} summary={order.summary} />
 
-        {order.shippingAddress && (
+        {order.fulfillmentMethod === 'pickup' && (
+          <div>
+            <h2 className="font-mono text-primary/50 mb-4 uppercase text-sm">
+              {pickupSettings.pickupLabel}
+            </h2>
+            <p>
+              {[order.pickupContact?.firstName, order.pickupContact?.lastName]
+                .filter(Boolean)
+                .join(' ')}
+            </p>
+            {order.pickupContact?.phone && <p>{order.pickupContact.phone}</p>}
+
+            {order.readyForPickup && order.pickupInstructionsSnapshot && (
+              <div className="mt-6 rounded-md border bg-primary/5 p-4">
+                <p className="font-mono uppercase text-primary/50 mb-2 text-sm">
+                  Pickup instructions
+                </p>
+                <p className="whitespace-pre-wrap">{order.pickupInstructionsSnapshot}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {order.fulfillmentMethod !== 'pickup' && order.shippingAddress && (
           <div>
             <h2 className="font-mono text-primary/50 mb-4 uppercase text-sm">Shipping Address</h2>
 

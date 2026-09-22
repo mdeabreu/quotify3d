@@ -3,13 +3,21 @@ import { ActionEmail } from './components/action-email'
 type OrderCreatedEmailProps = {
   orderID: number
   orderURL: string
+  pickupLabel?: string
 }
 
-export default function OrderCreatedEmail({ orderID, orderURL }: OrderCreatedEmailProps) {
+export default function OrderCreatedEmail({
+  orderID,
+  orderURL,
+  pickupLabel,
+}: OrderCreatedEmailProps) {
   return (
     <ActionEmail
       body={[
         `Your order #${orderID} has been placed successfully.`,
+        ...(pickupLabel
+          ? [`This order is for ${pickupLabel.toLowerCase()}. We will email you when it is ready.`]
+          : []),
         'You can use the link below to come back and review your order details at any time.',
       ]}
       cta={{
@@ -27,4 +35,5 @@ export default function OrderCreatedEmail({ orderID, orderURL }: OrderCreatedEma
 OrderCreatedEmail.PreviewProps = {
   orderID: 456,
   orderURL: 'http://localhost:3000/orders/456',
+  pickupLabel: 'Local pickup',
 }

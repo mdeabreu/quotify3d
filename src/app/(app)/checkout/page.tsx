@@ -4,8 +4,13 @@ import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
 import React, { Fragment } from 'react'
 
 import { CheckoutPage } from '@/components/checkout/CheckoutPage'
+import { getCachedGlobal } from '@/utilities/getGlobals'
+import { resolvePublicPickupSettings } from '@/utilities/fulfillment'
 
-export default function Checkout() {
+export default async function Checkout() {
+  const settings = await getCachedGlobal('fulfillmentSettings', 0)()
+  const pickupSettings = resolvePublicPickupSettings(settings)
+
   return (
     <div className="container min-h-[90vh] flex">
       {!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
@@ -34,7 +39,7 @@ export default function Checkout() {
 
       <h1 className="sr-only">Checkout</h1>
 
-      <CheckoutPage />
+      <CheckoutPage pickupSettings={pickupSettings} />
     </div>
   )
 }

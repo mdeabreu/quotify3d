@@ -34,6 +34,7 @@ import { Spools } from '@/collections/Spools'
 import { Users } from '@/collections/Users'
 import { Vendors } from '@/collections/Vendors'
 import { Footer } from '@/globals/Footer'
+import { FulfillmentSettings } from '@/globals/FulfillmentSettings'
 import { Header } from '@/globals/Header'
 import { SiteSettings } from '@/globals/SiteSettings'
 import { buildSlicerContextTask } from '@/jobs/tasks/buildSlicerContextTask'
@@ -195,7 +196,7 @@ export default buildConfig({
   }),
   ...(emailAdapter ? { email: emailAdapter } : {}),
   endpoints: [],
-  globals: [Header, Footer, SiteSettings],
+  globals: [Header, Footer, SiteSettings, FulfillmentSettings],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
   jobs: {

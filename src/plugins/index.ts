@@ -13,8 +13,10 @@ import { isDocumentOwner } from '@/access/isDocumentOwner'
 import { publicAccess } from '@/access/publicAccess'
 import { sendOrderCreatedAdminEmail } from '@/collections/Orders/hooks/sendOrderCreatedAdminEmail'
 import { sendOrderCreatedEmail } from '@/collections/Orders/hooks/sendOrderCreatedEmail'
+import { sendOrderReadyForPickupEmail } from '@/collections/Orders/hooks/sendOrderReadyForPickupEmail'
 import { ProductsCollection } from '@/collections/Products'
 import { currenciesConfig } from '@/config/currencies'
+import { fulfillmentFields } from '@/fields/fulfillment'
 import { Page, Product, Transaction } from '@/payload-types'
 import {
   applyCouponDiscount,
@@ -24,6 +26,12 @@ import {
 } from '@/utilities/coupons'
 import { getServerSideURL } from '@/utilities/getURL'
 import { resolveBranding } from '@/utilities/branding'
+import {
+  prepareReadyForPickup,
+  snapshotCartFulfillment,
+  snapshotTransactionFulfillment,
+  validatePickupPayment,
+} from '@/utilities/fulfillment'
 import { stripeAdapter } from '@payloadcms/plugin-ecommerce/payments/stripe'
 
 export const generateTitle: GenerateTitle<Product | Page> = async ({ doc, req }) => {
@@ -137,6 +145,7 @@ export const plugins: Plugin[] = [
         },
         fields: [
           ...defaultCollection.fields,
+          ...fulfillmentFields(),
           {
             name: 'appliedCoupon',
             type: 'relationship',
@@ -185,14 +194,61 @@ export const plugins: Plugin[] = [
         ...defaultCollection,
         hooks: {
           ...defaultCollection.hooks,
+          beforeValidate: [
+            ...(defaultCollection.hooks?.beforeValidate || []),
+            snapshotTransactionFulfillment,
+          ],
+          beforeChange: [...(defaultCollection.hooks?.beforeChange || []), prepareReadyForPickup],
           afterChange: [
             ...(defaultCollection.hooks?.afterChange || []),
             sendOrderCreatedEmail,
             sendOrderCreatedAdminEmail,
+            sendOrderReadyForPickupEmail,
           ],
         },
         fields: [
           ...defaultCollection.fields,
+          ...fulfillmentFields({ includeLegacyShipping: true, readOnly: true }),
+          {
+            name: 'readyForPickup',
+            type: 'checkbox',
+            admin: {
+              condition: (data) => data?.fulfillmentMethod === 'pickup',
+              description:
+                'Checking this sends pickup instructions to the customer and cannot be undone.',
+              position: 'sidebar',
+            },
+            defaultValue: false,
+            label: 'Ready for pickup',
+          },
+          {
+            name: 'readyForPickupAt',
+            type: 'date',
+            admin: {
+              position: 'sidebar',
+              readOnly: true,
+            },
+            label: 'Ready for pickup at',
+          },
+          {
+            name: 'readyForPickupEmailSentAt',
+            type: 'date',
+            admin: {
+              description:
+                'If empty after the order is ready, saving the order retries the notification.',
+              position: 'sidebar',
+              readOnly: true,
+            },
+            label: 'Pickup-ready email sent at',
+          },
+          {
+            name: 'pickupInstructionsSnapshot',
+            type: 'textarea',
+            admin: {
+              readOnly: true,
+            },
+            label: 'Pickup instructions sent to customer',
+          },
           {
             name: 'accessToken',
             type: 'text',
@@ -219,7 +275,7 @@ export const plugins: Plugin[] = [
     payments: {
       hooks: {
         afterConfirmOrder: [recordCouponRedemption],
-        beforeInitiatePayment: [applyCouponDiscount],
+        beforeInitiatePayment: [validatePickupPayment, applyCouponDiscount],
       },
       paymentMethods: [
         stripeAdapter({
@@ -235,9 +291,14 @@ export const plugins: Plugin[] = [
     transactions: {
       transactionsCollectionOverride: ({ defaultCollection }) => ({
         ...defaultCollection,
+        fields: [
+          ...defaultCollection.fields,
+          ...fulfillmentFields({ includeLegacyShipping: true, readOnly: true }),
+        ],
         hooks: {
           ...defaultCollection.hooks,
           beforeValidate: [
+            snapshotCartFulfillment,
             regenerateTransactionItemIDs,
             ...(defaultCollection.hooks?.beforeValidate ?? []),
           ],

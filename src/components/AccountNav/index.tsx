@@ -36,7 +36,7 @@ export const AccountNav: React.FC<Props> = ({ className }) => {
                 'text-primary': pathname === '/account/addresses',
               })}
             >
-              Addresses
+              Billing addresses
             </Link>
           </Button>
         </li>

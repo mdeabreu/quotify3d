@@ -16,46 +16,48 @@ export const Providers: React.FC<{
   return (
     <BrandingProvider quoteProductPlaceholder={quoteProductPlaceholder}>
       <ThemeProvider>
-      <AuthProvider>
-        <HeaderThemeProvider>
-          <SonnerProvider />
-          <EcommerceProvider
-            enableVariants={true}
-            api={{
-              cartsFetchQuery: {
-                depth: 2,
-                populate: {
-                  products: {
-                    slug: true,
-                    title: true,
-                    gallery: true,
-                    inventory: true,
-                    quote: true,
+        <AuthProvider>
+          <HeaderThemeProvider>
+            <SonnerProvider />
+            <EcommerceProvider
+              enableVariants={true}
+              api={{
+                cartsFetchQuery: {
+                  depth: 2,
+                  populate: {
+                    products: {
+                      slug: true,
+                      title: true,
+                      gallery: true,
+                      inventory: true,
+                      quote: true,
+                    },
+                    variants: {
+                      title: true,
+                      inventory: true,
+                    },
                   },
-                  variants: {
-                    title: true,
-                    inventory: true,
+                  select: {
+                    appliedCoupon: true,
+                    couponCode: true,
+                    couponDiscountAmount: true,
+                    couponTotal: true,
+                    fulfillmentMethod: true,
+                    pickupContact: true,
                   },
                 },
-                select: {
-                  appliedCoupon: true,
-                  couponCode: true,
-                  couponDiscountAmount: true,
-                  couponTotal: true,
-                },
-              },
-            }}
-            currenciesConfig={currenciesConfig}
-            paymentMethods={[
-              stripeAdapterClient({
-                publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-              }),
-            ]}
-          >
-            {children}
-          </EcommerceProvider>
-        </HeaderThemeProvider>
-      </AuthProvider>
+              }}
+              currenciesConfig={currenciesConfig}
+              paymentMethods={[
+                stripeAdapterClient({
+                  publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
+                }),
+              ]}
+            >
+              {children}
+            </EcommerceProvider>
+          </HeaderThemeProvider>
+        </AuthProvider>
       </ThemeProvider>
     </BrandingProvider>
   )
