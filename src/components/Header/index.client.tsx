@@ -25,24 +25,24 @@ export function HeaderClient({ branding, header }: Props) {
   const pathname = usePathname()
 
   return (
-    <div className="relative z-20 border-b">
-      <nav className="container flex items-center justify-between pt-2 lg:items-end">
+    <div className="relative z-20 border-b border-border bg-background/95">
+      <nav className="container flex items-center justify-between py-2">
         <div className="block flex-none lg:hidden">
           <Suspense fallback={null}>
-            <MobileMenu menu={menu} />
+            <MobileMenu menu={menu} siteName={branding.siteName} />
           </Suspense>
         </div>
-        <div className="flex w-full items-end gap-6">
-          <div className="flex min-w-0 flex-1 items-end gap-6">
+        <div className="flex w-full items-center gap-6">
+          <div className="flex min-w-0 flex-1 items-center gap-6">
             <Link
               aria-label={branding.siteName}
-              className="flex w-full items-center justify-center pt-4 pb-4 lg:w-auto lg:shrink-0"
+              className="flex w-full items-center justify-center gap-2 py-2 text-foreground lg:w-auto lg:shrink-0"
               href="/"
             >
               {branding.logo ? (
                 <Media
                   htmlElement={null}
-                  imgClassName="h-8 w-auto object-contain"
+                  imgClassName="h-10 w-auto object-contain"
                   resource={branding.logo}
                   size="96px"
                 />
@@ -50,10 +50,13 @@ export function HeaderClient({ branding, header }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   alt={`${branding.siteName} logo`}
-                  className="h-8 w-8 object-contain"
+                  className="h-10 w-10 object-contain"
                   src="/images/quotify3d-site-logo.png"
                 />
               )}
+              <span className="hidden text-base font-semibold tracking-tight sm:inline">
+                {branding.siteName}
+              </span>
             </Link>
             {menu.length ? (
               <ul className="hidden items-center gap-4 whitespace-nowrap text-sm lg:flex">
