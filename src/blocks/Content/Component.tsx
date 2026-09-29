@@ -15,15 +15,15 @@ export const ContentBlock: React.FC<
   const { columns } = props
 
   const colsSpanClasses = {
-    full: '12',
-    half: '6',
-    oneThird: '4',
-    twoThirds: '8',
+    full: 'md:col-span-12',
+    half: 'md:col-span-6',
+    oneThird: 'md:col-span-4',
+    twoThirds: 'md:col-span-8',
   }
 
   return (
     <div className="container my-16">
-      <div className="grid grid-cols-4 lg:grid-cols-12 gap-y-8 gap-x-16">
+      <div className="grid grid-cols-12 gap-6">
         {columns &&
           columns.length > 0 &&
           columns.map((col, index) => {
@@ -31,8 +31,9 @@ export const ContentBlock: React.FC<
 
             return (
               <div
-                className={cn(`col-span-4 lg:col-span-${colsSpanClasses[size!]}`, {
-                  'md:col-span-2': size !== 'full',
+                className={cn(`col-span-12 ${colsSpanClasses[size!]}`, {
+                  'rounded-2xl border border-border bg-card/70 p-6 md:p-8': size !== 'full',
+                  'max-w-4xl': size === 'full',
                 })}
                 key={index}
               >
