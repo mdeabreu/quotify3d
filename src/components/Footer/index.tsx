@@ -18,13 +18,13 @@ export async function Footer() {
   const skeleton = 'w-full h-6 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700'
 
   return (
-    <footer className="text-sm text-neutral-500 dark:text-neutral-400">
+    <footer className="text-sm text-muted-foreground">
       <div className="container">
-        <div className="flex w-full flex-col gap-6 border-t border-neutral-200 py-12 text-sm md:flex-row md:gap-12 dark:border-neutral-700">
+        <div className="flex w-full flex-col gap-6 border-t border-border py-12 text-sm md:flex-row md:gap-12">
           <div>
             <Link
               aria-label={branding.siteName}
-              className="flex items-center gap-2 text-black md:pt-1 dark:text-white"
+              className="flex items-center gap-2 font-semibold text-foreground md:pt-1"
               href="/"
             >
               {branding.logo ? (
@@ -42,7 +42,7 @@ export async function Footer() {
                   src="/images/quotify3d-site-logo.png"
                 />
               )}
-              <span className="sr-only">{branding.siteName}</span>
+              <span>{branding.siteName}</span>
             </Link>
           </div>
           <Suspense fallback={<div className={`${skeleton} max-w-3xl flex-1`} />}>
@@ -53,7 +53,7 @@ export async function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-neutral-200 py-6 text-sm dark:border-neutral-700">
+      <div className="border-t border-border py-6 text-sm">
         <div className="container mx-auto flex w-full flex-col items-center gap-1 md:flex-row md:gap-0">
           <p>
             &copy; {copyrightDate} {branding.companyName}

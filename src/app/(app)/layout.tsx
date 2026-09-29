@@ -6,7 +6,7 @@ import { Header } from '@/components/Header'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Providers } from '@/providers'
 import { InitTheme } from '@/providers/Theme/InitTheme'
-import { DEFAULT_BRANDING } from '@/utilities/branding'
+import { DEFAULT_BRANDING, getFaviconURL, resolveBranding } from '@/utilities/branding'
 import { getCachedGlobal } from '@/utilities/getGlobals'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
@@ -44,8 +44,10 @@ const twitterSite = TWITTER_SITE ? ensureStartsWith(TWITTER_SITE, 'https://') : 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const { isEnabled: draft } = await draftMode()
   const siteSettings = await getCachedGlobal('siteSettings', 1)()
+  const faviconURL = getFaviconURL(resolveBranding(siteSettings).logo)
   const placeholder =
-    typeof siteSettings.quoteProductPlaceholder === 'object' && siteSettings.quoteProductPlaceholder?.url
+    typeof siteSettings.quoteProductPlaceholder === 'object' &&
+    siteSettings.quoteProductPlaceholder?.url
       ? siteSettings.quoteProductPlaceholder.url
       : DEFAULT_BRANDING.quoteProductPlaceholder
 
@@ -57,8 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <head>
         <InitTheme />
-        <link href="/favicon.ico" rel="icon" sizes="32x32" />
-        <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
+        <link href={faviconURL} rel="icon" />
       </head>
       <body>
         <Providers quoteProductPlaceholder={placeholder}>
