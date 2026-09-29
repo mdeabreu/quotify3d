@@ -46,6 +46,10 @@ export const getOpenGraphImageURL = (image: Media | null | undefined) => {
   return image?.sizes?.og?.url || image?.url || null
 }
 
+export const getFaviconURL = (image: Media | null | undefined) => {
+  return image?.sizes?.square?.url || image?.url || '/images/quotify3d-favicon.png'
+}
+
 export const resolveOpenGraphDefaults = (settings?: BrandingGlobal) => {
   const openGraph = settings?.defaultOpenGraph
   const image =
