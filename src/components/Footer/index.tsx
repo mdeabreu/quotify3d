@@ -61,7 +61,25 @@ export async function Footer() {
             rights reserved.
           </p>
           <hr className="mx-4 hidden h-4 w-px border-l border-neutral-400 md:inline-block" />
-          <p className="md:ml-auto">Made in Canada</p>
+          <p>Made in Canada</p>
+          <p className="flex flex-col text-center md:ml-auto md:text-right">
+            <a
+              className="text-black hover:underline dark:text-white"
+              href="https://github.com/mdeabreu/quotify3d"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Quotify3D
+            </a>
+            <a
+              className="text-black hover:underline dark:text-white"
+              href="https://payloadcms.com"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Made with PayloadCMS
+            </a>
+          </p>
         </div>
       </div>
     </footer>
