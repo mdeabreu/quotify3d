@@ -9,6 +9,9 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* pnpm-workspace.yaml* ./
+# Include the install configuration and every workspace manifest recorded in the lockfile.
+COPY .npmrc ./
+COPY packages/plugin-ecommerce/package.json ./packages/plugin-ecommerce/package.json
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
@@ -25,6 +28,8 @@ ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
 COPY --from=deps /app/node_modules ./node_modules
+# pnpm installs workspace-local dependencies alongside each package.
+COPY --from=deps /app/packages/plugin-ecommerce/node_modules ./packages/plugin-ecommerce/node_modules
 COPY . .
 RUN mkdir -p data
 
