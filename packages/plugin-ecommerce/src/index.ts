@@ -205,6 +205,7 @@ export const ecommercePlugin =
         enableVariants,
         hasHooks,
         productsSlug: collectionSlugMap.products,
+        transactionsSlug: collectionSlugMap.transactions,
         variantsSlug: collectionSlugMap.variants ?? 'variants',
       })
 
