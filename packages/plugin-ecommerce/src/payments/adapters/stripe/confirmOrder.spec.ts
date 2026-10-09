@@ -231,4 +231,46 @@ describe('confirmOrder', () => {
       msg: 'Error confirming order with Stripe',
     })
   })
+
+  it('should use the validated transaction items when oversized metadata is omitted', async () => {
+    const harness = createHarness()
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      createPaymentIntent({
+        metadata: { cartID: 'cart-123' },
+      }),
+    )
+
+    await runConfirmation({ harness })
+
+    expect(harness.find).toHaveBeenCalledWith(expect.objectContaining({ depth: 0 }))
+    expect(harness.finalizeOrder).toHaveBeenCalledWith({
+      orderData: expect.objectContaining({ items: createTransaction().items }),
+      transactionID: 'txn-123',
+    })
+  })
+
+  it('should still reject amount drift when the cart snapshot is omitted', async () => {
+    const harness = createHarness()
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      createPaymentIntent({
+        amount: 999,
+        metadata: { cartID: 'cart-123' },
+      }),
+    )
+
+    await expect(runConfirmation({ harness })).rejects.toThrow('amount')
+    expect(harness.finalizeOrder).not.toHaveBeenCalled()
+  })
+
+  it('should reject malformed metadata instead of falling back to transaction items', async () => {
+    const harness = createHarness()
+    mockPaymentIntentsRetrieve.mockResolvedValue(
+      createPaymentIntent({
+        metadata: { cartID: 'cart-123', cartItemsSnapshot: '{invalid' },
+      }),
+    )
+
+    await expect(runConfirmation({ harness })).rejects.toThrow('metadata')
+    expect(harness.finalizeOrder).not.toHaveBeenCalled()
+  })
 })

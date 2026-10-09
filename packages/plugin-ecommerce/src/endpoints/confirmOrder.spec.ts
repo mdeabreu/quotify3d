@@ -40,6 +40,9 @@ const createHarness = ({
     paymentIntentID: 'pi_123',
     secret: 'cart-secret',
   },
+  hasHooks = false,
+  paymentHooks,
+  adapterHooks,
   initialTransactionID,
   transaction = {
     amount: 1000,
@@ -54,6 +57,9 @@ const createHarness = ({
   adapter?: (args: ConfirmArgs) => Promise<Record<string, unknown>>
   cart?: Record<string, unknown>
   data?: Record<string, unknown>
+  hasHooks?: boolean
+  paymentHooks?: Parameters<typeof confirmOrderHandler>[0]['paymentHooks']
+  adapterHooks?: Parameters<typeof confirmOrderHandler>[0]['paymentMethod']['hooks']
   initialTransactionID?: Request['transactionID']
   transaction?: Record<string, unknown>
   user?: null | Record<string, unknown>
@@ -127,6 +133,11 @@ const createHarness = ({
         return state.cart
       }
 
+      if (collection === 'orders') {
+        state.order = { ...state.order, ...updateData, id }
+        return state.order
+      }
+
       state.transaction = { ...state.transaction, ...updateData, id }
 
       return state.transaction
@@ -185,8 +196,11 @@ const createHarness = ({
       defaultCurrency: 'USD',
       supportedCurrencies: [],
     },
+    hasHooks,
+    paymentHooks,
     paymentMethod: {
       confirmOrder,
+      hooks: adapterHooks,
     } as unknown as Parameters<typeof confirmOrderHandler>[0]['paymentMethod'],
   })
 
@@ -532,6 +546,129 @@ describe('confirmOrderHandler', () => {
 
     expect(response.status).toBe(200)
     expect(payloadUtilities.commitTransaction).not.toHaveBeenCalled()
+    expect(payloadUtilities.killTransaction).not.toHaveBeenCalled()
+  })
+
+  it('should preserve the payment summary on creation and confirmation retries', async () => {
+    const summary = {
+      currency: 'USD',
+      total: 900,
+      lines: [
+        { type: 'subtotal', label: 'Subtotal', amount: 1000 },
+        { type: 'discount', label: 'Coupon', amount: -100 },
+      ],
+    }
+    const harness = createHarness({ hasHooks: true })
+    harness.state.transaction.summary = summary
+
+    const first = await runHandler(harness)
+    harness.req.transactionID = undefined
+    const second = await runHandler(harness)
+
+    expect(first.body.summary).toEqual(summary)
+    expect(second.body).toEqual(first.body)
+    expect(harness.create).toHaveBeenCalledTimes(1)
+    expect(harness.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ summary }),
+        req: harness.req,
+      }),
+    )
+    expect(harness.state.order?.summary).toEqual(summary)
+    expect(harness.state.inventoryUpdates).toHaveLength(1)
+    expect(harness.update.mock.calls.some(([args]) => args.collection === 'orders')).toBe(false)
+  })
+
+  it('should execute plugin and adapter confirmation hooks in order after commit', async () => {
+    const calls: string[] = []
+    const harness = createHarness({
+      paymentHooks: {
+        beforeConfirmOrder: [
+          async () => {
+            calls.push('plugin-before')
+          },
+        ],
+        afterConfirmOrder: [
+          async () => {
+            calls.push('plugin-after')
+          },
+        ],
+      },
+      adapterHooks: {
+        beforeConfirmOrder: [
+          async () => {
+            calls.push('adapter-before')
+          },
+        ],
+        afterConfirmOrder: [
+          async () => {
+            calls.push('adapter-after')
+          },
+        ],
+      },
+    })
+    payloadUtilities.commitTransaction.mockImplementationOnce(async () => {
+      calls.push('commit')
+    })
+
+    const { response } = await runHandler(harness)
+
+    expect(response.status).toBe(200)
+    expect(calls).toEqual([
+      'plugin-before',
+      'adapter-before',
+      'commit',
+      'plugin-after',
+      'adapter-after',
+    ])
+  })
+
+  it('should reject failed before hooks before settling or decrementing inventory', async () => {
+    const after = vi.fn()
+    const harness = createHarness({
+      paymentHooks: {
+        beforeConfirmOrder: [
+          async () => {
+            throw new Error('Pickup unavailable')
+          },
+        ],
+        afterConfirmOrder: [after],
+      },
+    })
+
+    const { body, response } = await runHandler(harness)
+
+    expect(response.status).toBe(400)
+    expect(body.message).toBe('Pickup unavailable')
+    expect(harness.create).not.toHaveBeenCalled()
+    expect(harness.state.inventoryUpdates).toHaveLength(0)
+    expect(after).not.toHaveBeenCalled()
+  })
+
+  it('should retain the successful response when an after hook fails', async () => {
+    const after = vi.fn()
+    const harness = createHarness({
+      paymentHooks: {
+        afterConfirmOrder: [
+          async () => {
+            throw new Error('Notification failed')
+          },
+          after,
+        ],
+      },
+    })
+
+    const { response } = await runHandler(harness)
+
+    expect(response.status).toBe(200)
+    expect(harness.state.transaction.status).toBe('succeeded')
+    expect(after).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderID: 'order-123',
+        transactionID: 'txn-123',
+        req: harness.req,
+      }),
+    )
     expect(payloadUtilities.killTransaction).not.toHaveBeenCalled()
   })
 

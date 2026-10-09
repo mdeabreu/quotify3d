@@ -242,6 +242,45 @@ describe('validateSettlement', () => {
     ).not.toThrow()
   })
 
+  it('should accept regenerated array row IDs while validating purchase data', () => {
+    expect(() =>
+      validateSettlement(
+        createAuthenticatedValidation({
+          transaction: createTransaction({
+            items: [{ id: 'transaction-row', product: 'product-123', quantity: 1 }],
+          }),
+        }),
+      ),
+    ).not.toThrow()
+  })
+
+  it('should still reject nested custom ID drift', () => {
+    expect(() =>
+      validateSettlement(
+        createAuthenticatedValidation({
+          cartItemsSnapshot: [
+            {
+              id: 'cart-row',
+              product: 'product-123',
+              quantity: 1,
+              selection: { id: 'selection-1' },
+            },
+          ],
+          transaction: createTransaction({
+            items: [
+              {
+                id: 'transaction-row',
+                product: 'product-123',
+                quantity: 1,
+                selection: { id: 'selection-2' },
+              },
+            ],
+          }),
+        }),
+      ),
+    ).toThrow('items')
+  })
+
   it('should reject an item quantity mismatch', () => {
     expect(() =>
       validateSettlement(

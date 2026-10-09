@@ -45,6 +45,7 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
       - run: cp .env.example .env
+      - run: pnpm test:plugin
       - run: pnpm test:int
 
   test-e2e:

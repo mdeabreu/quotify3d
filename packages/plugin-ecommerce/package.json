@@ -80,7 +80,8 @@
     "clean": "rimraf -g {dist,*.tsbuildinfo}",
     "copyfiles": "copyfiles -u 1 \"src/**/*.{html,css,scss,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
     "@payloadcms/translations": "3.90.2",
