@@ -9,6 +9,7 @@ import * as migration_20260721_062716_nullable_quote_slot_colours from './202607
 import * as migration_20260728_054124_footer_nav_groups from './20260728_054124_footer_nav_groups'
 import * as migration_20260802_220501_optional_spool_name from './20260802_220501_optional_spool_name'
 import * as migration_20260922_055552_pickup_fulfillment from './20260922_055552_pickup_fulfillment'
+import * as migration_20261009_145057_payload_3_90_2 from './20261009_145057_payload_3_90_2'
 
 export const migrations = [
   {
@@ -65,5 +66,10 @@ export const migrations = [
     up: migration_20260922_055552_pickup_fulfillment.up,
     down: migration_20260922_055552_pickup_fulfillment.down,
     name: '20260922_055552_pickup_fulfillment',
+  },
+  {
+    up: migration_20261009_145057_payload_3_90_2.up,
+    down: migration_20261009_145057_payload_3_90_2.down,
+    name: '20261009_145057_payload_3_90_2',
   },
 ]

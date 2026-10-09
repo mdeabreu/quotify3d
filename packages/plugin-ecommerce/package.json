@@ -1,6 +1,6 @@
 {
   "name": "@payloadcms/plugin-ecommerce",
-  "version": "3.88.0",
+  "version": "3.90.2",
   "description": "Ecommerce plugin for Payload",
   "keywords": [
     "payload",
@@ -80,22 +80,23 @@
     "clean": "rimraf -g {dist,*.tsbuildinfo}",
     "copyfiles": "copyfiles -u 1 \"src/**/*.{html,css,scss,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
-    "@payloadcms/translations": "3.88.0",
-    "@payloadcms/ui": "3.88.0",
+    "@payloadcms/translations": "3.90.2",
+    "@payloadcms/ui": "3.90.2",
     "qs-esm": "8.0.1"
   },
   "devDependencies": {
-    "@payloadcms/next": "3.88.0",
+    "@payloadcms/next": "3.90.2",
     "@swc/cli": "^0.7.9",
     "@swc/core": "^1.13.5",
     "@types/json-schema": "7.0.15",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "copyfiles": "^2.4.1",
-    "payload": "3.88.0",
+    "payload": "3.90.2",
     "rimraf": "^6.0.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
@@ -103,7 +104,7 @@
     "typescript": "5.7.2"
   },
   "peerDependencies": {
-    "payload": "3.88.0",
+    "payload": "3.90.2",
     "react": "^19.0.1 || ^19.1.2 || ^19.2.1",
     "react-dom": "^19.0.1 || ^19.1.2 || ^19.2.1"
   },

@@ -10,6 +10,7 @@ import { useEcommerce } from '@payloadcms/plugin-ecommerce/client/react'
 import { useAuth } from '@/providers/Auth'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { getSafeRedirect } from 'payload/shared'
 import React, { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -21,7 +22,10 @@ type FormData = {
 export const LoginForm: React.FC = () => {
   const searchParams = useSearchParams()
   const allParams = searchParams.toString() ? `?${searchParams.toString()}` : ''
-  const redirectTo = searchParams.get('redirect')
+  const redirectTo = getSafeRedirect({
+    fallbackTo: '/account',
+    redirectTo: searchParams.get('redirect') ?? '',
+  })
   const { login } = useAuth()
   const { onLogin } = useEcommerce()
   const router = useRouter()
@@ -39,8 +43,7 @@ export const LoginForm: React.FC = () => {
         await login(data)
         await onLogin()
 
-        if (redirectTo) router.push(redirectTo)
-        else router.push('/account')
+        router.push(redirectTo)
 
         router.refresh()
       } catch (_) {
