@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { Price } from '@/components/Price'
 import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeftIcon } from 'lucide-react'
@@ -254,7 +254,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     description: `Order details for order ${id}.`,
-    openGraph: mergeOpenGraph({
+    openGraph: await getMergedOpenGraph({
       title: `Order ${id}`,
       url: `/orders/${id}`,
     }),

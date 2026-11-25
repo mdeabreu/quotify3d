@@ -1,7 +1,7 @@
 import type { Order } from '@/payload-types'
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 
 import { OrderItem } from '@/components/OrderItem'
 import { headers as getHeaders } from 'next/headers'
@@ -59,11 +59,13 @@ export default async function Orders() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Your orders.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Your orders.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Orders',
+      url: '/orders',
+    }),
     title: 'Orders',
-    url: '/orders',
-  }),
-  title: 'Orders',
+  }
 }

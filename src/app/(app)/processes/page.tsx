@@ -1,7 +1,9 @@
+import type { Metadata } from 'next'
+
 import { ProcessLibraryCard } from '@/components/library/LibraryCards'
 import { LibraryPage } from '@/components/library/LibraryPage'
 import { fetchProcessLibraryItems } from '@/lib/library'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 
 export default async function ProcessesPage() {
   const processes = await fetchProcessLibraryItems()
@@ -20,11 +22,13 @@ export default async function ProcessesPage() {
   )
 }
 
-export const metadata = {
-  description: 'Browse available 3D print profiles before requesting a quote.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Browse available 3D print profiles before requesting a quote.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Print profiles',
+      url: '/processes',
+    }),
     title: 'Print profiles',
-    url: '/processes',
-  }),
-  title: 'Print profiles',
+  }
 }

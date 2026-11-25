@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import React, { Fragment } from 'react'
 import { ConfirmOrder } from '@/components/checkout/ConfirmOrder'
 
@@ -22,11 +22,13 @@ export default async function ConfirmOrderPage({
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Confirm order.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Confirm order.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Confirming order',
+      url: '/checkout/confirm-order',
+    }),
     title: 'Confirming order',
-    url: '/checkout/confirm-order',
-  }),
-  title: 'Confirming order',
+  }
 }

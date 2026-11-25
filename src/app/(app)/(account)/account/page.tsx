@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { Button } from '@/components/ui/button'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import Link from 'next/link'
 import { headers as getHeaders } from 'next/headers.js'
 import configPromise from '@payload-config'
@@ -131,11 +131,13 @@ export default async function AccountPage() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Create an account or log in to your existing account.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Create an account or log in to your existing account.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Account',
+      url: '/account',
+    }),
     title: 'Account',
-    url: '/account',
-  }),
-  title: 'Account',
+  }
 }

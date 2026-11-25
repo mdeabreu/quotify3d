@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import React, { Fragment } from 'react'
 
 import { CheckoutPage } from '@/components/checkout/CheckoutPage'
@@ -44,11 +44,13 @@ export default async function Checkout() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Checkout.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Checkout.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Checkout',
+      url: '/checkout',
+    }),
     title: 'Checkout',
-    url: '/checkout',
-  }),
-  title: 'Checkout',
+  }
 }

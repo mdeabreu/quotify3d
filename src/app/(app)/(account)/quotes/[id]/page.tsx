@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { formatDateTime } from '@/utilities/formatDateTime'
 import { getVisibleAdminNotes } from '@/utilities/quotes/getVisibleAdminNotes'
 import { getQuoteEstimateDisplay } from '@/utilities/quotes/presentation'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import { findAccessibleQuote } from '@/lib/quotes/findAccessibleQuote'
 import {
   addQuoteModelsAction,
@@ -216,7 +216,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     description: `Quote details for quote ${id}.`,
-    openGraph: mergeOpenGraph({
+    openGraph: await getMergedOpenGraph({
       title: `Quote ${id}`,
       url: `/quotes/${id}`,
     }),
