@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { FindQuoteForm } from '@/components/forms/FindQuoteForm'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers.js'
 import { redirect } from 'next/navigation'
@@ -24,11 +24,13 @@ export default async function FindQuotePage() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Find your quote with us using your email.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Find your quote with us using your email.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Find quote',
+      url: '/find-quote',
+    }),
     title: 'Find quote',
-    url: '/find-quote',
-  }),
-  title: 'Find quote',
+  }
 }

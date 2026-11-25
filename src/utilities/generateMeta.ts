@@ -3,7 +3,6 @@ import type { Metadata } from 'next'
 import type { Page, Product } from '../payload-types'
 
 import { getOpenGraphImageURL, resolveBranding } from './branding'
-import { getServerSideURL } from './getURL'
 import { getCachedGlobal } from './getGlobals'
 import { getMergedOpenGraph } from './mergeOpenGraph'
 
@@ -14,10 +13,7 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
   const title = doc?.meta?.title || doc?.title || branding.siteName
 
   const ogImageURL =
-    typeof doc?.meta?.image === 'object' &&
-    doc.meta.image !== null &&
-    getOpenGraphImageURL(doc.meta.image)
-  const ogImage = ogImageURL ? `${getServerSideURL()}${ogImageURL}` : undefined
+    typeof doc?.meta?.image === 'object' ? getOpenGraphImageURL(doc.meta.image) : null
 
   return {
     description: doc?.meta?.description,
@@ -27,10 +23,10 @@ export const generateMeta = async (args: { doc: Page | Product }): Promise<Metad
             description: doc?.meta?.description,
           }
         : {}),
-      images: ogImage
+      images: ogImageURL
         ? [
             {
-              url: ogImage,
+              url: ogImageURL,
             },
           ]
         : undefined,

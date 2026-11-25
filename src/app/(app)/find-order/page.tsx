@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import React from 'react'
 import { FindOrderForm } from '@/components/forms/FindOrderForm'
 import { getPayload } from 'payload'
@@ -24,11 +24,13 @@ export default async function FindOrderPage() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Find your order using your email and order ID.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Find your order using your email and order ID.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Find order',
+      url: '/find-order',
+    }),
     title: 'Find order',
-    url: '/find-order',
-  }),
-  title: 'Find order',
+  }
 }

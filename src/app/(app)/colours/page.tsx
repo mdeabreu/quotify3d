@@ -1,7 +1,9 @@
+import type { Metadata } from 'next'
+
 import { ColourLibraryFilter } from '@/components/library/ColourLibraryFilter'
 import { LibraryPage } from '@/components/library/LibraryPage'
 import { fetchColourLibraryItems } from '@/lib/library'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import { Suspense } from 'react'
 
 export default async function ColoursPage() {
@@ -22,11 +24,13 @@ export default async function ColoursPage() {
   )
 }
 
-export const metadata = {
-  description: 'Browse 3D printing colours, finishes, and swatches before requesting a quote.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Browse 3D printing colours, finishes, and swatches before requesting a quote.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Colours',
+      url: '/colours',
+    }),
     title: 'Colours',
-    url: '/colours',
-  }),
-  title: 'Colours',
+  }
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import { headers as getHeaders } from 'next/headers.js'
 import configPromise from '@payload-config'
 import { Order } from '@/payload-types'
@@ -59,11 +59,13 @@ export default async function AddressesPage() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Manage your billing addresses.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Manage your billing addresses.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Billing addresses',
+      url: '/account/addresses',
+    }),
     title: 'Billing addresses',
-    url: '/account/addresses',
-  }),
-  title: 'Billing addresses',
+  }
 }

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { QuoteWizard, type StartQuoteState } from '@/components/QuoteWizard'
 import { isSupportedModelFilename, MODEL_UPLOAD_FORMAT_LABEL } from '@/lib/modelUploadFormats'
 import { cleanupUploadedModels, uploadQuoteModels } from '@/lib/quotes/modelUploads'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import configPromise from '@payload-config'
 import { headers as getHeaders } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -82,11 +82,13 @@ export default function NewQuotePage() {
   return <QuoteWizard startQuoteAction={startQuoteAction} />
 }
 
-export const metadata: Metadata = {
-  description: 'Start a guided quote request for your 3D print.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Start a guided quote request for your 3D print.',
+    openGraph: await getMergedOpenGraph({
+      title: 'New Quote',
+      url: '/quotes/new',
+    }),
     title: 'New Quote',
-    url: '/quotes/new',
-  }),
-  title: 'New Quote',
+  }
 }

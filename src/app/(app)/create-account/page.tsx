@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 
 import { RenderParams } from '@/components/RenderParams'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import React from 'react'
 import { headers as getHeaders } from 'next/headers'
 import configPromise from '@payload-config'
@@ -28,11 +28,13 @@ export default async function CreateAccount() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Create an account to save quote requests, track orders, and check out faster.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Create an account to save quote requests, track orders, and check out faster.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Create Account',
+      url: '/create-account',
+    }),
     title: 'Create Account',
-    url: '/create-account',
-  }),
-  title: 'Create Account',
+  }
 }

@@ -1,7 +1,7 @@
 import type { Quote } from '@/payload-types'
 import type { Metadata } from 'next'
 
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
+import { getMergedOpenGraph } from '@/utilities/mergeOpenGraph'
 import Link from 'next/link'
 
 import { QuoteItem } from '@/components/QuoteItem'
@@ -66,11 +66,13 @@ export default async function Quotes() {
   )
 }
 
-export const metadata: Metadata = {
-  description: 'Your quotes.',
-  openGraph: mergeOpenGraph({
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    description: 'Your quotes.',
+    openGraph: await getMergedOpenGraph({
+      title: 'Quotes',
+      url: '/quotes',
+    }),
     title: 'Quotes',
-    url: '/quotes',
-  }),
-  title: 'Quotes',
+  }
 }
